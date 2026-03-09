@@ -1,0 +1,122 @@
+# 通用忽略规则
+*.dylib
+*.out
+*.exe
+*.dll
+*.lib
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.suo
+*.user
+*.ncb
+*.sdf
+*.opensdf
+*.sln
+*.vcxproj*
+*.vcproj
+*.DS_Store
+*.swp
+*~
+*.bak
+*.tmp
+*.log
+*.pid
+*.seed
+*.pid.lock
+*.tar.gz
+
+# 构建目录
+/out/
+/bin/
+/lib/
+/x64/
+/x86/
+/Release/
+/Debug/
+/CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+Testing/
+
+# IDE 特定文件
+.vscode/
+.idea/
+*.code-workspace
+
+# 编译生成文件
+*.gcno
+*.gcda
+*.gcov
+
+# 文档生成
+/docs/html/
+/docs/latex/
+/docs/xml/
+
+# 测试覆盖率
+/coverage/
+*.gcov
+
+# 本地配置文件
+config/local_*.json
+*.local
+
+# 依赖目录 (如有)
+/deps/
+/third_party/
+
+# 临时文件
+*.swp
+*~
+.#*
+
+# 日志文件
+*.log
+logs/
+*.trace
+
+# 系统文件
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Python 虚拟环境 (如果有Python脚本)
+venv/
+ENV/
+
+# 包管理器文件
+package-lock.json
+yarn.lock
+
+# macOS 特定
+.DS_Store
+._*
+
+# Windows 特定
+Thumbs.db
+Desktop.ini
+
+# Linux 特定
+*~
+
+# 二进制文件 (如果有)
+*.bin
+*.hex
+*.o
+
+# 数据库文件 (如果有)
+*.db
+*.sqlite
+*.sqlite3
+
+# 备份文件
+*.bak
+*.backup
+
+
+*.bin
+*.exe
+*.gz
