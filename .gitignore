@@ -121,3 +121,8 @@ Desktop.ini
 *.bin
 *.exe
 *.gz
+
+# Simulation and test artifacts
+sim_build/
+__pycache__/
+*.pyc

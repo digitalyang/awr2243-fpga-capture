@@ -1,7 +1,0 @@
-<testsuites name="results">
-  <testsuite name="all" package="all">
-    <property name="random_seed" value="1773226285" />
-    <testcase name="smoke_basic" classname="ddr_ringbuffer_controller_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/ddr_ringbuffer_controller_cocotb.py" lineno="422" time="0.0048291683197021484" sim_time_ns="480.0" ratio_time="99395.99703776845" />
-    <testcase name="wraparound_basic" classname="ddr_ringbuffer_controller_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/ddr_ringbuffer_controller_cocotb.py" lineno="442" time="0.008096933364868164" sim_time_ns="550.0" ratio_time="67926.95150319484" />
-  </testsuite>
-</testsuites>
