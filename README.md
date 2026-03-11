@@ -2,6 +2,17 @@
 
 # 雷达采集系统详细架构设计说明书 v2
 
+## 构建与验证
+
+统一的本地构建与回归入口脚本：
+
+```sh
+tools/build_and_verify.sh
+```
+
+详细使用说明见：
+[BUILD_AND_VERIFY.md](BUILD_AND_VERIFY.md)
+
 # 1 系统设计目标
 
 构建基于 **AWR2243 + FPGA + DDR4 + PCIe XDMA** 的高速雷达数据采集系统，实现：
