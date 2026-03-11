@@ -18,6 +18,7 @@ module ddr_ringbuffer_controller_tb_top;
     localparam int unsigned COUNTER_W     = TB_COUNTER_W;
 
     logic clk;
+    string testname;
 
     axis_stream_if #(
         .DATA_W(AXIS_DATA_W),
@@ -154,7 +155,10 @@ module ddr_ringbuffer_controller_tb_top;
             COUNTER_W
         ))::set(null, "*", "ctrl_vif", ctrl_if);
 
-        run_test();
+        if (!$value$plusargs("UVM_TESTNAME=%s", testname)) begin
+            testname = "ddr_ring_smoke_test";
+        end
+        run_test(testname);
     end
 
 endmodule

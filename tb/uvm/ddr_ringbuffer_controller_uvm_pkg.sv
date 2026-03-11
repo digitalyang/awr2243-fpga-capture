@@ -36,6 +36,7 @@ package ddr_ringbuffer_controller_uvm_pkg;
         rand bit [TB_SLOT_SEQ_W-1:0] slot_seq;
         rand bit                     slot_valid_good;
         rand bit                     slot_overflow_err;
+        int unsigned                 reported_slot_bytes;
         rand byte unsigned           payload[$];
 
         constraint c_payload_size {
@@ -46,6 +47,7 @@ package ddr_ringbuffer_controller_uvm_pkg;
             `uvm_field_int(slot_seq, UVM_DEFAULT)
             `uvm_field_int(slot_valid_good, UVM_DEFAULT)
             `uvm_field_int(slot_overflow_err, UVM_DEFAULT)
+            `uvm_field_int(reported_slot_bytes, UVM_DEFAULT)
             `uvm_field_queue_int(payload, UVM_DEFAULT)
         `uvm_object_utils_end
 
@@ -53,6 +55,7 @@ package ddr_ringbuffer_controller_uvm_pkg;
             super.new(name);
             slot_valid_good   = 1'b1;
             slot_overflow_err = 1'b0;
+            reported_slot_bytes = 0;
         endfunction
 
         function int unsigned slot_bytes();
@@ -178,6 +181,7 @@ package ddr_ringbuffer_controller_uvm_pkg;
 
             forever begin
                 seq_item_port.get_next_item(req_item);
+                req_item.reported_slot_bytes = req_item.slot_bytes();
                 exp_ap.write(req_item.dup("exp_slot"));
                 drive_slot(req_item);
                 seq_item_port.item_done();
@@ -285,6 +289,8 @@ package ddr_ringbuffer_controller_uvm_pkg;
                             cfg.rd_vif.tuser[TB_RD_TUSER_SEQ_LSB +: TB_SLOT_SEQ_W];
                         slot_item.slot_valid_good   = cfg.rd_vif.tuser[TB_RD_TUSER_VALID_BIT];
                         slot_item.slot_overflow_err = cfg.rd_vif.tuser[TB_RD_TUSER_OVF_BIT];
+                        slot_item.reported_slot_bytes =
+                            cfg.rd_vif.tuser[TB_RD_TUSER_BYTES_LSB +: TB_SLOT_BYTES_W];
                     end
 
                     for (lane_idx = 0; lane_idx < TB_AXI_BEAT_BYTES; lane_idx++) begin
@@ -640,7 +646,7 @@ package ddr_ringbuffer_controller_uvm_pkg;
                 end
 
                 exp_item = exp_read_q.pop_front();
-                compare_slot_meta("read", exp_item, item.slot_seq, item.slot_bytes(), item.slot_valid_good, item.slot_overflow_err);
+                compare_slot_meta("read", exp_item, item.slot_seq, item.reported_slot_bytes, item.slot_valid_good, item.slot_overflow_err);
                 compare_payload("read_payload", exp_item.payload, item.payload);
             end
         endfunction
