@@ -1,0 +1,180 @@
+addrmap ddr_ringbuffer_controller_csr {
+    name = "DDR RingBuffer Controller CSR";
+    desc = "CSR specification for ring buffer configuration, status, commit metadata, and read-head descriptor visibility.";
+
+    reg {
+        name = "CTRL";
+        desc = "Main control bits.";
+        field { sw = rw; hw = rw; desc = "Controller enable."; }                enable           [0:0]   = 0x0;
+        field { sw = rw; hw = rw; desc = "Allow write-side overwrite of unread slots."; } allow_overwrite [1:1] = 0x0;
+        field { sw = rw; hw = rw; desc = "Drop invalid slots instead of storing them."; } drop_invalid_slot [2:2] = 0x1;
+        field { sw = rw; hw = rw; desc = "Drop slot immediately on no-space instead of stalling."; } drop_on_no_space [3:3] = 0x0;
+    } CTRL @ 0x000;
+
+    reg {
+        name = "STATUS";
+        desc = "Sticky/error and live status flags.";
+        field { sw = r; hw = w; } full               [0:0];
+        field { sw = r; hw = w; } almost_full        [1:1];
+        field { sw = r; hw = w; } empty              [2:2];
+        field { sw = r; hw = w; } rd_busy            [3:3];
+        field { sw = r; hw = w; } err_cfg_align      [8:8];
+        field { sw = r; hw = w; } err_no_space       [9:9];
+        field { sw = r; hw = w; } err_slot_proto     [10:10];
+        field { sw = r; hw = w; } err_slot_too_large [11:11];
+        field { sw = r; hw = w; } err_axi_wr_resp    [12:12];
+        field { sw = r; hw = w; } err_axi_rd_resp    [13:13];
+        field { sw = r; hw = w; } err_illegal_read   [14:14];
+    } STATUS @ 0x004;
+
+    reg {
+        name = "RING_BASE_LO";
+        desc = "Ring base address bits [31:0].";
+        field { sw = rw; hw = rw; } ring_base_lo [31:0] = 0x0;
+    } RING_BASE_LO @ 0x008;
+
+    reg {
+        name = "RING_BASE_HI";
+        desc = "Ring base address bits [63:32]. Only low implemented bits are used by RTL.";
+        field { sw = rw; hw = rw; } ring_base_hi [31:0] = 0x0;
+    } RING_BASE_HI @ 0x00C;
+
+    reg {
+        name = "RING_SIZE_BYTES";
+        desc = "Ring span in bytes. Must satisfy controller alignment rules.";
+        field { sw = rw; hw = rw; } ring_size_bytes [31:0] = 0x00010000;
+    } RING_SIZE_BYTES @ 0x010;
+
+    reg {
+        name = "READ_CMD";
+        desc = "Software-visible read control pulses for the current head descriptor.";
+        field { sw = w; hw = r; singlepulse = true; desc = "Issue AXI read for the current head descriptor."; } issue_head_read [0:0] = 0x0;
+        field { sw = w; hw = r; singlepulse = true; desc = "Consume and release the current head descriptor."; } consume_head [1:1] = 0x0;
+    } READ_CMD @ 0x014;
+
+    reg {
+        name = "USED_BYTES";
+        desc = "Reserved ring occupancy, including uncommitted aligned allocation.";
+        field { sw = r; hw = w; } used_bytes [31:0];
+    } USED_BYTES @ 0x020;
+
+    reg {
+        name = "FREE_BYTES";
+        desc = "Available aligned capacity.";
+        field { sw = r; hw = w; } free_bytes [31:0];
+    } FREE_BYTES @ 0x024;
+
+    reg {
+        name = "COMMITTED_BYTES";
+        desc = "Committed-but-not-consumed aligned occupancy.";
+        field { sw = r; hw = w; } committed_bytes [31:0];
+    } COMMITTED_BYTES @ 0x028;
+
+    reg {
+        name = "WR_PTR_LO";
+        desc = "Write pointer bits [31:0].";
+        field { sw = r; hw = w; } wr_ptr_lo [31:0];
+    } WR_PTR_LO @ 0x030;
+
+    reg {
+        name = "WR_PTR_HI";
+        desc = "Write pointer bits [63:32].";
+        field { sw = r; hw = w; } wr_ptr_hi [31:0];
+    } WR_PTR_HI @ 0x034;
+
+    reg {
+        name = "RD_PTR_LO";
+        desc = "Consume pointer bits [31:0].";
+        field { sw = r; hw = w; } rd_ptr_lo [31:0];
+    } RD_PTR_LO @ 0x038;
+
+    reg {
+        name = "RD_PTR_HI";
+        desc = "Consume pointer bits [63:32].";
+        field { sw = r; hw = w; } rd_ptr_hi [31:0];
+    } RD_PTR_HI @ 0x03C;
+
+    reg {
+        name = "COMMIT_PTR_LO";
+        desc = "Commit pointer bits [31:0].";
+        field { sw = r; hw = w; } commit_ptr_lo [31:0];
+    } COMMIT_PTR_LO @ 0x040;
+
+    reg {
+        name = "COMMIT_PTR_HI";
+        desc = "Commit pointer bits [63:32].";
+        field { sw = r; hw = w; } commit_ptr_hi [31:0];
+    } COMMIT_PTR_HI @ 0x044;
+
+    reg {
+        name = "WRAP_COUNT";
+        desc = "Number of write-pointer wraps.";
+        field { sw = r; hw = w; } wrap_count [31:0];
+    } WRAP_COUNT @ 0x048;
+
+    reg {
+        name = "OVERFLOW_COUNT";
+        desc = "Count of input slots carrying overflow indication.";
+        field { sw = r; hw = w; } overflow_count [31:0];
+    } OVERFLOW_COUNT @ 0x04C;
+
+    reg {
+        name = "DROP_COUNT";
+        desc = "Count of dropped slots, including overwrite eviction.";
+        field { sw = r; hw = w; } drop_count [31:0];
+    } DROP_COUNT @ 0x050;
+
+    reg {
+        name = "LAST_COMMIT_ADDR_LO";
+        desc = "Most recent committed slot address bits [31:0].";
+        field { sw = r; hw = w; } slot_addr_lo [31:0];
+    } LAST_COMMIT_ADDR_LO @ 0x060;
+
+    reg {
+        name = "LAST_COMMIT_ADDR_HI";
+        desc = "Most recent committed slot address bits [63:32].";
+        field { sw = r; hw = w; } slot_addr_hi [31:0];
+    } LAST_COMMIT_ADDR_HI @ 0x064;
+
+    reg {
+        name = "LAST_COMMIT_INFO";
+        desc = "Most recent committed slot summary.";
+        field { sw = r; hw = w; } slot_bytes    [23:0];
+        field { sw = r; hw = w; } valid_good    [24:24];
+        field { sw = r; hw = w; } overflow_err  [25:25];
+        field { sw = r; hw = w; } commit_valid  [31:31];
+    } LAST_COMMIT_INFO @ 0x068;
+
+    reg {
+        name = "LAST_COMMIT_SEQ";
+        desc = "Most recent committed slot sequence.";
+        field { sw = r; hw = w; } slot_seq [31:0];
+    } LAST_COMMIT_SEQ @ 0x06C;
+
+    reg {
+        name = "HEAD_DESC_ADDR_LO";
+        desc = "Oldest committed unread slot address bits [31:0].";
+        field { sw = r; hw = w; } slot_addr_lo [31:0];
+    } HEAD_DESC_ADDR_LO @ 0x080;
+
+    reg {
+        name = "HEAD_DESC_ADDR_HI";
+        desc = "Oldest committed unread slot address bits [63:32].";
+        field { sw = r; hw = w; } slot_addr_hi [31:0];
+    } HEAD_DESC_ADDR_HI @ 0x084;
+
+    reg {
+        name = "HEAD_DESC_INFO";
+        desc = "Oldest committed unread slot summary.";
+        field { sw = r; hw = w; } slot_bytes    [23:0];
+        field { sw = r; hw = w; } valid_good    [24:24];
+        field { sw = r; hw = w; } overflow_err  [25:25];
+        field { sw = r; hw = w; } desc_valid    [31:31];
+    } HEAD_DESC_INFO @ 0x088;
+
+    reg {
+        name = "HEAD_DESC_SEQ";
+        desc = "Oldest committed unread slot sequence.";
+        field { sw = r; hw = w; } slot_seq [31:0];
+    } HEAD_DESC_SEQ @ 0x08C;
+};
