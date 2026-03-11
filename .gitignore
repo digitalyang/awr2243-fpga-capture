@@ -86,6 +86,7 @@ Desktop.ini
 # Python 虚拟环境 (如果有Python脚本)
 venv/
 ENV/
+tools/rdl/.deps/
 
 # 包管理器文件
 package-lock.json

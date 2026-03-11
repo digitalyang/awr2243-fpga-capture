@@ -923,4 +923,64 @@ PCIe Gen3 x 8: 8GT/s x 128b/130b x 8lane = 63Gbps
 
 ---
 
+# 17 CSR 生成与接入
 
+当前仓库已经把 `rdl/ddr_ringbuffer_controller.rdl` 接成一套可重复生成的 CSR 流程：
+
+* `rtl/generated/ddr_ringbuffer_controller_csr_pkg.sv`
+* `rtl/generated/ddr_ringbuffer_controller_csr.sv`
+* `sw/include/generated/ddr_ringbuffer_controller_csr.h`
+* `tb/uvm/ral/ddr_ringbuffer_controller_csr_ral_pkg.sv`
+
+## 17.1 重新生成
+
+首次安装本地依赖：
+
+```bash
+./tools/rdl/install_peakrdl_deps.sh
+```
+
+重新生成所有 CSR 产物：
+
+```bash
+./tools/rdl/generate_ddr_ringbuffer_controller_csr.sh
+```
+
+本地依赖默认安装到 `tools/rdl/.deps/`，不会污染系统 Python 环境。
+
+## 17.2 RTL 侧使用
+
+新增了 [ddr_ringbuffer_controller_axil.sv](/Users/hb39209/Desktop/awr2243-fpga-capture/rtl/core/ddr_ringbuffer_controller_axil.sv) 作为包装层：
+
+* 外部暴露 `AXI4-Lite slave` CSR 口
+* 内部实例化 `PeakRDL` 生成的 CSR regblock
+* 将 `CTRL/RING_BASE/RING_SIZE/READ_CMD` 映射到 `ddr_ringbuffer_controller`
+* 将状态、指针、计数、最近提交槽信息、头描述符信息回填到 CSR 只读寄存器
+
+当前这版 RDL 的软件可见位宽约束是：
+
+* 地址字段最大 `64bit`
+* ring size / occupancy / counter 最大 `32bit`
+* slot byte count 最大 `24bit`
+
+如果后续 RTL 参数改得更大，需要同步更新 `rdl/ddr_ringbuffer_controller.rdl`，否则 wrapper 里的静态检查会报错。
+
+可直接使用文件列表 [ddr_ringbuffer_controller_axil.f](/Users/hb39209/Desktop/awr2243-fpga-capture/rtl/ddr_ringbuffer_controller_axil.f) 编译这套带 CSR 的版本。
+
+## 17.3 Host 软件侧使用
+
+生成的 C 头文件在 [ddr_ringbuffer_controller_csr.h](/Users/hb39209/Desktop/awr2243-fpga-capture/sw/include/generated/ddr_ringbuffer_controller_csr.h)。
+示例代码见 [ddr_ringbuffer_controller_csr_example.c](/Users/hb39209/Desktop/awr2243-fpga-capture/sw/examples/ddr_ringbuffer_controller_csr_example.c)。
+
+典型用法是把 `BAR0 + CSR offset` 转成寄存器结构体指针：
+
+```c
+volatile ddr_ringbuffer_controller_csr_t *csr =
+    (volatile ddr_ringbuffer_controller_csr_t *)((volatile uint8_t *)bar0 + csr_offset);
+```
+
+之后可直接：
+
+* 写 `CTRL/RING_BASE_LO/RING_BASE_HI/RING_SIZE_BYTES` 完成初始化
+* 写 `READ_CMD` 触发 `issue_head_read` 或 `consume_head`
+* 读 `STATUS/USED_BYTES/FREE_BYTES/HEAD_DESC_*` 轮询当前状态

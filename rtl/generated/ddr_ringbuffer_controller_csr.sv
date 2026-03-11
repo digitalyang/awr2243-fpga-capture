@@ -3,7 +3,7 @@
 
 module ddr_ringbuffer_controller_csr (
         input wire clk,
-        input wire rst_n,
+        input wire arst_n,
 
         output logic s_axil_awready,
         input wire s_axil_awvalid,
@@ -62,8 +62,8 @@ module ddr_ringbuffer_controller_csr (
     logic axil_resp_acked;
 
     // Transaction request acceptance
-    always_ff @(posedge clk) begin
-        if(~rst_n) begin
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
             axil_prev_was_rd <= '0;
             axil_arvalid <= '0;
             axil_araddr <= '0;
@@ -159,8 +159,8 @@ module ddr_ringbuffer_controller_csr (
     logic [1:0] axil_resp_wptr;
     logic [1:0] axil_resp_rptr;
 
-    always_ff @(posedge clk) begin
-        if(~rst_n) begin
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
             for(int i=0; i<2; i++) begin
                 axil_resp_buffer[i].is_wr <= '0;
                 axil_resp_buffer[i].err <= '0;
@@ -411,8 +411,8 @@ module ddr_ringbuffer_controller_csr (
         field_combo.CTRL.enable.next = next_c;
         field_combo.CTRL.enable.load_next = load_next_c;
     end
-    always_ff @(posedge clk) begin
-        if(~rst_n) begin
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
             field_storage.CTRL.enable.value <= 1'h0;
         end else begin
             if(field_combo.CTRL.enable.load_next) begin
@@ -437,8 +437,8 @@ module ddr_ringbuffer_controller_csr (
         field_combo.CTRL.allow_overwrite.next = next_c;
         field_combo.CTRL.allow_overwrite.load_next = load_next_c;
     end
-    always_ff @(posedge clk) begin
-        if(~rst_n) begin
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
             field_storage.CTRL.allow_overwrite.value <= 1'h0;
         end else begin
             if(field_combo.CTRL.allow_overwrite.load_next) begin
@@ -463,8 +463,8 @@ module ddr_ringbuffer_controller_csr (
         field_combo.CTRL.drop_invalid_slot.next = next_c;
         field_combo.CTRL.drop_invalid_slot.load_next = load_next_c;
     end
-    always_ff @(posedge clk) begin
-        if(~rst_n) begin
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
             field_storage.CTRL.drop_invalid_slot.value <= 1'h1;
         end else begin
             if(field_combo.CTRL.drop_invalid_slot.load_next) begin
@@ -489,8 +489,8 @@ module ddr_ringbuffer_controller_csr (
         field_combo.CTRL.drop_on_no_space.next = next_c;
         field_combo.CTRL.drop_on_no_space.load_next = load_next_c;
     end
-    always_ff @(posedge clk) begin
-        if(~rst_n) begin
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
             field_storage.CTRL.drop_on_no_space.value <= 1'h0;
         end else begin
             if(field_combo.CTRL.drop_on_no_space.load_next) begin
@@ -515,8 +515,8 @@ module ddr_ringbuffer_controller_csr (
         field_combo.RING_BASE_LO.ring_base_lo.next = next_c;
         field_combo.RING_BASE_LO.ring_base_lo.load_next = load_next_c;
     end
-    always_ff @(posedge clk) begin
-        if(~rst_n) begin
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
             field_storage.RING_BASE_LO.ring_base_lo.value <= 32'h0;
         end else begin
             if(field_combo.RING_BASE_LO.ring_base_lo.load_next) begin
@@ -541,8 +541,8 @@ module ddr_ringbuffer_controller_csr (
         field_combo.RING_BASE_HI.ring_base_hi.next = next_c;
         field_combo.RING_BASE_HI.ring_base_hi.load_next = load_next_c;
     end
-    always_ff @(posedge clk) begin
-        if(~rst_n) begin
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
             field_storage.RING_BASE_HI.ring_base_hi.value <= 32'h0;
         end else begin
             if(field_combo.RING_BASE_HI.ring_base_hi.load_next) begin
@@ -567,8 +567,8 @@ module ddr_ringbuffer_controller_csr (
         field_combo.RING_SIZE_BYTES.ring_size_bytes.next = next_c;
         field_combo.RING_SIZE_BYTES.ring_size_bytes.load_next = load_next_c;
     end
-    always_ff @(posedge clk) begin
-        if(~rst_n) begin
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
             field_storage.RING_SIZE_BYTES.ring_size_bytes.value <= 32'h10000;
         end else begin
             if(field_combo.RING_SIZE_BYTES.ring_size_bytes.load_next) begin
@@ -593,8 +593,8 @@ module ddr_ringbuffer_controller_csr (
         field_combo.READ_CMD.issue_head_read.next = next_c;
         field_combo.READ_CMD.issue_head_read.load_next = load_next_c;
     end
-    always_ff @(posedge clk) begin
-        if(~rst_n) begin
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
             field_storage.READ_CMD.issue_head_read.value <= 1'h0;
         end else begin
             if(field_combo.READ_CMD.issue_head_read.load_next) begin
@@ -619,8 +619,8 @@ module ddr_ringbuffer_controller_csr (
         field_combo.READ_CMD.consume_head.next = next_c;
         field_combo.READ_CMD.consume_head.load_next = load_next_c;
     end
-    always_ff @(posedge clk) begin
-        if(~rst_n) begin
+    always_ff @(posedge clk or negedge arst_n) begin
+        if(~arst_n) begin
             field_storage.READ_CMD.consume_head.value <= 1'h0;
         end else begin
             if(field_combo.READ_CMD.consume_head.load_next) begin

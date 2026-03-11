@@ -1,6 +1,8 @@
 `include "slot_packer_macros.svh"
 
 module fixed_slot_packer #(
+    parameter int unsigned AXIS_DATA_W       = `SLOT_PKR_AXIS_DATA_W_DFLT,
+    parameter int unsigned AXIS_USER_W       = `SLOT_PKR_AXIS_USER_W_DFLT,
     parameter int unsigned PKT_SEQ_W         = `SLOT_PKR_PKT_SEQ_W_DFLT,
     parameter int unsigned PKT_BYTE_CNT_W    = `SLOT_PKR_PKT_BYTE_CNT_W_DFLT,
     parameter int unsigned SAMPLE_SLOT_NUM   = `SLOT_PKR_SAMPLE_SLOT_NUM_DFLT,
@@ -53,9 +55,7 @@ module fixed_slot_packer #(
     // ================================================================
     //  Localparam derivations
     // ================================================================
-    localparam int unsigned AXIS_DATA_W     = $bits(s_axis.tdata);
     localparam int unsigned AXIS_KEEP_W     = AXIS_DATA_W / 8;
-    localparam int unsigned AXIS_USER_W     = $bits(s_axis.tuser);
     localparam int unsigned AXIS_BEAT_BYTES = AXIS_DATA_W / 8;
     localparam int unsigned BEAT_BYTE_CNT_W = clog2_safe(AXIS_BEAT_BYTES + 1);
 

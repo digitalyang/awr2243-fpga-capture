@@ -9,29 +9,27 @@ from cocotb_tools.runner import get_runner
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TB_DIR = Path(__file__).resolve().parent
-BUILD_ROOT = REPO_ROOT / "sim_build" / "fixed_slot_packer_cocotb"
-TOPLEVEL = "fixed_slot_packer_cocotb_top"
-TEST_MODULE = "fixed_slot_packer_cocotb"
+BUILD_ROOT = REPO_ROOT / "sim_build" / "csi_packet_extractor_cocotb"
+TOPLEVEL = "csi_packet_extractor_cocotb_top"
+TEST_MODULE = "csi_packet_extractor_cocotb"
 
 ALL_TESTS = [
-    "test_smoke",
-    "test_short_pkt",
-    "test_single_beat",
-    "test_full_slot",
-    "test_overflow",
-    "test_mark_invalid",
-    "test_drop_invalid",
-    "test_multi_pkt",
+    "test_smoke_match",
+    "test_single_beat_match",
+    "test_mixed_filter",
+    "test_error_latch",
+    "test_truncation_detection",
     "test_backpressure",
+    "test_disable_vc_filter",
 ]
 
 
-def build_sources():
+def build_sources() -> list[Path]:
     return [
-        REPO_ROOT / "rtl/pkg/slot_packer_pkg.sv",
+        REPO_ROOT / "rtl/pkg/csi_packet_pkg.sv",
         REPO_ROOT / "rtl/if/axis_stream_if.sv",
-        REPO_ROOT / "rtl/core/fixed_slot_packer.sv",
-        TB_DIR / "fixed_slot_packer_cocotb_top.sv",
+        REPO_ROOT / "rtl/core/csi_packet_extractor.sv",
+        TB_DIR / "csi_packet_extractor_cocotb_top.sv",
     ]
 
 
@@ -74,7 +72,7 @@ def run_regression(testcases: list[str], waves: bool, clean: bool) -> None:
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run Verilator+cocotb regression for fixed_slot_packer"
+        description="Run Verilator+cocotb regression for csi_packet_extractor"
     )
     parser.add_argument(
         "--testcase",

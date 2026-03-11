@@ -52,6 +52,8 @@ module csi_packet_extractor_tb_top;
     end
 
     csi_packet_extractor #(
+        .AXIS_DATA_W(AXIS_DATA_W),
+        .AXIS_USER_W(AXIS_USER_W),
         .VC_W(VC_W),
         .DT_W(DT_W),
         .PAYLOAD_LEN_W(CSI_WORD_COUNT_W),

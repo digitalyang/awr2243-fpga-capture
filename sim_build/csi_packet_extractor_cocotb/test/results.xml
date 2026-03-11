@@ -1,0 +1,12 @@
+<testsuites name="results">
+  <testsuite name="all" package="all">
+    <property name="random_seed" value="1773225207" />
+    <testcase name="test_smoke_match" classname="csi_packet_extractor_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/csi_packet_extractor_cocotb.py" lineno="308" time="0.0012819766998291016" sim_time_ns="150.0" ratio_time="117006.8067695741" />
+    <testcase name="test_single_beat_match" classname="csi_packet_extractor_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/csi_packet_extractor_cocotb.py" lineno="322" time="0.0006861686706542969" sim_time_ns="139.99999999999997" ratio_time="204031.46629603888" />
+    <testcase name="test_mixed_filter" classname="csi_packet_extractor_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/csi_packet_extractor_cocotb.py" lineno="336" time="0.008938074111938477" sim_time_ns="6210.0" ratio_time="694780.5446931099" />
+    <testcase name="test_error_latch" classname="csi_packet_extractor_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/csi_packet_extractor_cocotb.py" lineno="354" time="0.0006878376007080078" sim_time_ns="170.0" ratio_time="247151.3622183709" />
+    <testcase name="test_truncation_detection" classname="csi_packet_extractor_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/csi_packet_extractor_cocotb.py" lineno="370" time="0.0007159709930419922" sim_time_ns="180.0" ratio_time="251406.83316683318" />
+    <testcase name="test_backpressure" classname="csi_packet_extractor_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/csi_packet_extractor_cocotb.py" lineno="393" time="0.0012667179107666016" sim_time_ns="330.0" ratio_time="260515.77639751552" />
+    <testcase name="test_disable_vc_filter" classname="csi_packet_extractor_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/csi_packet_extractor_cocotb.py" lineno="412" time="0.004241943359375" sim_time_ns="3139.999999999999" ratio_time="740226.7625899279" />
+  </testsuite>
+</testsuites>

@@ -73,6 +73,8 @@ module fixed_slot_packer_cocotb_top #(
     assign m_axis_if.tready  = m_axis_tready;
 
     fixed_slot_packer #(
+        .AXIS_DATA_W(AXIS_DATA_W),
+        .AXIS_USER_W(AXIS_USER_W),
         .PKT_SEQ_W(PKT_SEQ_W),
         .PKT_BYTE_CNT_W(PKT_BYTE_CNT_W),
         .SAMPLE_SLOT_NUM(SAMPLE_SLOT_NUM),

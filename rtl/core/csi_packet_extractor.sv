@@ -1,6 +1,8 @@
 `include "csi_packet_extractor_macros.svh"
 
 module csi_packet_extractor #(
+    parameter int unsigned AXIS_DATA_W          = `CSI_AXIS_DATA_W_DFLT,
+    parameter int unsigned AXIS_USER_W          = `CSI_AXIS_USER_W_DFLT,
     parameter int unsigned VC_W                 = csi_packet_pkg::CSI_VC_W,
     parameter int unsigned DT_W                 = csi_packet_pkg::CSI_DT_W,
     parameter int unsigned PAYLOAD_LEN_W        = csi_packet_pkg::CSI_WORD_COUNT_W,
@@ -36,9 +38,7 @@ module csi_packet_extractor #(
 
     import csi_packet_pkg::*;
 
-    localparam int unsigned AXIS_DATA_W      = $bits(s_axis.tdata);
     localparam int unsigned AXIS_KEEP_W      = AXIS_DATA_W / 8;
-    localparam int unsigned AXIS_USER_W      = $bits(s_axis.tuser);
     localparam int unsigned AXIS_BEAT_BYTES  = AXIS_DATA_W / 8;
     localparam int unsigned BEAT_BYTE_CNT_W  = clog2_safe(AXIS_BEAT_BYTES + 1);
     localparam int unsigned FIFO_AW          = clog2_safe(FIFO_DEPTH);

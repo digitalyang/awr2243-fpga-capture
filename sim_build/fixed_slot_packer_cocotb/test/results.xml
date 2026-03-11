@@ -1,0 +1,32 @@
+<testsuites name="results">
+  <testsuite name="all" package="all">
+    <property name="random_seed" value="1773224964" />
+    <testcase name="test_smoke" classname="fixed_slot_packer_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/fixed_slot_packer_cocotb.py" lineno="344" time="0.0052678585052490234" sim_time_ns="1450.0" ratio_time="275254.1661009278">
+      <failure error_type="AssertionError" error_msg="slot_start not asserted on first beat&#10;assert False&#10; +  where False = SlotCapture(data=b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x0...slot_seq=0, sb_slot_bytes=4288, sb_slot_valid_good=1, sb_slot_overflow_err=0, saw_slot_start=False, saw_slot_done=True).saw_slot_start" />
+    </testcase>
+    <testcase name="test_short_pkt" classname="fixed_slot_packer_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/fixed_slot_packer_cocotb.py" lineno="352" time="0" sim_time_ns="0" ratio_time="0">
+      <skipped />
+    </testcase>
+    <testcase name="test_single_beat" classname="fixed_slot_packer_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/fixed_slot_packer_cocotb.py" lineno="360" time="0" sim_time_ns="0" ratio_time="0">
+      <skipped />
+    </testcase>
+    <testcase name="test_full_slot" classname="fixed_slot_packer_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/fixed_slot_packer_cocotb.py" lineno="368" time="0" sim_time_ns="0" ratio_time="0">
+      <skipped />
+    </testcase>
+    <testcase name="test_overflow" classname="fixed_slot_packer_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/fixed_slot_packer_cocotb.py" lineno="376" time="0" sim_time_ns="0" ratio_time="0">
+      <skipped />
+    </testcase>
+    <testcase name="test_mark_invalid" classname="fixed_slot_packer_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/fixed_slot_packer_cocotb.py" lineno="384" time="0" sim_time_ns="0" ratio_time="0">
+      <skipped />
+    </testcase>
+    <testcase name="test_drop_invalid" classname="fixed_slot_packer_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/fixed_slot_packer_cocotb.py" lineno="401" time="0" sim_time_ns="0" ratio_time="0">
+      <skipped />
+    </testcase>
+    <testcase name="test_multi_pkt" classname="fixed_slot_packer_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/fixed_slot_packer_cocotb.py" lineno="420" time="0" sim_time_ns="0" ratio_time="0">
+      <skipped />
+    </testcase>
+    <testcase name="test_backpressure" classname="fixed_slot_packer_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/fixed_slot_packer_cocotb.py" lineno="432" time="0" sim_time_ns="0" ratio_time="0">
+      <skipped />
+    </testcase>
+  </testsuite>
+</testsuites>
