@@ -88,7 +88,7 @@ class SlotCapture:
 #  Reset
 # ────────────────────────────────────────────────────────────────
 async def apply_reset(dut) -> None:
-    cocotb.start_soon(Clock(dut.clk_i, 10, units="ns").start())
+    cocotb.start_soon(Clock(dut.clk_i, 10, unit="ns").start())
 
     dut.rst_ni.value = 0
     dut.cfg_drop_invalid_pkt_i.value = 0
@@ -173,7 +173,6 @@ async def drive_packet(
     dut.pkt_ecc_err_i.value = 0
     dut.pkt_trunc_err_i.value = 0
     dut.pkt_valid_good_i.value = 0
-    await RisingEdge(dut.clk_i)
 
 
 # ────────────────────────────────────────────────────────────────
@@ -331,8 +330,9 @@ async def run_and_verify(
     pkt_trunc_err: int = 0,
     timeout: int = 2000,
 ) -> SlotCapture:
+    slot_task = cocotb.start_soon(collect_slot(dut, timeout_cycles=timeout))
     await drive_packet(dut, payload, pkt_seq, pkt_crc_err, pkt_ecc_err, pkt_trunc_err)
-    cap = await collect_slot(dut, timeout_cycles=timeout)
+    cap = await slot_task
     verify_slot(cap, payload, pkt_seq, pkt_crc_err, pkt_ecc_err, pkt_trunc_err)
     return cap
 
