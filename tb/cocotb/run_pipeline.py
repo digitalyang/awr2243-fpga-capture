@@ -74,6 +74,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
             "pipeline_smoke_basic",
             "pipeline_invalid_slot_roundtrip",
             "pipeline_controller_drops_invalid",
+            "pipeline_awr_frame_roundtrip",
+            "pipeline_awr_frame_crc_error",
         ],
         help="Specific cocotb testcase to run. Defaults to the full pipeline regression.",
     )
@@ -88,6 +90,8 @@ def main(argv: list[str]) -> int:
         "pipeline_smoke_basic",
         "pipeline_invalid_slot_roundtrip",
         "pipeline_controller_drops_invalid",
+        "pipeline_awr_frame_roundtrip",
+        "pipeline_awr_frame_crc_error",
     ]
     run_regression(testcases=testcases, waves=args.waves, clean=not args.no_clean)
     return 0

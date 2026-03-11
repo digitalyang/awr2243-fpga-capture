@@ -60,11 +60,13 @@
 ~/.venvs/awr2243-cocotb-py39/bin/python tb/cocotb/run_pipeline.py
 ```
 
-默认会跑 3 个 testcase：
+默认会跑 5 个 testcase：
 
 - `pipeline_smoke_basic`
 - `pipeline_invalid_slot_roundtrip`
 - `pipeline_controller_drops_invalid`
+- `pipeline_awr_frame_roundtrip`
+- `pipeline_awr_frame_crc_error`
 
 这个回归覆盖：
 
@@ -73,3 +75,5 @@
 - slot 写入 DDR ringbuffer 并读回
 - invalid packet 侧带错误在整条链路上的传递
 - controller 按配置丢弃 invalid slot
+- 基于 AWR2243 风格 `FS/LS/Long/LE/FE` 原始 CSI-2 packet 序列的链路验证
+- raw long packet 的 header ECC / payload CRC 错误映射到 extractor sideband

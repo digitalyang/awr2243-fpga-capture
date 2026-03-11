@@ -120,6 +120,53 @@ def build_tuser(
     return user
 
 
+def parse_raw_csi2_packet(packet: bytes) -> RawCsi2Packet:
+    if len(packet) < 4:
+        raise ValueError(f"CSI-2 packet too short: {len(packet)} bytes")
+
+    data_id = packet[0]
+    dt = data_id & ((1 << DT_W) - 1)
+    vc = (data_id >> 6) & ((1 << VC_W) - 1)
+    header_ecc = packet[3]
+    header_ecc_ok = header_ecc == csi2_packet_ecc(packet[:3])
+
+    if len(packet) == 4:
+        return RawCsi2Packet(
+            raw=packet,
+            vc=vc,
+            dt=dt,
+            is_long=False,
+            short_data=packet[1] | (packet[2] << 8),
+            header_ecc=header_ecc,
+            header_ecc_ok=header_ecc_ok,
+        )
+
+    word_count = packet[1] | (packet[2] << 8)
+    payload_end = min(len(packet), 4 + word_count)
+    payload = packet[4:payload_end]
+    trunc_err = int(len(packet) != (4 + word_count + 2))
+
+    crc16 = 0
+    crc_ok = False
+    if len(packet) >= (4 + word_count + 2):
+        crc16 = int.from_bytes(packet[4 + word_count : 4 + word_count + 2], byteorder="little", signed=False)
+        crc_ok = (len(payload) == word_count) and (crc16 == csi2_packet_crc16(payload))
+
+    return RawCsi2Packet(
+        raw=packet,
+        vc=vc,
+        dt=dt,
+        is_long=True,
+        word_count=word_count,
+        payload=payload,
+        header_ecc=header_ecc,
+        header_ecc_ok=header_ecc_ok,
+        crc16=crc16,
+        crc_ok=crc_ok,
+        trunc_err=trunc_err,
+    )
+
+
 def gen_payload(length: int, seed: int = 0) -> bytes:
     return bytes(((seed + idx * 17 + length) & 0xFF) for idx in range(length))
 
@@ -400,6 +447,34 @@ async def drive_packet(dut, pkt: PacketSpec) -> None:
     await RisingEdge(dut.clk_i)
 
 
+async def drive_raw_csi2_packet(dut, raw_packet: bytes) -> RawCsi2Packet:
+    """Bridge raw CSI-2 packet bytes into the extractor AXIS interface.
+
+    The DUT chain starts after the CSI-2 byte/lane parser, so short packets are
+    timed in the testbench while long packets are translated into payload+tuser.
+    """
+
+    info = parse_raw_csi2_packet(raw_packet)
+
+    if not info.is_long:
+        await RisingEdge(dut.clk_i)
+        return info
+
+    await drive_packet(
+        dut,
+        PacketSpec(
+            vc=info.vc,
+            dt=info.dt,
+            payload=info.payload,
+            declared_payload_len=info.word_count,
+            crc_err_last=int(not info.crc_ok),
+            ecc_err_first=int(not info.header_ecc_ok),
+            trunc_err_last=info.trunc_err,
+        ),
+    )
+    return info
+
+
 async def expect_no_commit(dut, cycles: int = 200) -> None:
     for _ in range(cycles):
         await RisingEdge(dut.clk_i)
@@ -549,6 +624,53 @@ def verify_slot_layout(
         )
 
 
+async def verify_raw_long_packet_roundtrip(
+    dut,
+    mem_model: AxiMemoryModel,
+    raw_long_packet: RawCsi2Packet,
+    *,
+    expected_seq: int,
+) -> None:
+    exp_valid_good = int(raw_long_packet.header_ecc_ok and raw_long_packet.crc_ok and not raw_long_packet.trunc_err)
+    exp_overflow = int(len(raw_long_packet.payload) > SAMPLE_AREA_BYTES)
+
+    commit = await wait_commit(dut)
+    assert commit.seq == expected_seq, f"Unexpected committed seq: exp={expected_seq} act={commit.seq}"
+    assert commit.slot_bytes == SLOT_TOTAL_ALIGNED, (
+        f"Committed slot_bytes mismatch: exp={SLOT_TOTAL_ALIGNED} act={commit.slot_bytes}"
+    )
+    assert commit.valid_good == exp_valid_good, (
+        f"Committed valid_good mismatch: exp={exp_valid_good} act={commit.valid_good}"
+    )
+    assert commit.overflow_err == exp_overflow, (
+        f"Committed overflow mismatch: exp={exp_overflow} act={commit.overflow_err}"
+    )
+
+    stored = mem_model.read_ring_bytes(
+        ring_base=int(dut.cfg_ring_base_addr_i.value),
+        ring_size=int(dut.cfg_ring_size_bytes_i.value),
+        start_addr=commit.addr,
+        byte_count=commit.slot_bytes,
+    )
+    verify_slot_layout(
+        stored,
+        payload=raw_long_packet.payload,
+        pkt_seq=expected_seq,
+        pkt_crc_err=int(not raw_long_packet.crc_ok),
+        pkt_ecc_err=int(not raw_long_packet.header_ecc_ok),
+        pkt_trunc_err=raw_long_packet.trunc_err,
+    )
+
+    await request_read(dut)
+    readback = await collect_read_slot(dut)
+    assert readback.seq == expected_seq
+    assert readback.slot_bytes == SLOT_TOTAL_ALIGNED
+    assert readback.valid_good == exp_valid_good
+    assert readback.overflow_err == exp_overflow
+    assert readback.payload == stored, f"Readback slot mismatch for seq={expected_seq}"
+    await consume_slot(dut)
+
+
 @cocotb.test()
 async def pipeline_smoke_basic(dut):
     mem_model = AxiMemoryModel(dut)
@@ -681,3 +803,98 @@ async def pipeline_controller_drops_invalid(dut):
     assert int(dut.drop_count_o.value) == 1, "Controller should count one dropped slot"
     assert int(dut.used_bytes_o.value) == 0, "Dropped invalid slot must not consume ring space"
     assert int(dut.rd_slot_valid_o.value) == 0, "Dropped invalid slot must not become readable"
+
+
+@cocotb.test()
+async def pipeline_awr_frame_roundtrip(dut):
+    mem_model = AxiMemoryModel(dut)
+    cocotb.start_soon(mem_model.run())
+
+    await apply_reset(dut)
+    await configure_pipeline(
+        dut,
+        vc=FILTER_VC,
+        dt=CSI2_DT_AWR_RAW,
+        drop_invalid_pkt=0,
+        drop_invalid_slot=1,
+    )
+
+    packets = build_awr_frame_packets(
+        num_chirps=3,
+        ns=32,
+        vc=FILTER_VC,
+        chirp_profile=2,
+        cq_data=0x0123456789ABCDEF,
+        pattern="channel_tag",
+    )
+    packet_dts = [parse_raw_csi2_packet(packet).dt for packet in packets]
+    assert packet_dts == [
+        CSI2_DT_FS,
+        CSI2_DT_LS,
+        CSI2_DT_AWR_RAW,
+        CSI2_DT_LE,
+        CSI2_DT_LS,
+        CSI2_DT_AWR_RAW,
+        CSI2_DT_LE,
+        CSI2_DT_LS,
+        CSI2_DT_AWR_RAW,
+        CSI2_DT_LE,
+        CSI2_DT_FE,
+    ]
+
+    expected_seq = 0
+    for packet in packets:
+        info = await drive_raw_csi2_packet(dut, packet)
+        if not info.is_long:
+            continue
+        await verify_raw_long_packet_roundtrip(dut, mem_model, info, expected_seq=expected_seq)
+        expected_seq += 1
+
+    assert expected_seq == 3
+    assert int(dut.drop_count_o.value) == 0
+    assert int(dut.err_axi_wr_resp_o.value) == 0
+    assert int(dut.err_axi_rd_resp_o.value) == 0
+    assert int(dut.err_illegal_read_o.value) == 0
+
+
+@cocotb.test()
+async def pipeline_awr_frame_crc_error(dut):
+    mem_model = AxiMemoryModel(dut)
+    cocotb.start_soon(mem_model.run())
+
+    await apply_reset(dut)
+    await configure_pipeline(
+        dut,
+        vc=FILTER_VC,
+        dt=CSI2_DT_AWR_RAW,
+        drop_invalid_pkt=0,
+        drop_invalid_slot=0,
+    )
+
+    packets = build_awr_frame_packets(
+        num_chirps=2,
+        ns=24,
+        vc=FILTER_VC,
+        chirp_profile=1,
+        cq_data=0,
+        pattern="ramp",
+    )
+    long_indices = [idx for idx, packet in enumerate(packets) if parse_raw_csi2_packet(packet).is_long]
+    corrupt_packet = bytearray(packets[long_indices[1]])
+    corrupt_packet[-1] ^= 0x01
+    packets[long_indices[1]] = bytes(corrupt_packet)
+
+    committed_infos: list[RawCsi2Packet] = []
+    for packet in packets:
+        info = await drive_raw_csi2_packet(dut, packet)
+        if info.is_long:
+            committed_infos.append(info)
+
+    assert len(committed_infos) == 2
+    assert committed_infos[0].crc_ok
+    assert not committed_infos[1].crc_ok
+
+    await verify_raw_long_packet_roundtrip(dut, mem_model, committed_infos[0], expected_seq=0)
+    await verify_raw_long_packet_roundtrip(dut, mem_model, committed_infos[1], expected_seq=1)
+
+    assert int(dut.drop_count_o.value) == 0

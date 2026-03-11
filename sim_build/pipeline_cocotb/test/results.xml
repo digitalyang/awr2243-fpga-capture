@@ -1,8 +1,10 @@
 <testsuites name="results">
   <testsuite name="all" package="all">
-    <property name="random_seed" value="1773226995" />
-    <testcase name="pipeline_smoke_basic" classname="pipeline_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/pipeline_cocotb.py" lineno="525" time="0.029553890228271484" sim_time_ns="5770.0" ratio_time="195236.5646428629" />
-    <testcase name="pipeline_invalid_slot_roundtrip" classname="pipeline_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/pipeline_cocotb.py" lineno="588" time="0.0253298282623291" sim_time_ns="4540.0" ratio_time="179235.32496870324" />
-    <testcase name="pipeline_controller_drops_invalid" classname="pipeline_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/pipeline_cocotb.py" lineno="636" time="0.013451099395751953" sim_time_ns="2190.0" ratio_time="162811.97064766564" />
+    <property name="random_seed" value="1773227831" />
+    <testcase name="pipeline_smoke_basic" classname="pipeline_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/pipeline_cocotb.py" lineno="674" time="0.02446293830871582" sim_time_ns="5770.0" ratio_time="235867.00531163198" />
+    <testcase name="pipeline_invalid_slot_roundtrip" classname="pipeline_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/pipeline_cocotb.py" lineno="737" time="0.022856950759887695" sim_time_ns="4540.0" ratio_time="198626.66930916146" />
+    <testcase name="pipeline_controller_drops_invalid" classname="pipeline_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/pipeline_cocotb.py" lineno="785" time="0.00791311264038086" sim_time_ns="2190.0" ratio_time="276755.8228382043" />
+    <testcase name="pipeline_awr_frame_roundtrip" classname="pipeline_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/pipeline_cocotb.py" lineno="808" time="0.06148123741149902" sim_time_ns="13720.0" ratio_time="223157.51239961066" />
+    <testcase name="pipeline_awr_frame_crc_error" classname="pipeline_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/pipeline_cocotb.py" lineno="860" time="0.03656816482543945" sim_time_ns="7510.0" ratio_time="205369.89033629335" />
   </testsuite>
 </testsuites>
