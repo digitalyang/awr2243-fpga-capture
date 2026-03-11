@@ -1,5 +1,7 @@
 `include "ddr_ringbuffer_macros.svh"
 
+// Shared DDR ring-buffer constants, utility functions, and packed metadata
+// types used by RTL, cocotb, and UVM environments.
 package ddr_ringbuffer_pkg;
 
     localparam logic [1:0] AXI_RESP_OKAY   = 2'b00;
