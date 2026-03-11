@@ -1,0 +1,14 @@
+<testsuites name="results">
+  <testsuite name="all" package="all">
+    <property name="random_seed" value="1773227218" />
+    <testcase name="test_payload_ns_1" classname="test_awr_payload" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/test_awr_payload.py" lineno="357" time="0.0005450248718261719" sim_time_ns="90.0" ratio_time="165130.07874015748" />
+    <testcase name="test_payload_ns_64" classname="test_awr_payload" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/test_awr_payload.py" lineno="367" time="0.00045680999755859375" sim_time_ns="100.0" ratio_time="218909.39457202505" />
+    <testcase name="test_payload_ns_1024" classname="test_awr_payload" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/test_awr_payload.py" lineno="377" time="0.0028793811798095703" sim_time_ns="100.0" ratio_time="34729.68452430239" />
+    <testcase name="test_payload_const_pattern" classname="test_awr_payload" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/test_awr_payload.py" lineno="387" time="0.0002791881561279297" sim_time_ns="100.0" ratio_time="358181.3834329633" />
+    <testcase name="test_axis_send_256bit" classname="test_awr_payload" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/test_awr_payload.py" lineno="427" time="0.002099275588989258" sim_time_ns="350.0" ratio_time="166724.17944349803" />
+    <testcase name="test_axis_send_128bit" classname="test_awr_payload" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/test_awr_payload.py" lineno="455" time="0.0003724098205566406" sim_time_ns="100.0" ratio_time="268521.3828425096" />
+    <testcase name="test_payload_random_reproducible" classname="test_awr_payload" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/test_awr_payload.py" lineno="473" time="0.0006814002990722656" sim_time_ns="100.0" ratio_time="146756.61301609516" />
+    <testcase name="test_payload_channel_tag" classname="test_awr_payload" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/test_awr_payload.py" lineno="485" time="0.0002567768096923828" sim_time_ns="100.00000000000011" ratio_time="389443.2683379763" />
+    <testcase name="test_axis_send_with_backpressure" classname="test_awr_payload" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/test_awr_payload.py" lineno="501" time="0.0005650520324707031" sim_time_ns="150.0" ratio_time="265462.2784810127" />
+  </testsuite>
+</testsuites>

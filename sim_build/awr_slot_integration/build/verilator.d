@@ -11,6 +11,4 @@ verilator.o: \
   /opt/homebrew/Cellar/verilator/5.046/share/verilator/include/verilated_syms.h \
   /opt/homebrew/Cellar/verilator/5.046/share/verilator/include/verilated_sym_props.h \
   /opt/homebrew/Cellar/verilator/5.046/share/verilator/include/vltstd/sv_vpi_user.h \
-  /opt/homebrew/Cellar/verilator/5.046/share/verilator/include/vltstd/vpi_user.h \
-  /opt/homebrew/Cellar/verilator/5.046/share/verilator/include/verilated_fst_c.h \
-  /opt/homebrew/Cellar/verilator/5.046/share/verilator/include/verilated_trace.h
+  /opt/homebrew/Cellar/verilator/5.046/share/verilator/include/vltstd/vpi_user.h

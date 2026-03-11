@@ -1,0 +1,14 @@
+<testsuites name="results">
+  <testsuite name="all" package="all">
+    <property name="random_seed" value="1773227544" />
+    <testcase name="test_awr_ramp_ns64" classname="test_awr_slot_integration" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/test_awr_slot_integration.py" lineno="69" time="0.006599903106689453" sim_time_ns="1680.0" ratio_time="254549.19153240373" />
+    <testcase name="test_awr_const_ns1" classname="test_awr_slot_integration" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/test_awr_slot_integration.py" lineno="85" time="0.004619598388671875" sim_time_ns="1450.0000000000002" ratio_time="313880.0990916598" />
+    <testcase name="test_awr_ramp_ns256" classname="test_awr_slot_integration" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/test_awr_slot_integration.py" lineno="114" time="0.011752128601074219" sim_time_ns="2410.0000000000005" ratio_time="205069.23314128057" />
+    <testcase name="test_awr_exact_fit" classname="test_awr_slot_integration" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/test_awr_slot_integration.py" lineno="129" time="0.012659072875976562" sim_time_ns="2720.000000000001" ratio_time="214865.65616995638" />
+    <testcase name="test_awr_overflow" classname="test_awr_slot_integration" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/test_awr_slot_integration.py" lineno="153" time="0.015143871307373047" sim_time_ns="2730.0" ratio_time="180270.94555873924" />
+    <testcase name="test_awr_channel_tag_integrity" classname="test_awr_slot_integration" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/test_awr_slot_integration.py" lineno="174" time="0.0035109519958496094" sim_time_ns="1460.0" ratio_time="415841.629770474" />
+    <testcase name="test_awr_multi_chirp_sequence" classname="test_awr_slot_integration" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/test_awr_slot_integration.py" lineno="198" time="0.03578805923461914" sim_time_ns="9380.000000000002" ratio_time="262098.59379371916" />
+    <testcase name="test_awr_backpressure" classname="test_awr_slot_integration" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/test_awr_slot_integration.py" lineno="227" time="0.03754758834838867" sim_time_ns="9810.0" ratio_time="261268.44443315596" />
+    <testcase name="test_awr_ramp_iq_spot_check" classname="test_awr_slot_integration" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/test_awr_slot_integration.py" lineno="260" time="0.004298686981201172" sim_time_ns="1480.0" ratio_time="344291.1769273433" />
+  </testsuite>
+</testsuites>

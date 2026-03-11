@@ -1,0 +1,8 @@
+<testsuites name="results">
+  <testsuite name="all" package="all">
+    <property name="random_seed" value="1773226995" />
+    <testcase name="pipeline_smoke_basic" classname="pipeline_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/pipeline_cocotb.py" lineno="525" time="0.029553890228271484" sim_time_ns="5770.0" ratio_time="195236.5646428629" />
+    <testcase name="pipeline_invalid_slot_roundtrip" classname="pipeline_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/pipeline_cocotb.py" lineno="588" time="0.0253298282623291" sim_time_ns="4540.0" ratio_time="179235.32496870324" />
+    <testcase name="pipeline_controller_drops_invalid" classname="pipeline_cocotb" file="/Users/hb39209/Desktop/awr2243-fpga-capture/tb/cocotb/pipeline_cocotb.py" lineno="636" time="0.013451099395751953" sim_time_ns="2190.0" ratio_time="162811.97064766564" />
+  </testsuite>
+</testsuites>

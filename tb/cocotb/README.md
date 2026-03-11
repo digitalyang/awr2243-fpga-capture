@@ -17,7 +17,7 @@
 
 ## 运行
 
-默认回归会跑两个 testcase：
+`ddr_ringbuffer_controller` 的默认回归会跑两个 testcase：
 
 - `smoke_basic`
 - `wraparound_basic`
@@ -45,3 +45,31 @@
 - 读回 AXIS payload 与元数据校验
 - ring wrap-around 基本路径
 - AXI4-MM 写/读 burst 基本握手
+
+## 三模块串联回归
+
+仓库中的 3 个核心模块也可以直接串起来做端到端仿真：
+
+- `csi_packet_extractor`
+- `fixed_slot_packer`
+- `ddr_ringbuffer_controller`
+
+运行命令：
+
+```sh
+~/.venvs/awr2243-cocotb-py39/bin/python tb/cocotb/run_pipeline.py
+```
+
+默认会跑 3 个 testcase：
+
+- `pipeline_smoke_basic`
+- `pipeline_invalid_slot_roundtrip`
+- `pipeline_controller_drops_invalid`
+
+这个回归覆盖：
+
+- CSI packet 过滤后进入 slot packer
+- slot 固定长度封装与 header/zero padding 校验
+- slot 写入 DDR ringbuffer 并读回
+- invalid packet 侧带错误在整条链路上的传递
+- controller 按配置丢弃 invalid slot

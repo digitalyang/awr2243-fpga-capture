@@ -1,5 +1,5 @@
 verilator.o: \
-  /Users/hb39209/.venvs/awr2243-cocotb-py39/lib/python3.9/site-packages/cocotb/share/lib/verilator/verilator.cpp \
+  /Users/hb39209/Desktop/awr2243-fpga-capture/.venv313/lib/python3.13/site-packages/cocotb/share/lib/verilator/verilator.cpp \
   Vtop.h \
   /opt/homebrew/Cellar/verilator/5.046/share/verilator/include/verilated.h \
   /opt/homebrew/Cellar/verilator/5.046/share/verilator/include/verilated_config.h \
@@ -11,6 +11,4 @@ verilator.o: \
   /opt/homebrew/Cellar/verilator/5.046/share/verilator/include/verilated_syms.h \
   /opt/homebrew/Cellar/verilator/5.046/share/verilator/include/verilated_sym_props.h \
   /opt/homebrew/Cellar/verilator/5.046/share/verilator/include/vltstd/sv_vpi_user.h \
-  /opt/homebrew/Cellar/verilator/5.046/share/verilator/include/vltstd/vpi_user.h \
-  /opt/homebrew/Cellar/verilator/5.046/share/verilator/include/verilated_fst_c.h \
-  /opt/homebrew/Cellar/verilator/5.046/share/verilator/include/verilated_trace.h
+  /opt/homebrew/Cellar/verilator/5.046/share/verilator/include/vltstd/vpi_user.h
