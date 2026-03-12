@@ -49,47 +49,32 @@ tools/build_and_verify.sh
 # 2 系统总体架构
 
 ```text
-AWR2243
-   │
-   │ MIPI CSI2
-   ▼
-+------------------+
-| MIPI D-PHY       |
-+------------------+
+AXIS payload source
    │
    ▼
-+----------------------+
-| CSI-2 RX Subsystem   |
-+----------------------+
-   │ AXI4-Stream
-   ▼
-+----------------------+
-| CSI Packet Extractor |
-+----------------------+
+CSI RX Subsystem
+(video_aclk = 200MHz)
    │
    ▼
-+----------------------+
-| Fixed Slot Packer    |
-| (1024 Sample)        |
-+----------------------+
+AXIS Async FIFO
+(200MHz -> 250MHz)
    │
    ▼
-+---------------------------+
-| DDR RingBuffer Controller |
-+---------------------------+
-   │                     │  
-   │                     │
-   │                     │ AXI4
-   │                     │
-   │                     │
-   │ AXI4                │ 
-   │                     ├───────► XDMA PCIe Engine ─────► Host PC
-   │                     │
-   │                     └───────► CSR / Status Register
+CSI Packet Extractor
+(axis_clk = 250MHz)
+   │
    ▼
-+----------------------+
-| DDR4 MIG Controller  |
-+----------------------+
+Slot Packer
+(axis_clk = 250MHz)
+   │
+   ▼
+RingBuffer Controller
+(axi_clk = 250MHz)
+   │
+   ▼
+AXI SmartConnect
+   ├── AXI host master
+   └── DDR model
 
 ```
 
