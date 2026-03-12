@@ -58,8 +58,12 @@ Available targets:
   awr-script   Expand to: script-ram, cmd-fetch, cmd-decode
   awr-payload  Run AWR payload generator tests
   awr-slot     Run AWR slot integration tests
+  sim-pipeline Run the simulation-platform pipeline regression
+  sim-ringbuffer Run the simulation-platform ringbuffer regression
+  sim-cdc      Run the simulation-platform CDC regression
+  sim-platform Run the unified simulation-platform cocotb regression
   sanity       Expand to: csi, fixed, ddr, pipeline
-  full         Expand to: sanity, awr-payload, awr-slot
+  full         Expand to: sanity, awr-payload, awr-slot, sim-platform
 EOF
 }
 
@@ -131,6 +135,18 @@ expand_target() {
     awr-slot)
       append_unique_target "awr-slot"
       ;;
+    sim-pipeline)
+      append_unique_target "sim-pipeline"
+      ;;
+    sim-ringbuffer|sim-ring)
+      append_unique_target "sim-ringbuffer"
+      ;;
+    sim-cdc)
+      append_unique_target "sim-cdc"
+      ;;
+    sim-platform|platform)
+      append_unique_target "sim-platform"
+      ;;
     sanity)
       expand_target "csi"
       expand_target "fixed"
@@ -141,6 +157,7 @@ expand_target() {
       expand_target "sanity"
       expand_target "awr-payload"
       expand_target "awr-slot"
+      expand_target "sim-platform"
       ;;
     *)
       die "unsupported target: ${target}"
@@ -219,6 +236,18 @@ target_script() {
       ;;
     awr-slot)
       echo "${REPO_ROOT}/tb/cocotb/run_awr_slot_integration.py"
+      ;;
+    sim-pipeline)
+      echo "${REPO_ROOT}/tb/cocotb/run_sim_pipeline.py"
+      ;;
+    sim-ringbuffer)
+      echo "${REPO_ROOT}/tb/cocotb/run_sim_ringbuffer.py"
+      ;;
+    sim-cdc)
+      echo "${REPO_ROOT}/tb/cocotb/run_sim_cdc.py"
+      ;;
+    sim-platform)
+      echo "${REPO_ROOT}/tb/cocotb/run_sim_platform.py"
       ;;
     *)
       die "no runner script mapped for target: ${target}"

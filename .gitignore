@@ -126,3 +126,8 @@ Desktop.ini
 sim_build/
 __pycache__/
 *.pyc
+
+# Local AI workflow artifacts
+/CURSOR_PARALLEL_PROMPT.md
+/cursor_parallel/
+/notes/
