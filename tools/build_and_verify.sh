@@ -52,6 +52,10 @@ Available targets:
   fixed        Run fixed_slot_packer cocotb regression
   ddr          Run ddr_ringbuffer_controller cocotb regression
   pipeline     Run chained pipeline cocotb regression
+  script-ram   Run awr2243_script_ram cocotb regression
+  cmd-fetch    Run awr2243_cmd_fetch cocotb regression
+  cmd-decode   Run awr2243_cmd_decode cocotb regression
+  awr-script   Expand to: script-ram, cmd-fetch, cmd-decode
   awr-payload  Run AWR payload generator tests
   awr-slot     Run AWR slot integration tests
   sanity       Expand to: csi, fixed, ddr, pipeline
@@ -66,6 +70,16 @@ die() {
 
 have_cmd() {
   command -v "$1" >/dev/null 2>&1
+}
+
+python_supported() {
+  local python_bin="$1"
+
+  "${python_bin}" -c '
+import sys
+major, minor = sys.version_info[:2]
+raise SystemExit(0 if (major, minor) >= (3, 9) and (major, minor) < (3, 14) else 1)
+' >/dev/null 2>&1
 }
 
 append_unique_target() {
@@ -96,6 +110,20 @@ expand_target() {
       ;;
     pipeline)
       append_unique_target "pipeline"
+      ;;
+    script-ram|awr-script-ram)
+      append_unique_target "script-ram"
+      ;;
+    cmd-fetch|fetch)
+      append_unique_target "cmd-fetch"
+      ;;
+    cmd-decode|decode)
+      append_unique_target "cmd-decode"
+      ;;
+    awr-script|script)
+      expand_target "script-ram"
+      expand_target "cmd-fetch"
+      expand_target "cmd-decode"
       ;;
     awr-payload)
       append_unique_target "awr-payload"
@@ -143,17 +171,22 @@ resolve_python() {
     python3 \
     python; do
     if [[ -x "${candidate}" ]]; then
-      echo "${candidate}"
-      return
+      if python_supported "${candidate}"; then
+        echo "${candidate}"
+        return
+      fi
     fi
 
     if have_cmd "${candidate}"; then
-      command -v "${candidate}"
-      return
+      candidate="$(command -v "${candidate}")"
+      if python_supported "${candidate}"; then
+        echo "${candidate}"
+        return
+      fi
     fi
   done
 
-  die "no usable python found; pass --python or create .venv313/.venv"
+  die "no supported python found; need Python 3.9-3.13 or pass --python"
 }
 
 target_script() {
@@ -171,6 +204,15 @@ target_script() {
       ;;
     pipeline)
       echo "${REPO_ROOT}/tb/cocotb/run_pipeline.py"
+      ;;
+    script-ram)
+      echo "${REPO_ROOT}/tb/cocotb/run_awr2243_script_ram.py"
+      ;;
+    cmd-fetch)
+      echo "${REPO_ROOT}/tb/cocotb/run_awr2243_cmd_fetch.py"
+      ;;
+    cmd-decode)
+      echo "${REPO_ROOT}/tb/cocotb/run_awr2243_cmd_decode.py"
       ;;
     awr-payload)
       echo "${REPO_ROOT}/tb/cocotb/run_awr_payload.py"
@@ -295,7 +337,11 @@ run_target() {
   echo "[build_and_verify] running ${target}"
   if "${cmd[@]}" >"${logfile}" 2>&1; then
     echo "[build_and_verify] PASS ${target}"
-    rg -n "TESTS=|FAIL=|PASS=" "${logfile}" | tail -n 5 || true
+    if have_cmd rg; then
+      rg -n "TESTS=|FAIL=|PASS=" "${logfile}" | tail -n 5 || true
+    else
+      grep -nE "TESTS=|FAIL=|PASS=" "${logfile}" | tail -n 5 || true
+    fi
   else
     echo "[build_and_verify] FAIL ${target}" >&2
     echo "[build_and_verify] tail of ${logfile}:" >&2

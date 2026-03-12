@@ -54,6 +54,10 @@ csi          csi_packet_extractor standalone regression
 fixed        fixed_slot_packer standalone regression
 ddr          ddr_ringbuffer_controller standalone regression
 pipeline     end-to-end 3-module pipeline regression
+script-ram   awr2243_script_ram regression
+cmd-fetch    awr2243_cmd_fetch regression
+cmd-decode   awr2243_cmd_decode regression
+awr-script   expands to: script-ram, cmd-fetch, cmd-decode
 awr-payload  AWR payload generator tests
 awr-slot     AWR payload -> fixed slot integration tests
 sanity       expands to: csi, fixed, ddr, pipeline
@@ -84,6 +88,12 @@ Run the pipeline regression and dump waveforms:
 
 ```sh
 tools/build_and_verify.sh --target pipeline --waves
+```
+
+Run the AWR2243 script-side control regressions:
+
+```sh
+tools/build_and_verify.sh --target awr-script
 ```
 
 Reuse an existing Verilator build directory:
@@ -123,6 +133,9 @@ csi.log
 fixed.log
 ddr.log
 pipeline.log
+script-ram.log
+cmd-fetch.log
+cmd-decode.log
 awr-payload.log
 awr-slot.log
 ```
