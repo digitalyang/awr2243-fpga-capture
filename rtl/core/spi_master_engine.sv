@@ -51,39 +51,37 @@ module spi_master_engine #(
     ST_TIMEOUT
   } spi_state_e;
 
-  spi_state_e                    state_r;
-  spi_state_e                    state_n;
-  logic                          cmd_is_read_r;
-  logic                          cmd_is_read_n;
-  logic                          sclk_phase_r;
-  logic                          sclk_phase_n;
-  logic [WORD_W-1:0]             tx_shift_r;
-  logic [WORD_W-1:0]             tx_shift_n;
-  logic [WORD_W-1:0]             rx_shift_r;
-  logic [WORD_W-1:0]             rx_shift_n;
-  logic [WORD_W-1:0]             rsp_word_r;
-  logic [WORD_W-1:0]             rsp_word_n;
-  logic [BIT_CNT_W-1:0]          bit_cnt_r;
-  logic [BIT_CNT_W-1:0]          bit_cnt_n;
-  logic [CLK_DIV_CNT_W-1:0]      clk_div_cnt_r;
-  logic [CLK_DIV_CNT_W-1:0]      clk_div_cnt_n;
-  logic [WAIT_CNT_W-1:0]         wait_cnt_r;
-  logic [WAIT_CNT_W-1:0]         wait_cnt_n;
-  logic [TIMEOUT_CNT_W-1:0]      timeout_cnt_r;
-  logic [TIMEOUT_CNT_W-1:0]      timeout_cnt_n;
+  spi_state_e                     state_r;
+  spi_state_e                     state_n;
+  logic                           cmd_is_read_r;
+  logic                           cmd_is_read_n;
+  logic                           sclk_phase_r;
+  logic                           sclk_phase_n;
+  logic       [       WORD_W-1:0] tx_shift_r;
+  logic       [       WORD_W-1:0] tx_shift_n;
+  logic       [       WORD_W-1:0] rx_shift_r;
+  logic       [       WORD_W-1:0] rx_shift_n;
+  logic       [       WORD_W-1:0] rsp_word_r;
+  logic       [       WORD_W-1:0] rsp_word_n;
+  logic       [    BIT_CNT_W-1:0] bit_cnt_r;
+  logic       [    BIT_CNT_W-1:0] bit_cnt_n;
+  logic       [CLK_DIV_CNT_W-1:0] clk_div_cnt_r;
+  logic       [CLK_DIV_CNT_W-1:0] clk_div_cnt_n;
+  logic       [   WAIT_CNT_W-1:0] wait_cnt_r;
+  logic       [   WAIT_CNT_W-1:0] wait_cnt_n;
+  logic       [TIMEOUT_CNT_W-1:0] timeout_cnt_r;
+  logic       [TIMEOUT_CNT_W-1:0] timeout_cnt_n;
 
-  logic                          cmd_fire_c;
-  logic                          txn_active_c;
-  logic                          timeout_en_c;
-  logic                          timeout_expire_c;
+  logic                           cmd_fire_c;
+  logic                           txn_active_c;
+  logic                           timeout_en_c;
+  logic                           timeout_expire_c;
 
   function automatic logic is_active_state(input spi_state_e state);
     begin
       case (state)
-        ST_ASSERT_CS,
-        ST_SHIFT,
-        ST_DEASSERT_CS: return 1'b1;
-        default:        return 1'b0;
+        ST_ASSERT_CS, ST_SHIFT, ST_DEASSERT_CS: return 1'b1;
+        default:                                return 1'b0;
       endcase
     end
   endfunction

@@ -2,8 +2,8 @@
 
 module awr2243_cfg_sequencer_smoke_tb;
 
-  localparam logic [3:0] S_IDLE           = 4'd0;
-  localparam logic [3:0] S_ERROR          = 4'd13;
+  localparam logic [3:0] S_IDLE = 4'd0;
+  localparam logic [3:0] S_ERROR = 4'd13;
   localparam logic [15:0] ERR_FAULT_ACTIVE = 16'h0009;
   localparam logic [15:0] ERR_NOT_INITIALIZED = 16'h0002;
   localparam logic [15:0] ERR_CMD_FAILURE_BASE = 16'h0100;
@@ -15,18 +15,18 @@ module awr2243_cfg_sequencer_smoke_tb;
   logic        stop_sensor_i;
   logic        hard_reset_i;
   logic        clear_error_i;
-  logic [7:0]  init_script_id_i;
-  logic [7:0]  rf_script_id_i;
-  logic [7:0]  profile_script_id_i;
-  logic [7:0]  frame_script_id_i;
-  logic [7:0]  monitor_script_id_i;
-  logic [7:0]  start_script_id_i;
-  logic [7:0]  stop_script_id_i;
+  logic [ 7:0] init_script_id_i;
+  logic [ 7:0] rf_script_id_i;
+  logic [ 7:0] profile_script_id_i;
+  logic [ 7:0] frame_script_id_i;
+  logic [ 7:0] monitor_script_id_i;
+  logic [ 7:0] start_script_id_i;
+  logic [ 7:0] stop_script_id_i;
   logic        req_enter_spi_mode_o;
   logic        req_hard_reset_o;
   logic        req_recovery_reset_o;
   logic        script_start_o;
-  logic [7:0]  script_id_o;
+  logic [ 7:0] script_id_o;
   logic        reset_done_i;
   logic        reset_err_i;
   logic        script_done_i;
@@ -41,14 +41,14 @@ module awr2243_cfg_sequencer_smoke_tb;
   logic        busy_o;
   logic        done_o;
   logic [15:0] err_code_o;
-  logic [3:0]  state_o;
-  logic [7:0]  active_script_o;
+  logic [ 3:0] state_o;
+  logic [ 7:0] active_script_o;
   logic [15:0] step_id_o;
   logic [15:0] last_opcode_o;
 
   awr2243_cfg_sequencer #(
-      .RESET_TIMEOUT_CYCLES(32'd16),
-      .SCRIPT_TIMEOUT_CYCLES(32'd32),
+      .RESET_TIMEOUT_CYCLES     (32'd16),
+      .SCRIPT_TIMEOUT_CYCLES    (32'd32),
       .START_WAIT_TIMEOUT_CYCLES(32'd16)
   ) dut (
       .clk_i               (clk_i),
@@ -125,11 +125,8 @@ module awr2243_cfg_sequencer_smoke_tb;
     end
   endtask
 
-  task automatic wait_state(
-      input logic [3:0] expected_state,
-      input int unsigned max_cycles,
-      input string label
-  );
+  task automatic wait_state(input logic [3:0] expected_state, input int unsigned max_cycles,
+                            input string label);
     int unsigned idx;
     begin
       for (idx = 0; idx < max_cycles; idx++) begin
@@ -143,11 +140,8 @@ module awr2243_cfg_sequencer_smoke_tb;
     end
   endtask
 
-  task automatic expect_eq16(
-      input logic [15:0] actual,
-      input logic [15:0] expected,
-      input string label
-  );
+  task automatic expect_eq16(input logic [15:0] actual, input logic [15:0] expected,
+                             input string label);
     begin
       if (actual !== expected) begin
         $fatal(1, "%s mismatch: got 0x%04h expected 0x%04h", label, actual, expected);
@@ -155,11 +149,8 @@ module awr2243_cfg_sequencer_smoke_tb;
     end
   endtask
 
-  task automatic expect_eq8(
-      input logic [7:0] actual,
-      input logic [7:0] expected,
-      input string label
-  );
+  task automatic expect_eq8(input logic [7:0] actual, input logic [7:0] expected,
+                            input string label);
     begin
       if (actual !== expected) begin
         $fatal(1, "%s mismatch: got 0x%02h expected 0x%02h", label, actual, expected);
@@ -169,32 +160,32 @@ module awr2243_cfg_sequencer_smoke_tb;
 
   task automatic apply_reset();
     begin
-      start_init_i = 1'b0;
-      start_sensor_i = 1'b0;
-      stop_sensor_i = 1'b0;
-      hard_reset_i = 1'b0;
-      clear_error_i = 1'b0;
-      reset_done_i = 1'b0;
-      reset_err_i = 1'b0;
-      script_done_i = 1'b0;
-      cmd_done_i = 1'b0;
-      cmd_error_i = 1'b0;
-      cmd_err_code_i = '0;
-      cmd_step_id_i = '0;
-      cmd_last_opcode_i = '0;
-      host_irq_sticky_i = 1'b0;
-      fault_active_i = 1'b0;
-      fault_sticky_i = 1'b0;
+      start_init_i        = 1'b0;
+      start_sensor_i      = 1'b0;
+      stop_sensor_i       = 1'b0;
+      hard_reset_i        = 1'b0;
+      clear_error_i       = 1'b0;
+      reset_done_i        = 1'b0;
+      reset_err_i         = 1'b0;
+      script_done_i       = 1'b0;
+      cmd_done_i          = 1'b0;
+      cmd_error_i         = 1'b0;
+      cmd_err_code_i      = '0;
+      cmd_step_id_i       = '0;
+      cmd_last_opcode_i   = '0;
+      host_irq_sticky_i   = 1'b0;
+      fault_active_i      = 1'b0;
+      fault_sticky_i      = 1'b0;
 
-      init_script_id_i = 8'h10;
-      rf_script_id_i = 8'h11;
+      init_script_id_i    = 8'h10;
+      rf_script_id_i      = 8'h11;
       profile_script_id_i = 8'h12;
-      frame_script_id_i = 8'h13;
+      frame_script_id_i   = 8'h13;
       monitor_script_id_i = 8'h14;
-      start_script_id_i = 8'h20;
-      stop_script_id_i = 8'h21;
+      start_script_id_i   = 8'h20;
+      stop_script_id_i    = 8'h21;
 
-      rst_ni = 1'b0;
+      rst_ni              = 1'b0;
       repeat (5) begin
         tick();
       end
@@ -213,16 +204,13 @@ module awr2243_cfg_sequencer_smoke_tb;
     end
   endtask
 
-  task automatic finish_script(
-      input logic [7:0] expected_script_id,
-      input logic [15:0] step_id,
-      input logic [15:0] opcode
-  );
+  task automatic finish_script(input logic [7:0] expected_script_id, input logic [15:0] step_id,
+                               input logic [15:0] opcode);
     begin
       wait_high(script_start_o, 16, "script_start_o");
       expect_eq8(script_id_o, expected_script_id, "script_id_o");
       tick();
-      cmd_step_id_i = step_id;
+      cmd_step_id_i     = step_id;
       cmd_last_opcode_i = opcode;
       pulse(cmd_done_i);
       pulse(script_done_i);
@@ -281,8 +269,8 @@ module awr2243_cfg_sequencer_smoke_tb;
       expect_eq8(script_id_o, 8'h10, "init script id");
 
       tick();
-      cmd_err_code_i = 16'h0023;
-      cmd_step_id_i = 16'h0077;
+      cmd_err_code_i    = 16'h0023;
+      cmd_step_id_i     = 16'h0077;
       cmd_last_opcode_i = 16'h0055;
       pulse(cmd_error_i);
 

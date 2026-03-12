@@ -3,398 +3,326 @@
 
 package ddr_ringbuffer_controller_csr_pkg;
 
-    localparam DDR_RINGBUFFER_CONTROLLER_CSR_DATA_WIDTH = 32;
-    localparam DDR_RINGBUFFER_CONTROLLER_CSR_MIN_ADDR_WIDTH = 8;
-    localparam DDR_RINGBUFFER_CONTROLLER_CSR_SIZE = 'h90;
-
-    typedef struct {
-        logic next;
-    } ddr_ringbuffer_controller_csr__CTRL__enable__in_t;
-
-    typedef struct {
-        logic next;
-    } ddr_ringbuffer_controller_csr__CTRL__allow_overwrite__in_t;
-
-    typedef struct {
-        logic next;
-    } ddr_ringbuffer_controller_csr__CTRL__drop_invalid_slot__in_t;
-
-    typedef struct {
-        logic next;
-    } ddr_ringbuffer_controller_csr__CTRL__drop_on_no_space__in_t;
-
-    typedef struct {
-        ddr_ringbuffer_controller_csr__CTRL__enable__in_t enable;
-        ddr_ringbuffer_controller_csr__CTRL__allow_overwrite__in_t allow_overwrite;
-        ddr_ringbuffer_controller_csr__CTRL__drop_invalid_slot__in_t drop_invalid_slot;
-        ddr_ringbuffer_controller_csr__CTRL__drop_on_no_space__in_t drop_on_no_space;
-    } ddr_ringbuffer_controller_csr__CTRL__in_t;
-
-    typedef struct {
-        logic next;
-    } ddr_ringbuffer_controller_csr__STATUS__full__in_t;
-
-    typedef struct {
-        logic next;
-    } ddr_ringbuffer_controller_csr__STATUS__almost_full__in_t;
-
-    typedef struct {
-        logic next;
-    } ddr_ringbuffer_controller_csr__STATUS__empty__in_t;
-
-    typedef struct {
-        logic next;
-    } ddr_ringbuffer_controller_csr__STATUS__rd_busy__in_t;
-
-    typedef struct {
-        logic next;
-    } ddr_ringbuffer_controller_csr__STATUS__err_cfg_align__in_t;
-
-    typedef struct {
-        logic next;
-    } ddr_ringbuffer_controller_csr__STATUS__err_no_space__in_t;
-
-    typedef struct {
-        logic next;
-    } ddr_ringbuffer_controller_csr__STATUS__err_slot_proto__in_t;
-
-    typedef struct {
-        logic next;
-    } ddr_ringbuffer_controller_csr__STATUS__err_slot_too_large__in_t;
-
-    typedef struct {
-        logic next;
-    } ddr_ringbuffer_controller_csr__STATUS__err_axi_wr_resp__in_t;
-
-    typedef struct {
-        logic next;
-    } ddr_ringbuffer_controller_csr__STATUS__err_axi_rd_resp__in_t;
-
-    typedef struct {
-        logic next;
-    } ddr_ringbuffer_controller_csr__STATUS__err_illegal_read__in_t;
-
-    typedef struct {
-        ddr_ringbuffer_controller_csr__STATUS__full__in_t full;
-        ddr_ringbuffer_controller_csr__STATUS__almost_full__in_t almost_full;
-        ddr_ringbuffer_controller_csr__STATUS__empty__in_t empty;
-        ddr_ringbuffer_controller_csr__STATUS__rd_busy__in_t rd_busy;
-        ddr_ringbuffer_controller_csr__STATUS__err_cfg_align__in_t err_cfg_align;
-        ddr_ringbuffer_controller_csr__STATUS__err_no_space__in_t err_no_space;
-        ddr_ringbuffer_controller_csr__STATUS__err_slot_proto__in_t err_slot_proto;
-        ddr_ringbuffer_controller_csr__STATUS__err_slot_too_large__in_t err_slot_too_large;
-        ddr_ringbuffer_controller_csr__STATUS__err_axi_wr_resp__in_t err_axi_wr_resp;
-        ddr_ringbuffer_controller_csr__STATUS__err_axi_rd_resp__in_t err_axi_rd_resp;
-        ddr_ringbuffer_controller_csr__STATUS__err_illegal_read__in_t err_illegal_read;
-    } ddr_ringbuffer_controller_csr__STATUS__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } ddr_ringbuffer_controller_csr__RING_BASE_LO__ring_base_lo__in_t;
-
-    typedef struct {
-        ddr_ringbuffer_controller_csr__RING_BASE_LO__ring_base_lo__in_t ring_base_lo;
-    } ddr_ringbuffer_controller_csr__RING_BASE_LO__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } ddr_ringbuffer_controller_csr__RING_BASE_HI__ring_base_hi__in_t;
-
-    typedef struct {
-        ddr_ringbuffer_controller_csr__RING_BASE_HI__ring_base_hi__in_t ring_base_hi;
-    } ddr_ringbuffer_controller_csr__RING_BASE_HI__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } ddr_ringbuffer_controller_csr__RING_SIZE_BYTES__ring_size_bytes__in_t;
+  localparam DDR_RINGBUFFER_CONTROLLER_CSR_DATA_WIDTH = 32;
+  localparam DDR_RINGBUFFER_CONTROLLER_CSR_MIN_ADDR_WIDTH = 8;
+  localparam DDR_RINGBUFFER_CONTROLLER_CSR_SIZE = 'h90;
 
-    typedef struct {
-        ddr_ringbuffer_controller_csr__RING_SIZE_BYTES__ring_size_bytes__in_t ring_size_bytes;
-    } ddr_ringbuffer_controller_csr__RING_SIZE_BYTES__in_t;
+  typedef struct {logic next;} ddr_ringbuffer_controller_csr__CTRL__enable__in_t;
 
-    typedef struct {
-        logic [31:0] next;
-    } ddr_ringbuffer_controller_csr__USED_BYTES__used_bytes__in_t;
+  typedef struct {logic next;} ddr_ringbuffer_controller_csr__CTRL__allow_overwrite__in_t;
 
-    typedef struct {
-        ddr_ringbuffer_controller_csr__USED_BYTES__used_bytes__in_t used_bytes;
-    } ddr_ringbuffer_controller_csr__USED_BYTES__in_t;
+  typedef struct {logic next;} ddr_ringbuffer_controller_csr__CTRL__drop_invalid_slot__in_t;
 
-    typedef struct {
-        logic [31:0] next;
-    } ddr_ringbuffer_controller_csr__FREE_BYTES__free_bytes__in_t;
+  typedef struct {logic next;} ddr_ringbuffer_controller_csr__CTRL__drop_on_no_space__in_t;
 
-    typedef struct {
-        ddr_ringbuffer_controller_csr__FREE_BYTES__free_bytes__in_t free_bytes;
-    } ddr_ringbuffer_controller_csr__FREE_BYTES__in_t;
+  typedef struct {
+    ddr_ringbuffer_controller_csr__CTRL__enable__in_t enable;
+    ddr_ringbuffer_controller_csr__CTRL__allow_overwrite__in_t allow_overwrite;
+    ddr_ringbuffer_controller_csr__CTRL__drop_invalid_slot__in_t drop_invalid_slot;
+    ddr_ringbuffer_controller_csr__CTRL__drop_on_no_space__in_t drop_on_no_space;
+  } ddr_ringbuffer_controller_csr__CTRL__in_t;
 
-    typedef struct {
-        logic [31:0] next;
-    } ddr_ringbuffer_controller_csr__COMMITTED_BYTES__committed_bytes__in_t;
+  typedef struct {logic next;} ddr_ringbuffer_controller_csr__STATUS__full__in_t;
 
-    typedef struct {
-        ddr_ringbuffer_controller_csr__COMMITTED_BYTES__committed_bytes__in_t committed_bytes;
-    } ddr_ringbuffer_controller_csr__COMMITTED_BYTES__in_t;
+  typedef struct {logic next;} ddr_ringbuffer_controller_csr__STATUS__almost_full__in_t;
 
-    typedef struct {
-        logic [31:0] next;
-    } ddr_ringbuffer_controller_csr__WR_PTR_LO__wr_ptr_lo__in_t;
+  typedef struct {logic next;} ddr_ringbuffer_controller_csr__STATUS__empty__in_t;
 
-    typedef struct {
-        ddr_ringbuffer_controller_csr__WR_PTR_LO__wr_ptr_lo__in_t wr_ptr_lo;
-    } ddr_ringbuffer_controller_csr__WR_PTR_LO__in_t;
+  typedef struct {logic next;} ddr_ringbuffer_controller_csr__STATUS__rd_busy__in_t;
 
-    typedef struct {
-        logic [31:0] next;
-    } ddr_ringbuffer_controller_csr__WR_PTR_HI__wr_ptr_hi__in_t;
+  typedef struct {logic next;} ddr_ringbuffer_controller_csr__STATUS__err_cfg_align__in_t;
 
-    typedef struct {
-        ddr_ringbuffer_controller_csr__WR_PTR_HI__wr_ptr_hi__in_t wr_ptr_hi;
-    } ddr_ringbuffer_controller_csr__WR_PTR_HI__in_t;
+  typedef struct {logic next;} ddr_ringbuffer_controller_csr__STATUS__err_no_space__in_t;
 
-    typedef struct {
-        logic [31:0] next;
-    } ddr_ringbuffer_controller_csr__RD_PTR_LO__rd_ptr_lo__in_t;
+  typedef struct {logic next;} ddr_ringbuffer_controller_csr__STATUS__err_slot_proto__in_t;
 
-    typedef struct {
-        ddr_ringbuffer_controller_csr__RD_PTR_LO__rd_ptr_lo__in_t rd_ptr_lo;
-    } ddr_ringbuffer_controller_csr__RD_PTR_LO__in_t;
+  typedef struct {logic next;} ddr_ringbuffer_controller_csr__STATUS__err_slot_too_large__in_t;
 
-    typedef struct {
-        logic [31:0] next;
-    } ddr_ringbuffer_controller_csr__RD_PTR_HI__rd_ptr_hi__in_t;
+  typedef struct {logic next;} ddr_ringbuffer_controller_csr__STATUS__err_axi_wr_resp__in_t;
 
-    typedef struct {
-        ddr_ringbuffer_controller_csr__RD_PTR_HI__rd_ptr_hi__in_t rd_ptr_hi;
-    } ddr_ringbuffer_controller_csr__RD_PTR_HI__in_t;
+  typedef struct {logic next;} ddr_ringbuffer_controller_csr__STATUS__err_axi_rd_resp__in_t;
 
-    typedef struct {
-        logic [31:0] next;
-    } ddr_ringbuffer_controller_csr__COMMIT_PTR_LO__commit_ptr_lo__in_t;
+  typedef struct {logic next;} ddr_ringbuffer_controller_csr__STATUS__err_illegal_read__in_t;
 
-    typedef struct {
-        ddr_ringbuffer_controller_csr__COMMIT_PTR_LO__commit_ptr_lo__in_t commit_ptr_lo;
-    } ddr_ringbuffer_controller_csr__COMMIT_PTR_LO__in_t;
+  typedef struct {
+    ddr_ringbuffer_controller_csr__STATUS__full__in_t full;
+    ddr_ringbuffer_controller_csr__STATUS__almost_full__in_t almost_full;
+    ddr_ringbuffer_controller_csr__STATUS__empty__in_t empty;
+    ddr_ringbuffer_controller_csr__STATUS__rd_busy__in_t rd_busy;
+    ddr_ringbuffer_controller_csr__STATUS__err_cfg_align__in_t err_cfg_align;
+    ddr_ringbuffer_controller_csr__STATUS__err_no_space__in_t err_no_space;
+    ddr_ringbuffer_controller_csr__STATUS__err_slot_proto__in_t err_slot_proto;
+    ddr_ringbuffer_controller_csr__STATUS__err_slot_too_large__in_t err_slot_too_large;
+    ddr_ringbuffer_controller_csr__STATUS__err_axi_wr_resp__in_t err_axi_wr_resp;
+    ddr_ringbuffer_controller_csr__STATUS__err_axi_rd_resp__in_t err_axi_rd_resp;
+    ddr_ringbuffer_controller_csr__STATUS__err_illegal_read__in_t err_illegal_read;
+  } ddr_ringbuffer_controller_csr__STATUS__in_t;
 
-    typedef struct {
-        logic [31:0] next;
-    } ddr_ringbuffer_controller_csr__COMMIT_PTR_HI__commit_ptr_hi__in_t;
+  typedef struct {
+    logic [31:0] next;
+  } ddr_ringbuffer_controller_csr__RING_BASE_LO__ring_base_lo__in_t;
 
-    typedef struct {
-        ddr_ringbuffer_controller_csr__COMMIT_PTR_HI__commit_ptr_hi__in_t commit_ptr_hi;
-    } ddr_ringbuffer_controller_csr__COMMIT_PTR_HI__in_t;
+  typedef struct {
+    ddr_ringbuffer_controller_csr__RING_BASE_LO__ring_base_lo__in_t ring_base_lo;
+  } ddr_ringbuffer_controller_csr__RING_BASE_LO__in_t;
 
-    typedef struct {
-        logic [31:0] next;
-    } ddr_ringbuffer_controller_csr__WRAP_COUNT__wrap_count__in_t;
+  typedef struct {
+    logic [31:0] next;
+  } ddr_ringbuffer_controller_csr__RING_BASE_HI__ring_base_hi__in_t;
 
-    typedef struct {
-        ddr_ringbuffer_controller_csr__WRAP_COUNT__wrap_count__in_t wrap_count;
-    } ddr_ringbuffer_controller_csr__WRAP_COUNT__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } ddr_ringbuffer_controller_csr__OVERFLOW_COUNT__overflow_count__in_t;
-
-    typedef struct {
-        ddr_ringbuffer_controller_csr__OVERFLOW_COUNT__overflow_count__in_t overflow_count;
-    } ddr_ringbuffer_controller_csr__OVERFLOW_COUNT__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } ddr_ringbuffer_controller_csr__DROP_COUNT__drop_count__in_t;
-
-    typedef struct {
-        ddr_ringbuffer_controller_csr__DROP_COUNT__drop_count__in_t drop_count;
-    } ddr_ringbuffer_controller_csr__DROP_COUNT__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } ddr_ringbuffer_controller_csr__LAST_COMMIT_ADDR_LO__slot_addr_lo__in_t;
-
-    typedef struct {
-        ddr_ringbuffer_controller_csr__LAST_COMMIT_ADDR_LO__slot_addr_lo__in_t slot_addr_lo;
-    } ddr_ringbuffer_controller_csr__LAST_COMMIT_ADDR_LO__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } ddr_ringbuffer_controller_csr__LAST_COMMIT_ADDR_HI__slot_addr_hi__in_t;
-
-    typedef struct {
-        ddr_ringbuffer_controller_csr__LAST_COMMIT_ADDR_HI__slot_addr_hi__in_t slot_addr_hi;
-    } ddr_ringbuffer_controller_csr__LAST_COMMIT_ADDR_HI__in_t;
-
-    typedef struct {
-        logic [23:0] next;
-    } ddr_ringbuffer_controller_csr__LAST_COMMIT_INFO__slot_bytes__in_t;
-
-    typedef struct {
-        logic next;
-    } ddr_ringbuffer_controller_csr__LAST_COMMIT_INFO__valid_good__in_t;
-
-    typedef struct {
-        logic next;
-    } ddr_ringbuffer_controller_csr__LAST_COMMIT_INFO__overflow_err__in_t;
-
-    typedef struct {
-        logic next;
-    } ddr_ringbuffer_controller_csr__LAST_COMMIT_INFO__commit_valid__in_t;
-
-    typedef struct {
-        ddr_ringbuffer_controller_csr__LAST_COMMIT_INFO__slot_bytes__in_t slot_bytes;
-        ddr_ringbuffer_controller_csr__LAST_COMMIT_INFO__valid_good__in_t valid_good;
-        ddr_ringbuffer_controller_csr__LAST_COMMIT_INFO__overflow_err__in_t overflow_err;
-        ddr_ringbuffer_controller_csr__LAST_COMMIT_INFO__commit_valid__in_t commit_valid;
-    } ddr_ringbuffer_controller_csr__LAST_COMMIT_INFO__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } ddr_ringbuffer_controller_csr__LAST_COMMIT_SEQ__slot_seq__in_t;
-
-    typedef struct {
-        ddr_ringbuffer_controller_csr__LAST_COMMIT_SEQ__slot_seq__in_t slot_seq;
-    } ddr_ringbuffer_controller_csr__LAST_COMMIT_SEQ__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } ddr_ringbuffer_controller_csr__HEAD_DESC_ADDR_LO__slot_addr_lo__in_t;
-
-    typedef struct {
-        ddr_ringbuffer_controller_csr__HEAD_DESC_ADDR_LO__slot_addr_lo__in_t slot_addr_lo;
-    } ddr_ringbuffer_controller_csr__HEAD_DESC_ADDR_LO__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } ddr_ringbuffer_controller_csr__HEAD_DESC_ADDR_HI__slot_addr_hi__in_t;
-
-    typedef struct {
-        ddr_ringbuffer_controller_csr__HEAD_DESC_ADDR_HI__slot_addr_hi__in_t slot_addr_hi;
-    } ddr_ringbuffer_controller_csr__HEAD_DESC_ADDR_HI__in_t;
-
-    typedef struct {
-        logic [23:0] next;
-    } ddr_ringbuffer_controller_csr__HEAD_DESC_INFO__slot_bytes__in_t;
-
-    typedef struct {
-        logic next;
-    } ddr_ringbuffer_controller_csr__HEAD_DESC_INFO__valid_good__in_t;
-
-    typedef struct {
-        logic next;
-    } ddr_ringbuffer_controller_csr__HEAD_DESC_INFO__overflow_err__in_t;
-
-    typedef struct {
-        logic next;
-    } ddr_ringbuffer_controller_csr__HEAD_DESC_INFO__desc_valid__in_t;
-
-    typedef struct {
-        ddr_ringbuffer_controller_csr__HEAD_DESC_INFO__slot_bytes__in_t slot_bytes;
-        ddr_ringbuffer_controller_csr__HEAD_DESC_INFO__valid_good__in_t valid_good;
-        ddr_ringbuffer_controller_csr__HEAD_DESC_INFO__overflow_err__in_t overflow_err;
-        ddr_ringbuffer_controller_csr__HEAD_DESC_INFO__desc_valid__in_t desc_valid;
-    } ddr_ringbuffer_controller_csr__HEAD_DESC_INFO__in_t;
-
-    typedef struct {
-        logic [31:0] next;
-    } ddr_ringbuffer_controller_csr__HEAD_DESC_SEQ__slot_seq__in_t;
-
-    typedef struct {
-        ddr_ringbuffer_controller_csr__HEAD_DESC_SEQ__slot_seq__in_t slot_seq;
-    } ddr_ringbuffer_controller_csr__HEAD_DESC_SEQ__in_t;
-
-    typedef struct {
-        ddr_ringbuffer_controller_csr__CTRL__in_t CTRL;
-        ddr_ringbuffer_controller_csr__STATUS__in_t STATUS;
-        ddr_ringbuffer_controller_csr__RING_BASE_LO__in_t RING_BASE_LO;
-        ddr_ringbuffer_controller_csr__RING_BASE_HI__in_t RING_BASE_HI;
-        ddr_ringbuffer_controller_csr__RING_SIZE_BYTES__in_t RING_SIZE_BYTES;
-        ddr_ringbuffer_controller_csr__USED_BYTES__in_t USED_BYTES;
-        ddr_ringbuffer_controller_csr__FREE_BYTES__in_t FREE_BYTES;
-        ddr_ringbuffer_controller_csr__COMMITTED_BYTES__in_t COMMITTED_BYTES;
-        ddr_ringbuffer_controller_csr__WR_PTR_LO__in_t WR_PTR_LO;
-        ddr_ringbuffer_controller_csr__WR_PTR_HI__in_t WR_PTR_HI;
-        ddr_ringbuffer_controller_csr__RD_PTR_LO__in_t RD_PTR_LO;
-        ddr_ringbuffer_controller_csr__RD_PTR_HI__in_t RD_PTR_HI;
-        ddr_ringbuffer_controller_csr__COMMIT_PTR_LO__in_t COMMIT_PTR_LO;
-        ddr_ringbuffer_controller_csr__COMMIT_PTR_HI__in_t COMMIT_PTR_HI;
-        ddr_ringbuffer_controller_csr__WRAP_COUNT__in_t WRAP_COUNT;
-        ddr_ringbuffer_controller_csr__OVERFLOW_COUNT__in_t OVERFLOW_COUNT;
-        ddr_ringbuffer_controller_csr__DROP_COUNT__in_t DROP_COUNT;
-        ddr_ringbuffer_controller_csr__LAST_COMMIT_ADDR_LO__in_t LAST_COMMIT_ADDR_LO;
-        ddr_ringbuffer_controller_csr__LAST_COMMIT_ADDR_HI__in_t LAST_COMMIT_ADDR_HI;
-        ddr_ringbuffer_controller_csr__LAST_COMMIT_INFO__in_t LAST_COMMIT_INFO;
-        ddr_ringbuffer_controller_csr__LAST_COMMIT_SEQ__in_t LAST_COMMIT_SEQ;
-        ddr_ringbuffer_controller_csr__HEAD_DESC_ADDR_LO__in_t HEAD_DESC_ADDR_LO;
-        ddr_ringbuffer_controller_csr__HEAD_DESC_ADDR_HI__in_t HEAD_DESC_ADDR_HI;
-        ddr_ringbuffer_controller_csr__HEAD_DESC_INFO__in_t HEAD_DESC_INFO;
-        ddr_ringbuffer_controller_csr__HEAD_DESC_SEQ__in_t HEAD_DESC_SEQ;
-    } ddr_ringbuffer_controller_csr__in_t;
-
-    typedef struct {
-        logic value;
-    } ddr_ringbuffer_controller_csr__CTRL__enable__out_t;
-
-    typedef struct {
-        logic value;
-    } ddr_ringbuffer_controller_csr__CTRL__allow_overwrite__out_t;
-
-    typedef struct {
-        logic value;
-    } ddr_ringbuffer_controller_csr__CTRL__drop_invalid_slot__out_t;
-
-    typedef struct {
-        logic value;
-    } ddr_ringbuffer_controller_csr__CTRL__drop_on_no_space__out_t;
-
-    typedef struct {
-        ddr_ringbuffer_controller_csr__CTRL__enable__out_t enable;
-        ddr_ringbuffer_controller_csr__CTRL__allow_overwrite__out_t allow_overwrite;
-        ddr_ringbuffer_controller_csr__CTRL__drop_invalid_slot__out_t drop_invalid_slot;
-        ddr_ringbuffer_controller_csr__CTRL__drop_on_no_space__out_t drop_on_no_space;
-    } ddr_ringbuffer_controller_csr__CTRL__out_t;
-
-    typedef struct {
-        logic [31:0] value;
-    } ddr_ringbuffer_controller_csr__RING_BASE_LO__ring_base_lo__out_t;
-
-    typedef struct {
-        ddr_ringbuffer_controller_csr__RING_BASE_LO__ring_base_lo__out_t ring_base_lo;
-    } ddr_ringbuffer_controller_csr__RING_BASE_LO__out_t;
-
-    typedef struct {
-        logic [31:0] value;
-    } ddr_ringbuffer_controller_csr__RING_BASE_HI__ring_base_hi__out_t;
-
-    typedef struct {
-        ddr_ringbuffer_controller_csr__RING_BASE_HI__ring_base_hi__out_t ring_base_hi;
-    } ddr_ringbuffer_controller_csr__RING_BASE_HI__out_t;
-
-    typedef struct {
-        logic [31:0] value;
-    } ddr_ringbuffer_controller_csr__RING_SIZE_BYTES__ring_size_bytes__out_t;
-
-    typedef struct {
-        ddr_ringbuffer_controller_csr__RING_SIZE_BYTES__ring_size_bytes__out_t ring_size_bytes;
-    } ddr_ringbuffer_controller_csr__RING_SIZE_BYTES__out_t;
-
-    typedef struct {
-        logic value;
-    } ddr_ringbuffer_controller_csr__READ_CMD__issue_head_read__out_t;
-
-    typedef struct {
-        logic value;
-    } ddr_ringbuffer_controller_csr__READ_CMD__consume_head__out_t;
-
-    typedef struct {
-        ddr_ringbuffer_controller_csr__READ_CMD__issue_head_read__out_t issue_head_read;
-        ddr_ringbuffer_controller_csr__READ_CMD__consume_head__out_t consume_head;
-    } ddr_ringbuffer_controller_csr__READ_CMD__out_t;
-
-    typedef struct {
-        ddr_ringbuffer_controller_csr__CTRL__out_t CTRL;
-        ddr_ringbuffer_controller_csr__RING_BASE_LO__out_t RING_BASE_LO;
-        ddr_ringbuffer_controller_csr__RING_BASE_HI__out_t RING_BASE_HI;
-        ddr_ringbuffer_controller_csr__RING_SIZE_BYTES__out_t RING_SIZE_BYTES;
-        ddr_ringbuffer_controller_csr__READ_CMD__out_t READ_CMD;
-    } ddr_ringbuffer_controller_csr__out_t;
+  typedef struct {
+    ddr_ringbuffer_controller_csr__RING_BASE_HI__ring_base_hi__in_t ring_base_hi;
+  } ddr_ringbuffer_controller_csr__RING_BASE_HI__in_t;
+
+  typedef struct {
+    logic [31:0] next;
+  } ddr_ringbuffer_controller_csr__RING_SIZE_BYTES__ring_size_bytes__in_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__RING_SIZE_BYTES__ring_size_bytes__in_t ring_size_bytes;
+  } ddr_ringbuffer_controller_csr__RING_SIZE_BYTES__in_t;
+
+  typedef struct {logic [31:0] next;} ddr_ringbuffer_controller_csr__USED_BYTES__used_bytes__in_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__USED_BYTES__used_bytes__in_t used_bytes;
+  } ddr_ringbuffer_controller_csr__USED_BYTES__in_t;
+
+  typedef struct {logic [31:0] next;} ddr_ringbuffer_controller_csr__FREE_BYTES__free_bytes__in_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__FREE_BYTES__free_bytes__in_t free_bytes;
+  } ddr_ringbuffer_controller_csr__FREE_BYTES__in_t;
+
+  typedef struct {
+    logic [31:0] next;
+  } ddr_ringbuffer_controller_csr__COMMITTED_BYTES__committed_bytes__in_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__COMMITTED_BYTES__committed_bytes__in_t committed_bytes;
+  } ddr_ringbuffer_controller_csr__COMMITTED_BYTES__in_t;
+
+  typedef struct {logic [31:0] next;} ddr_ringbuffer_controller_csr__WR_PTR_LO__wr_ptr_lo__in_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__WR_PTR_LO__wr_ptr_lo__in_t wr_ptr_lo;
+  } ddr_ringbuffer_controller_csr__WR_PTR_LO__in_t;
+
+  typedef struct {logic [31:0] next;} ddr_ringbuffer_controller_csr__WR_PTR_HI__wr_ptr_hi__in_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__WR_PTR_HI__wr_ptr_hi__in_t wr_ptr_hi;
+  } ddr_ringbuffer_controller_csr__WR_PTR_HI__in_t;
+
+  typedef struct {logic [31:0] next;} ddr_ringbuffer_controller_csr__RD_PTR_LO__rd_ptr_lo__in_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__RD_PTR_LO__rd_ptr_lo__in_t rd_ptr_lo;
+  } ddr_ringbuffer_controller_csr__RD_PTR_LO__in_t;
+
+  typedef struct {logic [31:0] next;} ddr_ringbuffer_controller_csr__RD_PTR_HI__rd_ptr_hi__in_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__RD_PTR_HI__rd_ptr_hi__in_t rd_ptr_hi;
+  } ddr_ringbuffer_controller_csr__RD_PTR_HI__in_t;
+
+  typedef struct {
+    logic [31:0] next;
+  } ddr_ringbuffer_controller_csr__COMMIT_PTR_LO__commit_ptr_lo__in_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__COMMIT_PTR_LO__commit_ptr_lo__in_t commit_ptr_lo;
+  } ddr_ringbuffer_controller_csr__COMMIT_PTR_LO__in_t;
+
+  typedef struct {
+    logic [31:0] next;
+  } ddr_ringbuffer_controller_csr__COMMIT_PTR_HI__commit_ptr_hi__in_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__COMMIT_PTR_HI__commit_ptr_hi__in_t commit_ptr_hi;
+  } ddr_ringbuffer_controller_csr__COMMIT_PTR_HI__in_t;
+
+  typedef struct {logic [31:0] next;} ddr_ringbuffer_controller_csr__WRAP_COUNT__wrap_count__in_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__WRAP_COUNT__wrap_count__in_t wrap_count;
+  } ddr_ringbuffer_controller_csr__WRAP_COUNT__in_t;
+
+  typedef struct {
+    logic [31:0] next;
+  } ddr_ringbuffer_controller_csr__OVERFLOW_COUNT__overflow_count__in_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__OVERFLOW_COUNT__overflow_count__in_t overflow_count;
+  } ddr_ringbuffer_controller_csr__OVERFLOW_COUNT__in_t;
+
+  typedef struct {logic [31:0] next;} ddr_ringbuffer_controller_csr__DROP_COUNT__drop_count__in_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__DROP_COUNT__drop_count__in_t drop_count;
+  } ddr_ringbuffer_controller_csr__DROP_COUNT__in_t;
+
+  typedef struct {
+    logic [31:0] next;
+  } ddr_ringbuffer_controller_csr__LAST_COMMIT_ADDR_LO__slot_addr_lo__in_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__LAST_COMMIT_ADDR_LO__slot_addr_lo__in_t slot_addr_lo;
+  } ddr_ringbuffer_controller_csr__LAST_COMMIT_ADDR_LO__in_t;
+
+  typedef struct {
+    logic [31:0] next;
+  } ddr_ringbuffer_controller_csr__LAST_COMMIT_ADDR_HI__slot_addr_hi__in_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__LAST_COMMIT_ADDR_HI__slot_addr_hi__in_t slot_addr_hi;
+  } ddr_ringbuffer_controller_csr__LAST_COMMIT_ADDR_HI__in_t;
+
+  typedef struct {
+    logic [23:0] next;
+  } ddr_ringbuffer_controller_csr__LAST_COMMIT_INFO__slot_bytes__in_t;
+
+  typedef struct {logic next;} ddr_ringbuffer_controller_csr__LAST_COMMIT_INFO__valid_good__in_t;
+
+  typedef struct {logic next;} ddr_ringbuffer_controller_csr__LAST_COMMIT_INFO__overflow_err__in_t;
+
+  typedef struct {logic next;} ddr_ringbuffer_controller_csr__LAST_COMMIT_INFO__commit_valid__in_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__LAST_COMMIT_INFO__slot_bytes__in_t   slot_bytes;
+    ddr_ringbuffer_controller_csr__LAST_COMMIT_INFO__valid_good__in_t   valid_good;
+    ddr_ringbuffer_controller_csr__LAST_COMMIT_INFO__overflow_err__in_t overflow_err;
+    ddr_ringbuffer_controller_csr__LAST_COMMIT_INFO__commit_valid__in_t commit_valid;
+  } ddr_ringbuffer_controller_csr__LAST_COMMIT_INFO__in_t;
+
+  typedef struct {
+    logic [31:0] next;
+  } ddr_ringbuffer_controller_csr__LAST_COMMIT_SEQ__slot_seq__in_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__LAST_COMMIT_SEQ__slot_seq__in_t slot_seq;
+  } ddr_ringbuffer_controller_csr__LAST_COMMIT_SEQ__in_t;
+
+  typedef struct {
+    logic [31:0] next;
+  } ddr_ringbuffer_controller_csr__HEAD_DESC_ADDR_LO__slot_addr_lo__in_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__HEAD_DESC_ADDR_LO__slot_addr_lo__in_t slot_addr_lo;
+  } ddr_ringbuffer_controller_csr__HEAD_DESC_ADDR_LO__in_t;
+
+  typedef struct {
+    logic [31:0] next;
+  } ddr_ringbuffer_controller_csr__HEAD_DESC_ADDR_HI__slot_addr_hi__in_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__HEAD_DESC_ADDR_HI__slot_addr_hi__in_t slot_addr_hi;
+  } ddr_ringbuffer_controller_csr__HEAD_DESC_ADDR_HI__in_t;
+
+  typedef struct {
+    logic [23:0] next;
+  } ddr_ringbuffer_controller_csr__HEAD_DESC_INFO__slot_bytes__in_t;
+
+  typedef struct {logic next;} ddr_ringbuffer_controller_csr__HEAD_DESC_INFO__valid_good__in_t;
+
+  typedef struct {logic next;} ddr_ringbuffer_controller_csr__HEAD_DESC_INFO__overflow_err__in_t;
+
+  typedef struct {logic next;} ddr_ringbuffer_controller_csr__HEAD_DESC_INFO__desc_valid__in_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__HEAD_DESC_INFO__slot_bytes__in_t   slot_bytes;
+    ddr_ringbuffer_controller_csr__HEAD_DESC_INFO__valid_good__in_t   valid_good;
+    ddr_ringbuffer_controller_csr__HEAD_DESC_INFO__overflow_err__in_t overflow_err;
+    ddr_ringbuffer_controller_csr__HEAD_DESC_INFO__desc_valid__in_t   desc_valid;
+  } ddr_ringbuffer_controller_csr__HEAD_DESC_INFO__in_t;
+
+  typedef struct {logic [31:0] next;} ddr_ringbuffer_controller_csr__HEAD_DESC_SEQ__slot_seq__in_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__HEAD_DESC_SEQ__slot_seq__in_t slot_seq;
+  } ddr_ringbuffer_controller_csr__HEAD_DESC_SEQ__in_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__CTRL__in_t CTRL;
+    ddr_ringbuffer_controller_csr__STATUS__in_t STATUS;
+    ddr_ringbuffer_controller_csr__RING_BASE_LO__in_t RING_BASE_LO;
+    ddr_ringbuffer_controller_csr__RING_BASE_HI__in_t RING_BASE_HI;
+    ddr_ringbuffer_controller_csr__RING_SIZE_BYTES__in_t RING_SIZE_BYTES;
+    ddr_ringbuffer_controller_csr__USED_BYTES__in_t USED_BYTES;
+    ddr_ringbuffer_controller_csr__FREE_BYTES__in_t FREE_BYTES;
+    ddr_ringbuffer_controller_csr__COMMITTED_BYTES__in_t COMMITTED_BYTES;
+    ddr_ringbuffer_controller_csr__WR_PTR_LO__in_t WR_PTR_LO;
+    ddr_ringbuffer_controller_csr__WR_PTR_HI__in_t WR_PTR_HI;
+    ddr_ringbuffer_controller_csr__RD_PTR_LO__in_t RD_PTR_LO;
+    ddr_ringbuffer_controller_csr__RD_PTR_HI__in_t RD_PTR_HI;
+    ddr_ringbuffer_controller_csr__COMMIT_PTR_LO__in_t COMMIT_PTR_LO;
+    ddr_ringbuffer_controller_csr__COMMIT_PTR_HI__in_t COMMIT_PTR_HI;
+    ddr_ringbuffer_controller_csr__WRAP_COUNT__in_t WRAP_COUNT;
+    ddr_ringbuffer_controller_csr__OVERFLOW_COUNT__in_t OVERFLOW_COUNT;
+    ddr_ringbuffer_controller_csr__DROP_COUNT__in_t DROP_COUNT;
+    ddr_ringbuffer_controller_csr__LAST_COMMIT_ADDR_LO__in_t LAST_COMMIT_ADDR_LO;
+    ddr_ringbuffer_controller_csr__LAST_COMMIT_ADDR_HI__in_t LAST_COMMIT_ADDR_HI;
+    ddr_ringbuffer_controller_csr__LAST_COMMIT_INFO__in_t LAST_COMMIT_INFO;
+    ddr_ringbuffer_controller_csr__LAST_COMMIT_SEQ__in_t LAST_COMMIT_SEQ;
+    ddr_ringbuffer_controller_csr__HEAD_DESC_ADDR_LO__in_t HEAD_DESC_ADDR_LO;
+    ddr_ringbuffer_controller_csr__HEAD_DESC_ADDR_HI__in_t HEAD_DESC_ADDR_HI;
+    ddr_ringbuffer_controller_csr__HEAD_DESC_INFO__in_t HEAD_DESC_INFO;
+    ddr_ringbuffer_controller_csr__HEAD_DESC_SEQ__in_t HEAD_DESC_SEQ;
+  } ddr_ringbuffer_controller_csr__in_t;
+
+  typedef struct {logic value;} ddr_ringbuffer_controller_csr__CTRL__enable__out_t;
+
+  typedef struct {logic value;} ddr_ringbuffer_controller_csr__CTRL__allow_overwrite__out_t;
+
+  typedef struct {logic value;} ddr_ringbuffer_controller_csr__CTRL__drop_invalid_slot__out_t;
+
+  typedef struct {logic value;} ddr_ringbuffer_controller_csr__CTRL__drop_on_no_space__out_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__CTRL__enable__out_t enable;
+    ddr_ringbuffer_controller_csr__CTRL__allow_overwrite__out_t allow_overwrite;
+    ddr_ringbuffer_controller_csr__CTRL__drop_invalid_slot__out_t drop_invalid_slot;
+    ddr_ringbuffer_controller_csr__CTRL__drop_on_no_space__out_t drop_on_no_space;
+  } ddr_ringbuffer_controller_csr__CTRL__out_t;
+
+  typedef struct {
+    logic [31:0] value;
+  } ddr_ringbuffer_controller_csr__RING_BASE_LO__ring_base_lo__out_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__RING_BASE_LO__ring_base_lo__out_t ring_base_lo;
+  } ddr_ringbuffer_controller_csr__RING_BASE_LO__out_t;
+
+  typedef struct {
+    logic [31:0] value;
+  } ddr_ringbuffer_controller_csr__RING_BASE_HI__ring_base_hi__out_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__RING_BASE_HI__ring_base_hi__out_t ring_base_hi;
+  } ddr_ringbuffer_controller_csr__RING_BASE_HI__out_t;
+
+  typedef struct {
+    logic [31:0] value;
+  } ddr_ringbuffer_controller_csr__RING_SIZE_BYTES__ring_size_bytes__out_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__RING_SIZE_BYTES__ring_size_bytes__out_t ring_size_bytes;
+  } ddr_ringbuffer_controller_csr__RING_SIZE_BYTES__out_t;
+
+  typedef struct {logic value;} ddr_ringbuffer_controller_csr__READ_CMD__issue_head_read__out_t;
+
+  typedef struct {logic value;} ddr_ringbuffer_controller_csr__READ_CMD__consume_head__out_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__READ_CMD__issue_head_read__out_t issue_head_read;
+    ddr_ringbuffer_controller_csr__READ_CMD__consume_head__out_t consume_head;
+  } ddr_ringbuffer_controller_csr__READ_CMD__out_t;
+
+  typedef struct {
+    ddr_ringbuffer_controller_csr__CTRL__out_t CTRL;
+    ddr_ringbuffer_controller_csr__RING_BASE_LO__out_t RING_BASE_LO;
+    ddr_ringbuffer_controller_csr__RING_BASE_HI__out_t RING_BASE_HI;
+    ddr_ringbuffer_controller_csr__RING_SIZE_BYTES__out_t RING_SIZE_BYTES;
+    ddr_ringbuffer_controller_csr__READ_CMD__out_t READ_CMD;
+  } ddr_ringbuffer_controller_csr__out_t;
 endpackage

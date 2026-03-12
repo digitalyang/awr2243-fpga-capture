@@ -10,14 +10,14 @@ package awr2243_script_pkg;
 
   localparam int unsigned SCRIPT_OPCODE_MSB = 63;
   localparam int unsigned SCRIPT_OPCODE_LSB = 56;
-  localparam int unsigned SCRIPT_FLAGS_MSB  = 55;
-  localparam int unsigned SCRIPT_FLAGS_LSB  = 48;
-  localparam int unsigned SCRIPT_STEP_MSB   = 47;
-  localparam int unsigned SCRIPT_STEP_LSB   = 32;
-  localparam int unsigned SCRIPT_IMM_A_MSB  = 31;
-  localparam int unsigned SCRIPT_IMM_A_LSB  = 16;
-  localparam int unsigned SCRIPT_IMM_B_MSB  = 15;
-  localparam int unsigned SCRIPT_IMM_B_LSB  = 0;
+  localparam int unsigned SCRIPT_FLAGS_MSB = 55;
+  localparam int unsigned SCRIPT_FLAGS_LSB = 48;
+  localparam int unsigned SCRIPT_STEP_MSB = 47;
+  localparam int unsigned SCRIPT_STEP_LSB = 32;
+  localparam int unsigned SCRIPT_IMM_A_MSB = 31;
+  localparam int unsigned SCRIPT_IMM_A_LSB = 16;
+  localparam int unsigned SCRIPT_IMM_B_MSB = 15;
+  localparam int unsigned SCRIPT_IMM_B_LSB = 0;
 
   localparam int unsigned SPI_RD_FLAG_COMPARE_BIT = 0;
 
@@ -39,13 +39,13 @@ package awr2243_script_pkg;
   } awr2243_timer_unit_e;
 
   typedef enum logic [SCRIPT_ERR_CODE_W_DFLT-1:0] {
-    AWR_CMD_ERR_NONE            = 8'h00,
-    AWR_CMD_ERR_INVALID_OPCODE  = 8'h01,
-    AWR_CMD_ERR_SPI_TIMEOUT     = 8'h02,
-    AWR_CMD_ERR_SPI_MISMATCH    = 8'h03,
-    AWR_CMD_ERR_WAIT_IRQ_TO     = 8'h04,
-    AWR_CMD_ERR_FAULT_ACTIVE    = 8'h05,
-    AWR_CMD_ERR_FAIL_OPCODE     = 8'h06
+    AWR_CMD_ERR_NONE           = 8'h00,
+    AWR_CMD_ERR_INVALID_OPCODE = 8'h01,
+    AWR_CMD_ERR_SPI_TIMEOUT    = 8'h02,
+    AWR_CMD_ERR_SPI_MISMATCH   = 8'h03,
+    AWR_CMD_ERR_WAIT_IRQ_TO    = 8'h04,
+    AWR_CMD_ERR_FAULT_ACTIVE   = 8'h05,
+    AWR_CMD_ERR_FAIL_OPCODE    = 8'h06
   } awr2243_cmd_err_e;
 
   function automatic int unsigned clog2_safe(input int unsigned value);

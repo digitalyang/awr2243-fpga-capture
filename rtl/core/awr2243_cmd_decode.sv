@@ -11,9 +11,9 @@ module awr2243_cmd_decode #(
     input logic clk_i,
     input logic rst_ni,
 
-    input logic            cmd_valid_i,
+    input logic              cmd_valid_i,
     input logic [WORD_W-1:0] cmd_word_i,
-    input logic [PC_W-1:0] pc_i,
+    input logic [  PC_W-1:0] pc_i,
 
     output logic            fetch_advance_o,
     output logic            fetch_hold_o,
@@ -23,35 +23,35 @@ module awr2243_cmd_decode #(
     output logic                  cmd_done_o,
     output logic                  cmd_error_o,
     output logic [ERR_CODE_W-1:0] error_code_o,
-    output logic [STEP_ID_W-1:0]  step_id_o,
-    output logic [7:0]            last_opcode_o,
+    output logic [ STEP_ID_W-1:0] step_id_o,
+    output logic [           7:0] last_opcode_o,
     output logic                  busy_o,
-    output logic [3:0]            state_o,
+    output logic [           3:0] state_o,
 
     output logic        spi_cmd_valid_o,
-    input logic         spi_cmd_ready_i,
+    input  logic        spi_cmd_ready_i,
     output logic        spi_cmd_is_read_o,
     output logic [15:0] spi_cmd_word_o,
-    input logic         spi_rsp_valid_i,
-    input logic [15:0]  spi_rsp_word_i,
-    input logic         spi_busy_i,
-    input logic         spi_done_i,
-    input logic         spi_timeout_i,
+    input  logic        spi_rsp_valid_i,
+    input  logic [15:0] spi_rsp_word_i,
+    input  logic        spi_busy_i,
+    input  logic        spi_done_i,
+    input  logic        spi_timeout_i,
 
-    output logic                      timer_start_o,
-    output logic                      timer_clear_o,
-    output logic [TIMER_VALUE_W-1:0]  timer_period_value_o,
-    output logic [TIMER_UNIT_W-1:0]   timer_period_unit_o,
-    input logic                       timer_busy_i,
-    input logic                       timer_done_i,
-    input logic                       timer_expired_i,
+    output logic                     timer_start_o,
+    output logic                     timer_clear_o,
+    output logic [TIMER_VALUE_W-1:0] timer_period_value_o,
+    output logic [ TIMER_UNIT_W-1:0] timer_period_unit_o,
+    input  logic                     timer_busy_i,
+    input  logic                     timer_done_i,
+    input  logic                     timer_expired_i,
 
     output logic clr_irq_sticky_o,
     output logic clr_fault_sticky_o,
-    input logic  host_irq_rise_i,
-    input logic  host_irq_sticky_i,
-    input logic  fault_active_i,
-    input logic  fault_sticky_i
+    input  logic host_irq_rise_i,
+    input  logic host_irq_sticky_i,
+    input  logic fault_active_i,
+    input  logic fault_sticky_i
 );
 
   import awr2243_script_pkg::*;
@@ -71,31 +71,31 @@ module awr2243_cmd_decode #(
     D_WAIT_IRQ
   } decode_state_e;
 
-  decode_state_e            state_r;
-  decode_state_e            state_n;
-  logic [WORD_W-1:0]        cmd_word_r;
-  logic [WORD_W-1:0]        cmd_word_n;
-  logic [7:0]               opcode_r;
-  logic [7:0]               opcode_n;
-  logic [7:0]               flags_r;
-  logic [7:0]               flags_n;
-  logic [STEP_ID_W-1:0]     step_id_r;
-  logic [STEP_ID_W-1:0]     step_id_n;
-  logic [15:0]              imm_a_r;
-  logic [15:0]              imm_a_n;
-  logic [15:0]              imm_b_r;
-  logic [15:0]              imm_b_n;
-  logic [TIMER_VALUE_W-1:0] timer_value_r;
-  logic [TIMER_VALUE_W-1:0] timer_value_n;
-  logic [PC_W-1:0]          cmd_pc_r;
-  logic [PC_W-1:0]          cmd_pc_n;
-  logic [15:0]              spi_rsp_word_r;
-  logic [15:0]              spi_rsp_word_n;
-  logic [ERR_CODE_W-1:0]    error_code_r;
-  logic [ERR_CODE_W-1:0]    error_code_n;
+  decode_state_e                     state_r;
+  decode_state_e                     state_n;
+  logic          [       WORD_W-1:0] cmd_word_r;
+  logic          [       WORD_W-1:0] cmd_word_n;
+  logic          [              7:0] opcode_r;
+  logic          [              7:0] opcode_n;
+  logic          [              7:0] flags_r;
+  logic          [              7:0] flags_n;
+  logic          [    STEP_ID_W-1:0] step_id_r;
+  logic          [    STEP_ID_W-1:0] step_id_n;
+  logic          [             15:0] imm_a_r;
+  logic          [             15:0] imm_a_n;
+  logic          [             15:0] imm_b_r;
+  logic          [             15:0] imm_b_n;
+  logic          [TIMER_VALUE_W-1:0] timer_value_r;
+  logic          [TIMER_VALUE_W-1:0] timer_value_n;
+  logic          [         PC_W-1:0] cmd_pc_r;
+  logic          [         PC_W-1:0] cmd_pc_n;
+  logic          [             15:0] spi_rsp_word_r;
+  logic          [             15:0] spi_rsp_word_n;
+  logic          [   ERR_CODE_W-1:0] error_code_r;
+  logic          [   ERR_CODE_W-1:0] error_code_n;
 
-  logic [63:0] accept_word_c;
-  logic [15:0] spi_rsp_cmp_c;
+  logic          [             63:0] accept_word_c;
+  logic          [             15:0] spi_rsp_cmp_c;
 
   initial begin
     if (WORD_W < SCRIPT_WORD_W_DFLT) begin
@@ -159,9 +159,10 @@ module awr2243_cmd_decode #(
           timer_value_n = TIMER_VALUE_W'(cmd_imm32(accept_word_c));
           cmd_pc_n      = pc_i;
 
-          case (cmd_opcode(accept_word_c))
-            AWR_CMD_NOP,
-            AWR_CMD_END: begin
+          case (cmd_opcode(
+              accept_word_c
+          ))
+            AWR_CMD_NOP, AWR_CMD_END: begin
               state_n = D_PULSE_DONE;
             end
 
@@ -170,8 +171,8 @@ module awr2243_cmd_decode #(
             end
 
             AWR_CMD_FAIL: begin
-              error_code_n = (cmd_imm_b(accept_word_c)[ERR_CODE_W-1:0] != '0) ?
-                  cmd_imm_b(accept_word_c)[ERR_CODE_W-1:0] : AWR_CMD_ERR_FAIL_OPCODE;
+              error_code_n = (cmd_imm_b(accept_word_c) [ERR_CODE_W-1:0] != '0) ?
+                  cmd_imm_b(accept_word_c) [ERR_CODE_W-1:0] : AWR_CMD_ERR_FAIL_OPCODE;
               state_n = D_PULSE_ERROR_ADV;
             end
 
@@ -184,8 +185,7 @@ module awr2243_cmd_decode #(
               end
             end
 
-            AWR_CMD_SPI_WR,
-            AWR_CMD_SPI_RD: begin
+            AWR_CMD_SPI_WR, AWR_CMD_SPI_RD: begin
               spi_rsp_word_n = '0;
               state_n        = D_SPI_REQ;
             end

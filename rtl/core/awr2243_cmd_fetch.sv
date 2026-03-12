@@ -1,11 +1,11 @@
 `include "awr2243_script_macros.svh"
 
 module awr2243_cmd_fetch #(
-    parameter int unsigned WORD_W = `AWR2243_SCRIPT_WORD_W_DFLT,
-    parameter int unsigned DEPTH = `AWR2243_SCRIPT_MEM_DEPTH_DFLT,
+    parameter int unsigned WORD_W       = `AWR2243_SCRIPT_WORD_W_DFLT,
+    parameter int unsigned DEPTH        = `AWR2243_SCRIPT_MEM_DEPTH_DFLT,
     parameter int unsigned SCRIPT_COUNT = `AWR2243_SCRIPT_TABLE_DEPTH_DFLT,
-    parameter int unsigned ADDR_W = awr2243_script_pkg::clog2_safe(DEPTH),
-    parameter int unsigned SCRIPT_ID_W = awr2243_script_pkg::clog2_safe(SCRIPT_COUNT),
+    parameter int unsigned ADDR_W       = awr2243_script_pkg::clog2_safe(DEPTH),
+    parameter int unsigned SCRIPT_ID_W  = awr2243_script_pkg::clog2_safe(SCRIPT_COUNT),
     parameter int unsigned SCRIPT_LEN_W = awr2243_script_pkg::clog2_safe(DEPTH + 1)
 ) (
     input logic clk_i,
@@ -16,22 +16,22 @@ module awr2243_cmd_fetch #(
     input logic                   advance_i,
     input logic                   hold_i,
     input logic                   jump_en_i,
-    input logic [ADDR_W-1:0]      jump_addr_i,
+    input logic [     ADDR_W-1:0] jump_addr_i,
 
-    output logic                   ram_rd_en_o,
-    output logic [ADDR_W-1:0]      ram_rd_addr_o,
-    input logic                    ram_rd_valid_i,
-    input logic [WORD_W-1:0]       ram_rd_data_i,
-    output logic [SCRIPT_ID_W-1:0] ram_script_id_o,
-    input logic [ADDR_W-1:0]       ram_script_base_i,
-    input logic [SCRIPT_LEN_W-1:0] ram_script_len_i,
+    output logic                    ram_rd_en_o,
+    output logic [      ADDR_W-1:0] ram_rd_addr_o,
+    input  logic                    ram_rd_valid_i,
+    input  logic [      WORD_W-1:0] ram_rd_data_i,
+    output logic [ SCRIPT_ID_W-1:0] ram_script_id_o,
+    input  logic [      ADDR_W-1:0] ram_script_base_i,
+    input  logic [SCRIPT_LEN_W-1:0] ram_script_len_i,
 
     output logic              cmd_valid_o,
     output logic [WORD_W-1:0] cmd_word_o,
     output logic [ADDR_W-1:0] pc_o,
     output logic              script_done_o,
     output logic              busy_o,
-    output logic [2:0]        state_o
+    output logic [       2:0] state_o
 );
 
   import awr2243_script_pkg::*;
@@ -44,20 +44,20 @@ module awr2243_cmd_fetch #(
     F_DONE
   } fetch_state_e;
 
-  fetch_state_e                state_r;
-  fetch_state_e                state_n;
-  logic [SCRIPT_ID_W-1:0]      active_script_id_r;
-  logic [SCRIPT_ID_W-1:0]      active_script_id_n;
-  logic [ADDR_W-1:0]           script_base_r;
-  logic [ADDR_W-1:0]           script_base_n;
-  logic [SCRIPT_LEN_W-1:0]     script_len_r;
-  logic [SCRIPT_LEN_W-1:0]     script_len_n;
-  logic [ADDR_W-1:0]           pc_r;
-  logic [ADDR_W-1:0]           pc_n;
-  logic [WORD_W-1:0]           cmd_word_r;
-  logic [WORD_W-1:0]           cmd_word_n;
-  logic                        rd_pending_r;
-  logic                        rd_pending_n;
+  fetch_state_e                    state_r;
+  fetch_state_e                    state_n;
+  logic         [ SCRIPT_ID_W-1:0] active_script_id_r;
+  logic         [ SCRIPT_ID_W-1:0] active_script_id_n;
+  logic         [      ADDR_W-1:0] script_base_r;
+  logic         [      ADDR_W-1:0] script_base_n;
+  logic         [SCRIPT_LEN_W-1:0] script_len_r;
+  logic         [SCRIPT_LEN_W-1:0] script_len_n;
+  logic         [      ADDR_W-1:0] pc_r;
+  logic         [      ADDR_W-1:0] pc_n;
+  logic         [      WORD_W-1:0] cmd_word_r;
+  logic         [      WORD_W-1:0] cmd_word_n;
+  logic                            rd_pending_r;
+  logic                            rd_pending_n;
 
   initial begin
     if (WORD_W < SCRIPT_WORD_W_DFLT) begin
@@ -165,15 +165,15 @@ module awr2243_cmd_fetch #(
   end
 
   always_comb begin
-    ram_rd_en_o      = (state_r == F_READ) && !rd_pending_r;
-    ram_rd_addr_o    = script_base_r + pc_r;
-    ram_script_id_o  = active_script_id_r;
-    cmd_valid_o      = (state_r == F_WAIT_CONSUME);
-    cmd_word_o       = cmd_word_r;
-    pc_o             = pc_r;
-    script_done_o    = (state_r == F_DONE);
-    busy_o           = (state_r != F_IDLE) && (state_r != F_DONE);
-    state_o          = state_r;
+    ram_rd_en_o     = (state_r == F_READ) && !rd_pending_r;
+    ram_rd_addr_o   = script_base_r + pc_r;
+    ram_script_id_o = active_script_id_r;
+    cmd_valid_o     = (state_r == F_WAIT_CONSUME);
+    cmd_word_o      = cmd_word_r;
+    pc_o            = pc_r;
+    script_done_o   = (state_r == F_DONE);
+    busy_o          = (state_r != F_IDLE) && (state_r != F_DONE);
+    state_o         = state_r;
   end
 
 endmodule

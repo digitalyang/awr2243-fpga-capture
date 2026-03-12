@@ -2,712 +2,684 @@
 //  https://github.com/SystemRDL/PeakRDL-regblock
 
 module ddr_ringbuffer_controller_csr (
-        input wire clk,
-        input wire arst_n,
+    input wire clk,
+    input wire arst_n,
 
-        output logic s_axil_awready,
-        input wire s_axil_awvalid,
-        input wire [7:0] s_axil_awaddr,
-        input wire [2:0] s_axil_awprot,
-        output logic s_axil_wready,
-        input wire s_axil_wvalid,
-        input wire [31:0] s_axil_wdata,
-        input wire [3:0]s_axil_wstrb,
-        input wire s_axil_bready,
-        output logic s_axil_bvalid,
-        output logic [1:0] s_axil_bresp,
-        output logic s_axil_arready,
-        input wire s_axil_arvalid,
-        input wire [7:0] s_axil_araddr,
-        input wire [2:0] s_axil_arprot,
-        input wire s_axil_rready,
-        output logic s_axil_rvalid,
-        output logic [31:0] s_axil_rdata,
-        output logic [1:0] s_axil_rresp,
+    output logic        s_axil_awready,
+    input  wire         s_axil_awvalid,
+    input  wire  [ 7:0] s_axil_awaddr,
+    input  wire  [ 2:0] s_axil_awprot,
+    output logic        s_axil_wready,
+    input  wire         s_axil_wvalid,
+    input  wire  [31:0] s_axil_wdata,
+    input  wire  [ 3:0] s_axil_wstrb,
+    input  wire         s_axil_bready,
+    output logic        s_axil_bvalid,
+    output logic [ 1:0] s_axil_bresp,
+    output logic        s_axil_arready,
+    input  wire         s_axil_arvalid,
+    input  wire  [ 7:0] s_axil_araddr,
+    input  wire  [ 2:0] s_axil_arprot,
+    input  wire         s_axil_rready,
+    output logic        s_axil_rvalid,
+    output logic [31:0] s_axil_rdata,
+    output logic [ 1:0] s_axil_rresp,
 
-        input ddr_ringbuffer_controller_csr_pkg::ddr_ringbuffer_controller_csr__in_t hwif_in,
-        output ddr_ringbuffer_controller_csr_pkg::ddr_ringbuffer_controller_csr__out_t hwif_out
-    );
+    input  ddr_ringbuffer_controller_csr_pkg::ddr_ringbuffer_controller_csr__in_t  hwif_in,
+    output ddr_ringbuffer_controller_csr_pkg::ddr_ringbuffer_controller_csr__out_t hwif_out
+);
 
-    //--------------------------------------------------------------------------
-    // CPU Bus interface logic
-    //--------------------------------------------------------------------------
-    logic cpuif_req;
-    logic cpuif_req_is_wr;
-    logic [7:0] cpuif_addr;
-    logic [31:0] cpuif_wr_data;
-    logic [31:0] cpuif_wr_biten;
-    logic cpuif_req_stall_wr;
-    logic cpuif_req_stall_rd;
+  //--------------------------------------------------------------------------
+  // CPU Bus interface logic
+  //--------------------------------------------------------------------------
+  logic        cpuif_req;
+  logic        cpuif_req_is_wr;
+  logic [ 7:0] cpuif_addr;
+  logic [31:0] cpuif_wr_data;
+  logic [31:0] cpuif_wr_biten;
+  logic        cpuif_req_stall_wr;
+  logic        cpuif_req_stall_rd;
 
-    logic cpuif_rd_ack;
-    logic cpuif_rd_err;
-    logic [31:0] cpuif_rd_data;
+  logic        cpuif_rd_ack;
+  logic        cpuif_rd_err;
+  logic [31:0] cpuif_rd_data;
 
-    logic cpuif_wr_ack;
-    logic cpuif_wr_err;
+  logic        cpuif_wr_ack;
+  logic        cpuif_wr_err;
 
-    // Max Outstanding Transactions: 2
-    logic [1:0] axil_n_in_flight;
-    logic axil_prev_was_rd;
-    logic axil_arvalid;
-    logic [7:0] axil_araddr;
-    logic axil_ar_accept;
-    logic axil_awvalid;
-    logic [7:0] axil_awaddr;
-    logic axil_wvalid;
-    logic [31:0] axil_wdata;
-    logic [3:0] axil_wstrb;
-    logic axil_aw_accept;
-    logic axil_resp_acked;
+  // Max Outstanding Transactions: 2
+  logic [ 1:0] axil_n_in_flight;
+  logic        axil_prev_was_rd;
+  logic        axil_arvalid;
+  logic [ 7:0] axil_araddr;
+  logic        axil_ar_accept;
+  logic        axil_awvalid;
+  logic [ 7:0] axil_awaddr;
+  logic        axil_wvalid;
+  logic [31:0] axil_wdata;
+  logic [ 3:0] axil_wstrb;
+  logic        axil_aw_accept;
+  logic        axil_resp_acked;
 
-    // Transaction request acceptance
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            axil_prev_was_rd <= '0;
-            axil_arvalid <= '0;
-            axil_araddr <= '0;
-            axil_awvalid <= '0;
-            axil_awaddr <= '0;
-            axil_wvalid <= '0;
-            axil_wdata <= '0;
-            axil_wstrb <= '0;
-            axil_n_in_flight <= '0;
-        end else begin
-            // AR* acceptance register
-            if(axil_ar_accept) begin
-                axil_prev_was_rd <= '1;
-                axil_arvalid <= '0;
-            end
-            if(s_axil_arvalid && s_axil_arready) begin
-                axil_arvalid <= '1;
-                axil_araddr <= s_axil_araddr;
-            end
+  // Transaction request acceptance
+  always_ff @(posedge clk or negedge arst_n) begin
+    if (~arst_n) begin
+      axil_prev_was_rd <= '0;
+      axil_arvalid     <= '0;
+      axil_araddr      <= '0;
+      axil_awvalid     <= '0;
+      axil_awaddr      <= '0;
+      axil_wvalid      <= '0;
+      axil_wdata       <= '0;
+      axil_wstrb       <= '0;
+      axil_n_in_flight <= '0;
+    end else begin
+      // AR* acceptance register
+      if (axil_ar_accept) begin
+        axil_prev_was_rd <= '1;
+        axil_arvalid     <= '0;
+      end
+      if (s_axil_arvalid && s_axil_arready) begin
+        axil_arvalid <= '1;
+        axil_araddr  <= s_axil_araddr;
+      end
 
-            // AW* & W* acceptance registers
-            if(axil_aw_accept) begin
-                axil_prev_was_rd <= '0;
-                axil_awvalid <= '0;
-                axil_wvalid <= '0;
-            end
-            if(s_axil_awvalid && s_axil_awready) begin
-                axil_awvalid <= '1;
-                axil_awaddr <= s_axil_awaddr;
-            end
-            if(s_axil_wvalid && s_axil_wready) begin
-                axil_wvalid <= '1;
-                axil_wdata <= s_axil_wdata;
-                axil_wstrb <= s_axil_wstrb;
-            end
+      // AW* & W* acceptance registers
+      if (axil_aw_accept) begin
+        axil_prev_was_rd <= '0;
+        axil_awvalid     <= '0;
+        axil_wvalid      <= '0;
+      end
+      if (s_axil_awvalid && s_axil_awready) begin
+        axil_awvalid <= '1;
+        axil_awaddr  <= s_axil_awaddr;
+      end
+      if (s_axil_wvalid && s_axil_wready) begin
+        axil_wvalid <= '1;
+        axil_wdata  <= s_axil_wdata;
+        axil_wstrb  <= s_axil_wstrb;
+      end
 
-            // Keep track of in-flight transactions
-            if((axil_ar_accept || axil_aw_accept) && !axil_resp_acked) begin
-                axil_n_in_flight <= axil_n_in_flight + 1'b1;
-            end else if(!(axil_ar_accept || axil_aw_accept) && axil_resp_acked) begin
-                axil_n_in_flight <= axil_n_in_flight - 1'b1;
-            end
-        end
+      // Keep track of in-flight transactions
+      if ((axil_ar_accept || axil_aw_accept) && !axil_resp_acked) begin
+        axil_n_in_flight <= axil_n_in_flight + 1'b1;
+      end else if (!(axil_ar_accept || axil_aw_accept) && axil_resp_acked) begin
+        axil_n_in_flight <= axil_n_in_flight - 1'b1;
+      end
     end
+  end
 
-    always_comb begin
-        s_axil_arready = (!axil_arvalid || axil_ar_accept);
-        s_axil_awready = (!axil_awvalid || axil_aw_accept);
-        s_axil_wready = (!axil_wvalid || axil_aw_accept);
+  always_comb begin
+    s_axil_arready = (!axil_arvalid || axil_ar_accept);
+    s_axil_awready = (!axil_awvalid || axil_aw_accept);
+    s_axil_wready  = (!axil_wvalid || axil_aw_accept);
+  end
+
+  // Request dispatch
+  always_comb begin
+    cpuif_wr_data = axil_wdata;
+    for (int i = 0; i < 4; i++) begin
+      cpuif_wr_biten[i*8+:8] = {8{axil_wstrb[i]}};
     end
+    cpuif_req       = '0;
+    cpuif_req_is_wr = '0;
+    cpuif_addr      = '0;
+    axil_ar_accept  = '0;
+    axil_aw_accept  = '0;
 
-    // Request dispatch
-    always_comb begin
-        cpuif_wr_data = axil_wdata;
-        for(int i=0; i<4; i++) begin
-            cpuif_wr_biten[i*8 +: 8] = {8{axil_wstrb[i]}};
-        end
-        cpuif_req = '0;
+    if (axil_n_in_flight < 2'd2) begin
+      // Can safely issue more transactions without overwhelming response buffer
+      if (axil_arvalid && !axil_prev_was_rd) begin
+        cpuif_req       = '1;
         cpuif_req_is_wr = '0;
-        cpuif_addr = '0;
-        axil_ar_accept = '0;
-        axil_aw_accept = '0;
+        cpuif_addr      = {axil_araddr[7:2], 2'b0};
+        if (!cpuif_req_stall_rd) axil_ar_accept = '1;
+      end else if (axil_awvalid && axil_wvalid) begin
+        cpuif_req       = '1;
+        cpuif_req_is_wr = '1;
+        cpuif_addr      = {axil_awaddr[7:2], 2'b0};
+        if (!cpuif_req_stall_wr) axil_aw_accept = '1;
+      end else if (axil_arvalid) begin
+        cpuif_req       = '1;
+        cpuif_req_is_wr = '0;
+        cpuif_addr      = {axil_araddr[7:2], 2'b0};
+        if (!cpuif_req_stall_rd) axil_ar_accept = '1;
+      end
+    end
+  end
 
-        if(axil_n_in_flight < 2'd2) begin
-            // Can safely issue more transactions without overwhelming response buffer
-            if(axil_arvalid && !axil_prev_was_rd) begin
-                cpuif_req = '1;
-                cpuif_req_is_wr = '0;
-                cpuif_addr = {axil_araddr[7:2], 2'b0};
-                if(!cpuif_req_stall_rd) axil_ar_accept = '1;
-            end else if(axil_awvalid && axil_wvalid) begin
-                cpuif_req = '1;
-                cpuif_req_is_wr = '1;
-                cpuif_addr = {axil_awaddr[7:2], 2'b0};
-                if(!cpuif_req_stall_wr) axil_aw_accept = '1;
-            end else if(axil_arvalid) begin
-                cpuif_req = '1;
-                cpuif_req_is_wr = '0;
-                cpuif_addr = {axil_araddr[7:2], 2'b0};
-                if(!cpuif_req_stall_rd) axil_ar_accept = '1;
-            end
+
+  // AXI4-Lite Response Logic
+  struct {logic is_wr; logic err; logic [31:0] rdata;}       axil_resp_buffer[2];
+
+  logic                                                [1:0] axil_resp_wptr;
+  logic                                                [1:0] axil_resp_rptr;
+
+  always_ff @(posedge clk or negedge arst_n) begin
+    if (~arst_n) begin
+      for (int i = 0; i < 2; i++) begin
+        axil_resp_buffer[i].is_wr <= '0;
+        axil_resp_buffer[i].err   <= '0;
+        axil_resp_buffer[i].rdata <= '0;
+      end
+      axil_resp_wptr <= '0;
+      axil_resp_rptr <= '0;
+    end else begin
+      // Store responses in buffer until AXI response channel accepts them
+      if (cpuif_rd_ack || cpuif_wr_ack) begin
+        if (cpuif_rd_ack) begin
+          axil_resp_buffer[axil_resp_wptr[0:0]].is_wr <= '0;
+          axil_resp_buffer[axil_resp_wptr[0:0]].err   <= cpuif_rd_err;
+          axil_resp_buffer[axil_resp_wptr[0:0]].rdata <= cpuif_rd_data;
+
+        end else if (cpuif_wr_ack) begin
+          axil_resp_buffer[axil_resp_wptr[0:0]].is_wr <= '1;
+          axil_resp_buffer[axil_resp_wptr[0:0]].err   <= cpuif_wr_err;
         end
+        axil_resp_wptr <= axil_resp_wptr + 1'b1;
+      end
+
+      // Advance read pointer when acknowledged
+      if (axil_resp_acked) begin
+        axil_resp_rptr <= axil_resp_rptr + 1'b1;
+      end
+    end
+  end
+
+  always_comb begin
+    axil_resp_acked = '0;
+    s_axil_bvalid   = '0;
+    s_axil_rvalid   = '0;
+    if (axil_resp_rptr != axil_resp_wptr) begin
+      if (axil_resp_buffer[axil_resp_rptr[0:0]].is_wr) begin
+        s_axil_bvalid = '1;
+        if (s_axil_bready) axil_resp_acked = '1;
+      end else begin
+        s_axil_rvalid = '1;
+        if (s_axil_rready) axil_resp_acked = '1;
+      end
     end
 
-
-    // AXI4-Lite Response Logic
-    struct {
-        logic is_wr;
-        logic err;
-        logic [31:0] rdata;
-    } axil_resp_buffer[2];
-
-    logic [1:0] axil_resp_wptr;
-    logic [1:0] axil_resp_rptr;
-
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            for(int i=0; i<2; i++) begin
-                axil_resp_buffer[i].is_wr <= '0;
-                axil_resp_buffer[i].err <= '0;
-                axil_resp_buffer[i].rdata <= '0;
-            end
-            axil_resp_wptr <= '0;
-            axil_resp_rptr <= '0;
-        end else begin
-            // Store responses in buffer until AXI response channel accepts them
-            if(cpuif_rd_ack || cpuif_wr_ack) begin
-                if(cpuif_rd_ack) begin
-                    axil_resp_buffer[axil_resp_wptr[0:0]].is_wr <= '0;
-                    axil_resp_buffer[axil_resp_wptr[0:0]].err <= cpuif_rd_err;
-                    axil_resp_buffer[axil_resp_wptr[0:0]].rdata <= cpuif_rd_data;
-
-                end else if(cpuif_wr_ack) begin
-                    axil_resp_buffer[axil_resp_wptr[0:0]].is_wr <= '1;
-                    axil_resp_buffer[axil_resp_wptr[0:0]].err <= cpuif_wr_err;
-                end
-                axil_resp_wptr <= axil_resp_wptr + 1'b1;
-            end
-
-            // Advance read pointer when acknowledged
-            if(axil_resp_acked) begin
-                axil_resp_rptr <= axil_resp_rptr + 1'b1;
-            end
-        end
+    s_axil_rdata = axil_resp_buffer[axil_resp_rptr[0:0]].rdata;
+    if (axil_resp_buffer[axil_resp_rptr[0:0]].err) begin
+      s_axil_bresp = 2'b10;
+      s_axil_rresp = 2'b10;
+    end else begin
+      s_axil_bresp = 2'b00;
+      s_axil_rresp = 2'b00;
     end
+  end
 
-    always_comb begin
-        axil_resp_acked = '0;
-        s_axil_bvalid = '0;
-        s_axil_rvalid = '0;
-        if(axil_resp_rptr != axil_resp_wptr) begin
-            if(axil_resp_buffer[axil_resp_rptr[0:0]].is_wr) begin
-                s_axil_bvalid = '1;
-                if(s_axil_bready) axil_resp_acked = '1;
-            end else begin
-                s_axil_rvalid = '1;
-                if(s_axil_rready) axil_resp_acked = '1;
-            end
-        end
+  logic cpuif_req_masked;
 
-        s_axil_rdata = axil_resp_buffer[axil_resp_rptr[0:0]].rdata;
-        if(axil_resp_buffer[axil_resp_rptr[0:0]].err) begin
-            s_axil_bresp = 2'b10;
-            s_axil_rresp = 2'b10;
-        end else begin
-            s_axil_bresp = 2'b00;
-            s_axil_rresp = 2'b00;
-        end
-    end
-
-    logic cpuif_req_masked;
-
-    // Read & write latencies are balanced. Stalls not required
-    assign cpuif_req_stall_rd = '0;
-    assign cpuif_req_stall_wr = '0;
-    assign cpuif_req_masked = cpuif_req
+  // Read & write latencies are balanced. Stalls not required
+  assign cpuif_req_stall_rd = '0;
+  assign cpuif_req_stall_wr = '0;
+  assign cpuif_req_masked = cpuif_req
                             & !(!cpuif_req_is_wr & cpuif_req_stall_rd)
                             & !(cpuif_req_is_wr & cpuif_req_stall_wr);
 
-    //--------------------------------------------------------------------------
-    // Address Decode
-    //--------------------------------------------------------------------------
-    typedef struct {
-        logic CTRL;
-        logic STATUS;
-        logic RING_BASE_LO;
-        logic RING_BASE_HI;
-        logic RING_SIZE_BYTES;
-        logic READ_CMD;
-        logic USED_BYTES;
-        logic FREE_BYTES;
-        logic COMMITTED_BYTES;
-        logic WR_PTR_LO;
-        logic WR_PTR_HI;
-        logic RD_PTR_LO;
-        logic RD_PTR_HI;
-        logic COMMIT_PTR_LO;
-        logic COMMIT_PTR_HI;
-        logic WRAP_COUNT;
-        logic OVERFLOW_COUNT;
-        logic DROP_COUNT;
-        logic LAST_COMMIT_ADDR_LO;
-        logic LAST_COMMIT_ADDR_HI;
-        logic LAST_COMMIT_INFO;
-        logic LAST_COMMIT_SEQ;
-        logic HEAD_DESC_ADDR_LO;
-        logic HEAD_DESC_ADDR_HI;
-        logic HEAD_DESC_INFO;
-        logic HEAD_DESC_SEQ;
-    } decoded_reg_strb_t;
-    decoded_reg_strb_t decoded_reg_strb;
-    logic decoded_err;
-    logic decoded_req;
-    logic decoded_req_is_wr;
-    logic [31:0] decoded_wr_data;
-    logic [31:0] decoded_wr_biten;
+  //--------------------------------------------------------------------------
+  // Address Decode
+  //--------------------------------------------------------------------------
+  typedef struct {
+    logic CTRL;
+    logic STATUS;
+    logic RING_BASE_LO;
+    logic RING_BASE_HI;
+    logic RING_SIZE_BYTES;
+    logic READ_CMD;
+    logic USED_BYTES;
+    logic FREE_BYTES;
+    logic COMMITTED_BYTES;
+    logic WR_PTR_LO;
+    logic WR_PTR_HI;
+    logic RD_PTR_LO;
+    logic RD_PTR_HI;
+    logic COMMIT_PTR_LO;
+    logic COMMIT_PTR_HI;
+    logic WRAP_COUNT;
+    logic OVERFLOW_COUNT;
+    logic DROP_COUNT;
+    logic LAST_COMMIT_ADDR_LO;
+    logic LAST_COMMIT_ADDR_HI;
+    logic LAST_COMMIT_INFO;
+    logic LAST_COMMIT_SEQ;
+    logic HEAD_DESC_ADDR_LO;
+    logic HEAD_DESC_ADDR_HI;
+    logic HEAD_DESC_INFO;
+    logic HEAD_DESC_SEQ;
+  } decoded_reg_strb_t;
+  decoded_reg_strb_t        decoded_reg_strb;
+  logic                     decoded_err;
+  logic                     decoded_req;
+  logic                     decoded_req_is_wr;
+  logic              [31:0] decoded_wr_data;
+  logic              [31:0] decoded_wr_biten;
 
-    always_comb begin
-        automatic logic is_valid_addr;
-        automatic logic is_invalid_rw;
-        is_valid_addr = '1; // No error checking on valid address access
-        is_invalid_rw = '0;
-        decoded_reg_strb.CTRL = cpuif_req_masked & (cpuif_addr == 8'h0);
-        decoded_reg_strb.STATUS = cpuif_req_masked & (cpuif_addr == 8'h4) & !cpuif_req_is_wr;
-        decoded_reg_strb.RING_BASE_LO = cpuif_req_masked & (cpuif_addr == 8'h8);
-        decoded_reg_strb.RING_BASE_HI = cpuif_req_masked & (cpuif_addr == 8'hc);
-        decoded_reg_strb.RING_SIZE_BYTES = cpuif_req_masked & (cpuif_addr == 8'h10);
-        decoded_reg_strb.READ_CMD = cpuif_req_masked & (cpuif_addr == 8'h14) & cpuif_req_is_wr;
-        decoded_reg_strb.USED_BYTES = cpuif_req_masked & (cpuif_addr == 8'h20) & !cpuif_req_is_wr;
-        decoded_reg_strb.FREE_BYTES = cpuif_req_masked & (cpuif_addr == 8'h24) & !cpuif_req_is_wr;
-        decoded_reg_strb.COMMITTED_BYTES = cpuif_req_masked & (cpuif_addr == 8'h28) & !cpuif_req_is_wr;
-        decoded_reg_strb.WR_PTR_LO = cpuif_req_masked & (cpuif_addr == 8'h30) & !cpuif_req_is_wr;
-        decoded_reg_strb.WR_PTR_HI = cpuif_req_masked & (cpuif_addr == 8'h34) & !cpuif_req_is_wr;
-        decoded_reg_strb.RD_PTR_LO = cpuif_req_masked & (cpuif_addr == 8'h38) & !cpuif_req_is_wr;
-        decoded_reg_strb.RD_PTR_HI = cpuif_req_masked & (cpuif_addr == 8'h3c) & !cpuif_req_is_wr;
-        decoded_reg_strb.COMMIT_PTR_LO = cpuif_req_masked & (cpuif_addr == 8'h40) & !cpuif_req_is_wr;
-        decoded_reg_strb.COMMIT_PTR_HI = cpuif_req_masked & (cpuif_addr == 8'h44) & !cpuif_req_is_wr;
-        decoded_reg_strb.WRAP_COUNT = cpuif_req_masked & (cpuif_addr == 8'h48) & !cpuif_req_is_wr;
-        decoded_reg_strb.OVERFLOW_COUNT = cpuif_req_masked & (cpuif_addr == 8'h4c) & !cpuif_req_is_wr;
-        decoded_reg_strb.DROP_COUNT = cpuif_req_masked & (cpuif_addr == 8'h50) & !cpuif_req_is_wr;
-        decoded_reg_strb.LAST_COMMIT_ADDR_LO = cpuif_req_masked & (cpuif_addr == 8'h60) & !cpuif_req_is_wr;
-        decoded_reg_strb.LAST_COMMIT_ADDR_HI = cpuif_req_masked & (cpuif_addr == 8'h64) & !cpuif_req_is_wr;
-        decoded_reg_strb.LAST_COMMIT_INFO = cpuif_req_masked & (cpuif_addr == 8'h68) & !cpuif_req_is_wr;
-        decoded_reg_strb.LAST_COMMIT_SEQ = cpuif_req_masked & (cpuif_addr == 8'h6c) & !cpuif_req_is_wr;
-        decoded_reg_strb.HEAD_DESC_ADDR_LO = cpuif_req_masked & (cpuif_addr == 8'h80) & !cpuif_req_is_wr;
-        decoded_reg_strb.HEAD_DESC_ADDR_HI = cpuif_req_masked & (cpuif_addr == 8'h84) & !cpuif_req_is_wr;
-        decoded_reg_strb.HEAD_DESC_INFO = cpuif_req_masked & (cpuif_addr == 8'h88) & !cpuif_req_is_wr;
-        decoded_reg_strb.HEAD_DESC_SEQ = cpuif_req_masked & (cpuif_addr == 8'h8c) & !cpuif_req_is_wr;
-        decoded_err = (~is_valid_addr | is_invalid_rw) & decoded_req;
-    end
+  always_comb begin
+    automatic logic is_valid_addr;
+    automatic logic is_invalid_rw;
+    is_valid_addr = '1;  // No error checking on valid address access
+    is_invalid_rw = '0;
+    decoded_reg_strb.CTRL = cpuif_req_masked & (cpuif_addr == 8'h0);
+    decoded_reg_strb.STATUS = cpuif_req_masked & (cpuif_addr == 8'h4) & !cpuif_req_is_wr;
+    decoded_reg_strb.RING_BASE_LO = cpuif_req_masked & (cpuif_addr == 8'h8);
+    decoded_reg_strb.RING_BASE_HI = cpuif_req_masked & (cpuif_addr == 8'hc);
+    decoded_reg_strb.RING_SIZE_BYTES = cpuif_req_masked & (cpuif_addr == 8'h10);
+    decoded_reg_strb.READ_CMD = cpuif_req_masked & (cpuif_addr == 8'h14) & cpuif_req_is_wr;
+    decoded_reg_strb.USED_BYTES = cpuif_req_masked & (cpuif_addr == 8'h20) & !cpuif_req_is_wr;
+    decoded_reg_strb.FREE_BYTES = cpuif_req_masked & (cpuif_addr == 8'h24) & !cpuif_req_is_wr;
+    decoded_reg_strb.COMMITTED_BYTES = cpuif_req_masked & (cpuif_addr == 8'h28) & !cpuif_req_is_wr;
+    decoded_reg_strb.WR_PTR_LO = cpuif_req_masked & (cpuif_addr == 8'h30) & !cpuif_req_is_wr;
+    decoded_reg_strb.WR_PTR_HI = cpuif_req_masked & (cpuif_addr == 8'h34) & !cpuif_req_is_wr;
+    decoded_reg_strb.RD_PTR_LO = cpuif_req_masked & (cpuif_addr == 8'h38) & !cpuif_req_is_wr;
+    decoded_reg_strb.RD_PTR_HI = cpuif_req_masked & (cpuif_addr == 8'h3c) & !cpuif_req_is_wr;
+    decoded_reg_strb.COMMIT_PTR_LO = cpuif_req_masked & (cpuif_addr == 8'h40) & !cpuif_req_is_wr;
+    decoded_reg_strb.COMMIT_PTR_HI = cpuif_req_masked & (cpuif_addr == 8'h44) & !cpuif_req_is_wr;
+    decoded_reg_strb.WRAP_COUNT = cpuif_req_masked & (cpuif_addr == 8'h48) & !cpuif_req_is_wr;
+    decoded_reg_strb.OVERFLOW_COUNT = cpuif_req_masked & (cpuif_addr == 8'h4c) & !cpuif_req_is_wr;
+    decoded_reg_strb.DROP_COUNT = cpuif_req_masked & (cpuif_addr == 8'h50) & !cpuif_req_is_wr;
+    decoded_reg_strb.LAST_COMMIT_ADDR_LO = cpuif_req_masked & (cpuif_addr == 8'h60) & !cpuif_req_is_wr;
+    decoded_reg_strb.LAST_COMMIT_ADDR_HI = cpuif_req_masked & (cpuif_addr == 8'h64) & !cpuif_req_is_wr;
+    decoded_reg_strb.LAST_COMMIT_INFO = cpuif_req_masked & (cpuif_addr == 8'h68) & !cpuif_req_is_wr;
+    decoded_reg_strb.LAST_COMMIT_SEQ = cpuif_req_masked & (cpuif_addr == 8'h6c) & !cpuif_req_is_wr;
+    decoded_reg_strb.HEAD_DESC_ADDR_LO = cpuif_req_masked & (cpuif_addr == 8'h80) & !cpuif_req_is_wr;
+    decoded_reg_strb.HEAD_DESC_ADDR_HI = cpuif_req_masked & (cpuif_addr == 8'h84) & !cpuif_req_is_wr;
+    decoded_reg_strb.HEAD_DESC_INFO = cpuif_req_masked & (cpuif_addr == 8'h88) & !cpuif_req_is_wr;
+    decoded_reg_strb.HEAD_DESC_SEQ = cpuif_req_masked & (cpuif_addr == 8'h8c) & !cpuif_req_is_wr;
+    decoded_err = (~is_valid_addr | is_invalid_rw) & decoded_req;
+  end
 
-    // Pass down signals to next stage
-    assign decoded_req = cpuif_req_masked;
-    assign decoded_req_is_wr = cpuif_req_is_wr;
-    assign decoded_wr_data = cpuif_wr_data;
-    assign decoded_wr_biten = cpuif_wr_biten;
+  // Pass down signals to next stage
+  assign decoded_req       = cpuif_req_masked;
+  assign decoded_req_is_wr = cpuif_req_is_wr;
+  assign decoded_wr_data   = cpuif_wr_data;
+  assign decoded_wr_biten  = cpuif_wr_biten;
 
-    //--------------------------------------------------------------------------
-    // Field logic
-    //--------------------------------------------------------------------------
-    typedef struct {
-        struct {
-            struct {
-                logic next;
-                logic load_next;
-            } enable;
-            struct {
-                logic next;
-                logic load_next;
-            } allow_overwrite;
-            struct {
-                logic next;
-                logic load_next;
-            } drop_invalid_slot;
-            struct {
-                logic next;
-                logic load_next;
-            } drop_on_no_space;
-        } CTRL;
-        struct {
-            struct {
-                logic [31:0] next;
-                logic load_next;
-            } ring_base_lo;
-        } RING_BASE_LO;
-        struct {
-            struct {
-                logic [31:0] next;
-                logic load_next;
-            } ring_base_hi;
-        } RING_BASE_HI;
-        struct {
-            struct {
-                logic [31:0] next;
-                logic load_next;
-            } ring_size_bytes;
-        } RING_SIZE_BYTES;
-        struct {
-            struct {
-                logic next;
-                logic load_next;
-            } issue_head_read;
-            struct {
-                logic next;
-                logic load_next;
-            } consume_head;
-        } READ_CMD;
-    } field_combo_t;
-    field_combo_t field_combo;
+  //--------------------------------------------------------------------------
+  // Field logic
+  //--------------------------------------------------------------------------
+  typedef struct {
+    struct {
+      struct {
+        logic next;
+        logic load_next;
+      } enable;
+      struct {
+        logic next;
+        logic load_next;
+      } allow_overwrite;
+      struct {
+        logic next;
+        logic load_next;
+      } drop_invalid_slot;
+      struct {
+        logic next;
+        logic load_next;
+      } drop_on_no_space;
+    } CTRL;
+    struct {
+      struct {
+        logic [31:0] next;
+        logic load_next;
+      } ring_base_lo;
+    } RING_BASE_LO;
+    struct {
+      struct {
+        logic [31:0] next;
+        logic load_next;
+      } ring_base_hi;
+    } RING_BASE_HI;
+    struct {
+      struct {
+        logic [31:0] next;
+        logic load_next;
+      } ring_size_bytes;
+    } RING_SIZE_BYTES;
+    struct {
+      struct {
+        logic next;
+        logic load_next;
+      } issue_head_read;
+      struct {
+        logic next;
+        logic load_next;
+      } consume_head;
+    } READ_CMD;
+  } field_combo_t;
+  field_combo_t field_combo;
 
-    typedef struct {
-        struct {
-            struct {
-                logic value;
-            } enable;
-            struct {
-                logic value;
-            } allow_overwrite;
-            struct {
-                logic value;
-            } drop_invalid_slot;
-            struct {
-                logic value;
-            } drop_on_no_space;
-        } CTRL;
-        struct {
-            struct {
-                logic [31:0] value;
-            } ring_base_lo;
-        } RING_BASE_LO;
-        struct {
-            struct {
-                logic [31:0] value;
-            } ring_base_hi;
-        } RING_BASE_HI;
-        struct {
-            struct {
-                logic [31:0] value;
-            } ring_size_bytes;
-        } RING_SIZE_BYTES;
-        struct {
-            struct {
-                logic value;
-            } issue_head_read;
-            struct {
-                logic value;
-            } consume_head;
-        } READ_CMD;
-    } field_storage_t;
-    field_storage_t field_storage;
+  typedef struct {
+    struct {
+      struct {logic value;} enable;
+      struct {logic value;} allow_overwrite;
+      struct {logic value;} drop_invalid_slot;
+      struct {logic value;} drop_on_no_space;
+    } CTRL;
+    struct {struct {logic [31:0] value;} ring_base_lo;} RING_BASE_LO;
+    struct {struct {logic [31:0] value;} ring_base_hi;} RING_BASE_HI;
+    struct {struct {logic [31:0] value;} ring_size_bytes;} RING_SIZE_BYTES;
+    struct {
+      struct {logic value;} issue_head_read;
+      struct {logic value;} consume_head;
+    } READ_CMD;
+  } field_storage_t;
+  field_storage_t field_storage;
 
-    // Field: ddr_ringbuffer_controller_csr.CTRL.enable
-    always_comb begin
-        automatic logic [0:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.CTRL.enable.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.CTRL && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.CTRL.enable.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
-            load_next_c = '1;
-        end else begin // HW Write
-            next_c = hwif_in.CTRL.enable.next;
-            load_next_c = '1;
-        end
-        field_combo.CTRL.enable.next = next_c;
-        field_combo.CTRL.enable.load_next = load_next_c;
+  // Field: ddr_ringbuffer_controller_csr.CTRL.enable
+  always_comb begin
+    automatic logic [0:0] next_c;
+    automatic logic       load_next_c;
+    next_c      = field_storage.CTRL.enable.value;
+    load_next_c = '0;
+    if (decoded_reg_strb.CTRL && decoded_req_is_wr) begin  // SW write
+      next_c = (field_storage.CTRL.enable.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+      load_next_c = '1;
+    end else begin  // HW Write
+      next_c      = hwif_in.CTRL.enable.next;
+      load_next_c = '1;
     end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.CTRL.enable.value <= 1'h0;
-        end else begin
-            if(field_combo.CTRL.enable.load_next) begin
-                field_storage.CTRL.enable.value <= field_combo.CTRL.enable.next;
-            end
-        end
+    field_combo.CTRL.enable.next      = next_c;
+    field_combo.CTRL.enable.load_next = load_next_c;
+  end
+  always_ff @(posedge clk or negedge arst_n) begin
+    if (~arst_n) begin
+      field_storage.CTRL.enable.value <= 1'h0;
+    end else begin
+      if (field_combo.CTRL.enable.load_next) begin
+        field_storage.CTRL.enable.value <= field_combo.CTRL.enable.next;
+      end
     end
-    assign hwif_out.CTRL.enable.value = field_storage.CTRL.enable.value;
-    // Field: ddr_ringbuffer_controller_csr.CTRL.allow_overwrite
-    always_comb begin
-        automatic logic [0:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.CTRL.allow_overwrite.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.CTRL && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.CTRL.allow_overwrite.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
-            load_next_c = '1;
-        end else begin // HW Write
-            next_c = hwif_in.CTRL.allow_overwrite.next;
-            load_next_c = '1;
-        end
-        field_combo.CTRL.allow_overwrite.next = next_c;
-        field_combo.CTRL.allow_overwrite.load_next = load_next_c;
+  end
+  assign hwif_out.CTRL.enable.value = field_storage.CTRL.enable.value;
+  // Field: ddr_ringbuffer_controller_csr.CTRL.allow_overwrite
+  always_comb begin
+    automatic logic [0:0] next_c;
+    automatic logic       load_next_c;
+    next_c      = field_storage.CTRL.allow_overwrite.value;
+    load_next_c = '0;
+    if (decoded_reg_strb.CTRL && decoded_req_is_wr) begin  // SW write
+      next_c = (field_storage.CTRL.allow_overwrite.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+      load_next_c = '1;
+    end else begin  // HW Write
+      next_c      = hwif_in.CTRL.allow_overwrite.next;
+      load_next_c = '1;
     end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.CTRL.allow_overwrite.value <= 1'h0;
-        end else begin
-            if(field_combo.CTRL.allow_overwrite.load_next) begin
-                field_storage.CTRL.allow_overwrite.value <= field_combo.CTRL.allow_overwrite.next;
-            end
-        end
+    field_combo.CTRL.allow_overwrite.next      = next_c;
+    field_combo.CTRL.allow_overwrite.load_next = load_next_c;
+  end
+  always_ff @(posedge clk or negedge arst_n) begin
+    if (~arst_n) begin
+      field_storage.CTRL.allow_overwrite.value <= 1'h0;
+    end else begin
+      if (field_combo.CTRL.allow_overwrite.load_next) begin
+        field_storage.CTRL.allow_overwrite.value <= field_combo.CTRL.allow_overwrite.next;
+      end
     end
-    assign hwif_out.CTRL.allow_overwrite.value = field_storage.CTRL.allow_overwrite.value;
-    // Field: ddr_ringbuffer_controller_csr.CTRL.drop_invalid_slot
-    always_comb begin
-        automatic logic [0:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.CTRL.drop_invalid_slot.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.CTRL && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.CTRL.drop_invalid_slot.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
-            load_next_c = '1;
-        end else begin // HW Write
-            next_c = hwif_in.CTRL.drop_invalid_slot.next;
-            load_next_c = '1;
-        end
-        field_combo.CTRL.drop_invalid_slot.next = next_c;
-        field_combo.CTRL.drop_invalid_slot.load_next = load_next_c;
+  end
+  assign hwif_out.CTRL.allow_overwrite.value = field_storage.CTRL.allow_overwrite.value;
+  // Field: ddr_ringbuffer_controller_csr.CTRL.drop_invalid_slot
+  always_comb begin
+    automatic logic [0:0] next_c;
+    automatic logic       load_next_c;
+    next_c      = field_storage.CTRL.drop_invalid_slot.value;
+    load_next_c = '0;
+    if (decoded_reg_strb.CTRL && decoded_req_is_wr) begin  // SW write
+      next_c = (field_storage.CTRL.drop_invalid_slot.value & ~decoded_wr_biten[2:2]) | (decoded_wr_data[2:2] & decoded_wr_biten[2:2]);
+      load_next_c = '1;
+    end else begin  // HW Write
+      next_c      = hwif_in.CTRL.drop_invalid_slot.next;
+      load_next_c = '1;
     end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.CTRL.drop_invalid_slot.value <= 1'h1;
-        end else begin
-            if(field_combo.CTRL.drop_invalid_slot.load_next) begin
-                field_storage.CTRL.drop_invalid_slot.value <= field_combo.CTRL.drop_invalid_slot.next;
-            end
-        end
+    field_combo.CTRL.drop_invalid_slot.next      = next_c;
+    field_combo.CTRL.drop_invalid_slot.load_next = load_next_c;
+  end
+  always_ff @(posedge clk or negedge arst_n) begin
+    if (~arst_n) begin
+      field_storage.CTRL.drop_invalid_slot.value <= 1'h1;
+    end else begin
+      if (field_combo.CTRL.drop_invalid_slot.load_next) begin
+        field_storage.CTRL.drop_invalid_slot.value <= field_combo.CTRL.drop_invalid_slot.next;
+      end
     end
-    assign hwif_out.CTRL.drop_invalid_slot.value = field_storage.CTRL.drop_invalid_slot.value;
-    // Field: ddr_ringbuffer_controller_csr.CTRL.drop_on_no_space
-    always_comb begin
-        automatic logic [0:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.CTRL.drop_on_no_space.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.CTRL && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.CTRL.drop_on_no_space.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
-            load_next_c = '1;
-        end else begin // HW Write
-            next_c = hwif_in.CTRL.drop_on_no_space.next;
-            load_next_c = '1;
-        end
-        field_combo.CTRL.drop_on_no_space.next = next_c;
-        field_combo.CTRL.drop_on_no_space.load_next = load_next_c;
+  end
+  assign hwif_out.CTRL.drop_invalid_slot.value = field_storage.CTRL.drop_invalid_slot.value;
+  // Field: ddr_ringbuffer_controller_csr.CTRL.drop_on_no_space
+  always_comb begin
+    automatic logic [0:0] next_c;
+    automatic logic       load_next_c;
+    next_c      = field_storage.CTRL.drop_on_no_space.value;
+    load_next_c = '0;
+    if (decoded_reg_strb.CTRL && decoded_req_is_wr) begin  // SW write
+      next_c = (field_storage.CTRL.drop_on_no_space.value & ~decoded_wr_biten[3:3]) | (decoded_wr_data[3:3] & decoded_wr_biten[3:3]);
+      load_next_c = '1;
+    end else begin  // HW Write
+      next_c      = hwif_in.CTRL.drop_on_no_space.next;
+      load_next_c = '1;
     end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.CTRL.drop_on_no_space.value <= 1'h0;
-        end else begin
-            if(field_combo.CTRL.drop_on_no_space.load_next) begin
-                field_storage.CTRL.drop_on_no_space.value <= field_combo.CTRL.drop_on_no_space.next;
-            end
-        end
+    field_combo.CTRL.drop_on_no_space.next      = next_c;
+    field_combo.CTRL.drop_on_no_space.load_next = load_next_c;
+  end
+  always_ff @(posedge clk or negedge arst_n) begin
+    if (~arst_n) begin
+      field_storage.CTRL.drop_on_no_space.value <= 1'h0;
+    end else begin
+      if (field_combo.CTRL.drop_on_no_space.load_next) begin
+        field_storage.CTRL.drop_on_no_space.value <= field_combo.CTRL.drop_on_no_space.next;
+      end
     end
-    assign hwif_out.CTRL.drop_on_no_space.value = field_storage.CTRL.drop_on_no_space.value;
-    // Field: ddr_ringbuffer_controller_csr.RING_BASE_LO.ring_base_lo
-    always_comb begin
-        automatic logic [31:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.RING_BASE_LO.ring_base_lo.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.RING_BASE_LO && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.RING_BASE_LO.ring_base_lo.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
-            load_next_c = '1;
-        end else begin // HW Write
-            next_c = hwif_in.RING_BASE_LO.ring_base_lo.next;
-            load_next_c = '1;
-        end
-        field_combo.RING_BASE_LO.ring_base_lo.next = next_c;
-        field_combo.RING_BASE_LO.ring_base_lo.load_next = load_next_c;
+  end
+  assign hwif_out.CTRL.drop_on_no_space.value = field_storage.CTRL.drop_on_no_space.value;
+  // Field: ddr_ringbuffer_controller_csr.RING_BASE_LO.ring_base_lo
+  always_comb begin
+    automatic logic [31:0] next_c;
+    automatic logic        load_next_c;
+    next_c      = field_storage.RING_BASE_LO.ring_base_lo.value;
+    load_next_c = '0;
+    if (decoded_reg_strb.RING_BASE_LO && decoded_req_is_wr) begin  // SW write
+      next_c = (field_storage.RING_BASE_LO.ring_base_lo.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+      load_next_c = '1;
+    end else begin  // HW Write
+      next_c      = hwif_in.RING_BASE_LO.ring_base_lo.next;
+      load_next_c = '1;
     end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.RING_BASE_LO.ring_base_lo.value <= 32'h0;
-        end else begin
-            if(field_combo.RING_BASE_LO.ring_base_lo.load_next) begin
-                field_storage.RING_BASE_LO.ring_base_lo.value <= field_combo.RING_BASE_LO.ring_base_lo.next;
-            end
-        end
+    field_combo.RING_BASE_LO.ring_base_lo.next      = next_c;
+    field_combo.RING_BASE_LO.ring_base_lo.load_next = load_next_c;
+  end
+  always_ff @(posedge clk or negedge arst_n) begin
+    if (~arst_n) begin
+      field_storage.RING_BASE_LO.ring_base_lo.value <= 32'h0;
+    end else begin
+      if (field_combo.RING_BASE_LO.ring_base_lo.load_next) begin
+        field_storage.RING_BASE_LO.ring_base_lo.value <= field_combo.RING_BASE_LO.ring_base_lo.next;
+      end
     end
-    assign hwif_out.RING_BASE_LO.ring_base_lo.value = field_storage.RING_BASE_LO.ring_base_lo.value;
-    // Field: ddr_ringbuffer_controller_csr.RING_BASE_HI.ring_base_hi
-    always_comb begin
-        automatic logic [31:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.RING_BASE_HI.ring_base_hi.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.RING_BASE_HI && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.RING_BASE_HI.ring_base_hi.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
-            load_next_c = '1;
-        end else begin // HW Write
-            next_c = hwif_in.RING_BASE_HI.ring_base_hi.next;
-            load_next_c = '1;
-        end
-        field_combo.RING_BASE_HI.ring_base_hi.next = next_c;
-        field_combo.RING_BASE_HI.ring_base_hi.load_next = load_next_c;
+  end
+  assign hwif_out.RING_BASE_LO.ring_base_lo.value = field_storage.RING_BASE_LO.ring_base_lo.value;
+  // Field: ddr_ringbuffer_controller_csr.RING_BASE_HI.ring_base_hi
+  always_comb begin
+    automatic logic [31:0] next_c;
+    automatic logic        load_next_c;
+    next_c      = field_storage.RING_BASE_HI.ring_base_hi.value;
+    load_next_c = '0;
+    if (decoded_reg_strb.RING_BASE_HI && decoded_req_is_wr) begin  // SW write
+      next_c = (field_storage.RING_BASE_HI.ring_base_hi.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+      load_next_c = '1;
+    end else begin  // HW Write
+      next_c      = hwif_in.RING_BASE_HI.ring_base_hi.next;
+      load_next_c = '1;
     end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.RING_BASE_HI.ring_base_hi.value <= 32'h0;
-        end else begin
-            if(field_combo.RING_BASE_HI.ring_base_hi.load_next) begin
-                field_storage.RING_BASE_HI.ring_base_hi.value <= field_combo.RING_BASE_HI.ring_base_hi.next;
-            end
-        end
+    field_combo.RING_BASE_HI.ring_base_hi.next      = next_c;
+    field_combo.RING_BASE_HI.ring_base_hi.load_next = load_next_c;
+  end
+  always_ff @(posedge clk or negedge arst_n) begin
+    if (~arst_n) begin
+      field_storage.RING_BASE_HI.ring_base_hi.value <= 32'h0;
+    end else begin
+      if (field_combo.RING_BASE_HI.ring_base_hi.load_next) begin
+        field_storage.RING_BASE_HI.ring_base_hi.value <= field_combo.RING_BASE_HI.ring_base_hi.next;
+      end
     end
-    assign hwif_out.RING_BASE_HI.ring_base_hi.value = field_storage.RING_BASE_HI.ring_base_hi.value;
-    // Field: ddr_ringbuffer_controller_csr.RING_SIZE_BYTES.ring_size_bytes
-    always_comb begin
-        automatic logic [31:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.RING_SIZE_BYTES.ring_size_bytes.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.RING_SIZE_BYTES && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.RING_SIZE_BYTES.ring_size_bytes.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
-            load_next_c = '1;
-        end else begin // HW Write
-            next_c = hwif_in.RING_SIZE_BYTES.ring_size_bytes.next;
-            load_next_c = '1;
-        end
-        field_combo.RING_SIZE_BYTES.ring_size_bytes.next = next_c;
-        field_combo.RING_SIZE_BYTES.ring_size_bytes.load_next = load_next_c;
+  end
+  assign hwif_out.RING_BASE_HI.ring_base_hi.value = field_storage.RING_BASE_HI.ring_base_hi.value;
+  // Field: ddr_ringbuffer_controller_csr.RING_SIZE_BYTES.ring_size_bytes
+  always_comb begin
+    automatic logic [31:0] next_c;
+    automatic logic        load_next_c;
+    next_c      = field_storage.RING_SIZE_BYTES.ring_size_bytes.value;
+    load_next_c = '0;
+    if (decoded_reg_strb.RING_SIZE_BYTES && decoded_req_is_wr) begin  // SW write
+      next_c = (field_storage.RING_SIZE_BYTES.ring_size_bytes.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+      load_next_c = '1;
+    end else begin  // HW Write
+      next_c      = hwif_in.RING_SIZE_BYTES.ring_size_bytes.next;
+      load_next_c = '1;
     end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.RING_SIZE_BYTES.ring_size_bytes.value <= 32'h10000;
-        end else begin
-            if(field_combo.RING_SIZE_BYTES.ring_size_bytes.load_next) begin
-                field_storage.RING_SIZE_BYTES.ring_size_bytes.value <= field_combo.RING_SIZE_BYTES.ring_size_bytes.next;
-            end
-        end
+    field_combo.RING_SIZE_BYTES.ring_size_bytes.next      = next_c;
+    field_combo.RING_SIZE_BYTES.ring_size_bytes.load_next = load_next_c;
+  end
+  always_ff @(posedge clk or negedge arst_n) begin
+    if (~arst_n) begin
+      field_storage.RING_SIZE_BYTES.ring_size_bytes.value <= 32'h10000;
+    end else begin
+      if (field_combo.RING_SIZE_BYTES.ring_size_bytes.load_next) begin
+        field_storage.RING_SIZE_BYTES.ring_size_bytes.value <= field_combo.RING_SIZE_BYTES.ring_size_bytes.next;
+      end
     end
-    assign hwif_out.RING_SIZE_BYTES.ring_size_bytes.value = field_storage.RING_SIZE_BYTES.ring_size_bytes.value;
-    // Field: ddr_ringbuffer_controller_csr.READ_CMD.issue_head_read
-    always_comb begin
-        automatic logic [0:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.READ_CMD.issue_head_read.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.READ_CMD && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.READ_CMD.issue_head_read.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
-            load_next_c = '1;
-        end else begin // singlepulse clears back to 0
-            next_c = '0;
-            load_next_c = '1;
-        end
-        field_combo.READ_CMD.issue_head_read.next = next_c;
-        field_combo.READ_CMD.issue_head_read.load_next = load_next_c;
+  end
+  assign hwif_out.RING_SIZE_BYTES.ring_size_bytes.value = field_storage.RING_SIZE_BYTES.ring_size_bytes.value;
+  // Field: ddr_ringbuffer_controller_csr.READ_CMD.issue_head_read
+  always_comb begin
+    automatic logic [0:0] next_c;
+    automatic logic       load_next_c;
+    next_c      = field_storage.READ_CMD.issue_head_read.value;
+    load_next_c = '0;
+    if (decoded_reg_strb.READ_CMD && decoded_req_is_wr) begin  // SW write
+      next_c = (field_storage.READ_CMD.issue_head_read.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+      load_next_c = '1;
+    end else begin  // singlepulse clears back to 0
+      next_c      = '0;
+      load_next_c = '1;
     end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.READ_CMD.issue_head_read.value <= 1'h0;
-        end else begin
-            if(field_combo.READ_CMD.issue_head_read.load_next) begin
-                field_storage.READ_CMD.issue_head_read.value <= field_combo.READ_CMD.issue_head_read.next;
-            end
-        end
+    field_combo.READ_CMD.issue_head_read.next      = next_c;
+    field_combo.READ_CMD.issue_head_read.load_next = load_next_c;
+  end
+  always_ff @(posedge clk or negedge arst_n) begin
+    if (~arst_n) begin
+      field_storage.READ_CMD.issue_head_read.value <= 1'h0;
+    end else begin
+      if (field_combo.READ_CMD.issue_head_read.load_next) begin
+        field_storage.READ_CMD.issue_head_read.value <= field_combo.READ_CMD.issue_head_read.next;
+      end
     end
-    assign hwif_out.READ_CMD.issue_head_read.value = field_storage.READ_CMD.issue_head_read.value;
-    // Field: ddr_ringbuffer_controller_csr.READ_CMD.consume_head
-    always_comb begin
-        automatic logic [0:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.READ_CMD.consume_head.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.READ_CMD && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.READ_CMD.consume_head.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
-            load_next_c = '1;
-        end else begin // singlepulse clears back to 0
-            next_c = '0;
-            load_next_c = '1;
-        end
-        field_combo.READ_CMD.consume_head.next = next_c;
-        field_combo.READ_CMD.consume_head.load_next = load_next_c;
+  end
+  assign hwif_out.READ_CMD.issue_head_read.value = field_storage.READ_CMD.issue_head_read.value;
+  // Field: ddr_ringbuffer_controller_csr.READ_CMD.consume_head
+  always_comb begin
+    automatic logic [0:0] next_c;
+    automatic logic       load_next_c;
+    next_c      = field_storage.READ_CMD.consume_head.value;
+    load_next_c = '0;
+    if (decoded_reg_strb.READ_CMD && decoded_req_is_wr) begin  // SW write
+      next_c = (field_storage.READ_CMD.consume_head.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+      load_next_c = '1;
+    end else begin  // singlepulse clears back to 0
+      next_c      = '0;
+      load_next_c = '1;
     end
-    always_ff @(posedge clk or negedge arst_n) begin
-        if(~arst_n) begin
-            field_storage.READ_CMD.consume_head.value <= 1'h0;
-        end else begin
-            if(field_combo.READ_CMD.consume_head.load_next) begin
-                field_storage.READ_CMD.consume_head.value <= field_combo.READ_CMD.consume_head.next;
-            end
-        end
+    field_combo.READ_CMD.consume_head.next      = next_c;
+    field_combo.READ_CMD.consume_head.load_next = load_next_c;
+  end
+  always_ff @(posedge clk or negedge arst_n) begin
+    if (~arst_n) begin
+      field_storage.READ_CMD.consume_head.value <= 1'h0;
+    end else begin
+      if (field_combo.READ_CMD.consume_head.load_next) begin
+        field_storage.READ_CMD.consume_head.value <= field_combo.READ_CMD.consume_head.next;
+      end
     end
-    assign hwif_out.READ_CMD.consume_head.value = field_storage.READ_CMD.consume_head.value;
+  end
+  assign hwif_out.READ_CMD.consume_head.value = field_storage.READ_CMD.consume_head.value;
 
-    //--------------------------------------------------------------------------
-    // Write response
-    //--------------------------------------------------------------------------
-    assign cpuif_wr_ack = decoded_req & decoded_req_is_wr;
-    // Writes are always granted with no error response
-    assign cpuif_wr_err = '0;
+  //--------------------------------------------------------------------------
+  // Write response
+  //--------------------------------------------------------------------------
+  assign cpuif_wr_ack                         = decoded_req & decoded_req_is_wr;
+  // Writes are always granted with no error response
+  assign cpuif_wr_err                         = '0;
 
-    //--------------------------------------------------------------------------
-    // Readback
-    //--------------------------------------------------------------------------
+  //--------------------------------------------------------------------------
+  // Readback
+  //--------------------------------------------------------------------------
 
-    logic readback_err;
-    logic readback_done;
-    logic [31:0] readback_data;
+  logic        readback_err;
+  logic        readback_done;
+  logic [31:0] readback_data;
 
-    // Assign readback values to a flattened array
-    logic [31:0] readback_array[25];
-    assign readback_array[0][0:0] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.enable.value : '0;
-    assign readback_array[0][1:1] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.allow_overwrite.value : '0;
-    assign readback_array[0][2:2] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.drop_invalid_slot.value : '0;
-    assign readback_array[0][3:3] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.drop_on_no_space.value : '0;
-    assign readback_array[0][31:4] = '0;
-    assign readback_array[1][0:0] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.full.next : '0;
-    assign readback_array[1][1:1] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.almost_full.next : '0;
-    assign readback_array[1][2:2] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.empty.next : '0;
-    assign readback_array[1][3:3] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.rd_busy.next : '0;
-    assign readback_array[1][7:4] = '0;
-    assign readback_array[1][8:8] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.err_cfg_align.next : '0;
-    assign readback_array[1][9:9] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.err_no_space.next : '0;
-    assign readback_array[1][10:10] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.err_slot_proto.next : '0;
-    assign readback_array[1][11:11] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.err_slot_too_large.next : '0;
-    assign readback_array[1][12:12] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.err_axi_wr_resp.next : '0;
-    assign readback_array[1][13:13] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.err_axi_rd_resp.next : '0;
-    assign readback_array[1][14:14] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.err_illegal_read.next : '0;
-    assign readback_array[1][31:15] = '0;
-    assign readback_array[2][31:0] = (decoded_reg_strb.RING_BASE_LO && !decoded_req_is_wr) ? field_storage.RING_BASE_LO.ring_base_lo.value : '0;
-    assign readback_array[3][31:0] = (decoded_reg_strb.RING_BASE_HI && !decoded_req_is_wr) ? field_storage.RING_BASE_HI.ring_base_hi.value : '0;
-    assign readback_array[4][31:0] = (decoded_reg_strb.RING_SIZE_BYTES && !decoded_req_is_wr) ? field_storage.RING_SIZE_BYTES.ring_size_bytes.value : '0;
-    assign readback_array[5][31:0] = (decoded_reg_strb.USED_BYTES && !decoded_req_is_wr) ? hwif_in.USED_BYTES.used_bytes.next : '0;
-    assign readback_array[6][31:0] = (decoded_reg_strb.FREE_BYTES && !decoded_req_is_wr) ? hwif_in.FREE_BYTES.free_bytes.next : '0;
-    assign readback_array[7][31:0] = (decoded_reg_strb.COMMITTED_BYTES && !decoded_req_is_wr) ? hwif_in.COMMITTED_BYTES.committed_bytes.next : '0;
-    assign readback_array[8][31:0] = (decoded_reg_strb.WR_PTR_LO && !decoded_req_is_wr) ? hwif_in.WR_PTR_LO.wr_ptr_lo.next : '0;
-    assign readback_array[9][31:0] = (decoded_reg_strb.WR_PTR_HI && !decoded_req_is_wr) ? hwif_in.WR_PTR_HI.wr_ptr_hi.next : '0;
-    assign readback_array[10][31:0] = (decoded_reg_strb.RD_PTR_LO && !decoded_req_is_wr) ? hwif_in.RD_PTR_LO.rd_ptr_lo.next : '0;
-    assign readback_array[11][31:0] = (decoded_reg_strb.RD_PTR_HI && !decoded_req_is_wr) ? hwif_in.RD_PTR_HI.rd_ptr_hi.next : '0;
-    assign readback_array[12][31:0] = (decoded_reg_strb.COMMIT_PTR_LO && !decoded_req_is_wr) ? hwif_in.COMMIT_PTR_LO.commit_ptr_lo.next : '0;
-    assign readback_array[13][31:0] = (decoded_reg_strb.COMMIT_PTR_HI && !decoded_req_is_wr) ? hwif_in.COMMIT_PTR_HI.commit_ptr_hi.next : '0;
-    assign readback_array[14][31:0] = (decoded_reg_strb.WRAP_COUNT && !decoded_req_is_wr) ? hwif_in.WRAP_COUNT.wrap_count.next : '0;
-    assign readback_array[15][31:0] = (decoded_reg_strb.OVERFLOW_COUNT && !decoded_req_is_wr) ? hwif_in.OVERFLOW_COUNT.overflow_count.next : '0;
-    assign readback_array[16][31:0] = (decoded_reg_strb.DROP_COUNT && !decoded_req_is_wr) ? hwif_in.DROP_COUNT.drop_count.next : '0;
-    assign readback_array[17][31:0] = (decoded_reg_strb.LAST_COMMIT_ADDR_LO && !decoded_req_is_wr) ? hwif_in.LAST_COMMIT_ADDR_LO.slot_addr_lo.next : '0;
-    assign readback_array[18][31:0] = (decoded_reg_strb.LAST_COMMIT_ADDR_HI && !decoded_req_is_wr) ? hwif_in.LAST_COMMIT_ADDR_HI.slot_addr_hi.next : '0;
-    assign readback_array[19][23:0] = (decoded_reg_strb.LAST_COMMIT_INFO && !decoded_req_is_wr) ? hwif_in.LAST_COMMIT_INFO.slot_bytes.next : '0;
-    assign readback_array[19][24:24] = (decoded_reg_strb.LAST_COMMIT_INFO && !decoded_req_is_wr) ? hwif_in.LAST_COMMIT_INFO.valid_good.next : '0;
-    assign readback_array[19][25:25] = (decoded_reg_strb.LAST_COMMIT_INFO && !decoded_req_is_wr) ? hwif_in.LAST_COMMIT_INFO.overflow_err.next : '0;
-    assign readback_array[19][30:26] = '0;
-    assign readback_array[19][31:31] = (decoded_reg_strb.LAST_COMMIT_INFO && !decoded_req_is_wr) ? hwif_in.LAST_COMMIT_INFO.commit_valid.next : '0;
-    assign readback_array[20][31:0] = (decoded_reg_strb.LAST_COMMIT_SEQ && !decoded_req_is_wr) ? hwif_in.LAST_COMMIT_SEQ.slot_seq.next : '0;
-    assign readback_array[21][31:0] = (decoded_reg_strb.HEAD_DESC_ADDR_LO && !decoded_req_is_wr) ? hwif_in.HEAD_DESC_ADDR_LO.slot_addr_lo.next : '0;
-    assign readback_array[22][31:0] = (decoded_reg_strb.HEAD_DESC_ADDR_HI && !decoded_req_is_wr) ? hwif_in.HEAD_DESC_ADDR_HI.slot_addr_hi.next : '0;
-    assign readback_array[23][23:0] = (decoded_reg_strb.HEAD_DESC_INFO && !decoded_req_is_wr) ? hwif_in.HEAD_DESC_INFO.slot_bytes.next : '0;
-    assign readback_array[23][24:24] = (decoded_reg_strb.HEAD_DESC_INFO && !decoded_req_is_wr) ? hwif_in.HEAD_DESC_INFO.valid_good.next : '0;
-    assign readback_array[23][25:25] = (decoded_reg_strb.HEAD_DESC_INFO && !decoded_req_is_wr) ? hwif_in.HEAD_DESC_INFO.overflow_err.next : '0;
-    assign readback_array[23][30:26] = '0;
-    assign readback_array[23][31:31] = (decoded_reg_strb.HEAD_DESC_INFO && !decoded_req_is_wr) ? hwif_in.HEAD_DESC_INFO.desc_valid.next : '0;
-    assign readback_array[24][31:0] = (decoded_reg_strb.HEAD_DESC_SEQ && !decoded_req_is_wr) ? hwif_in.HEAD_DESC_SEQ.slot_seq.next : '0;
+  // Assign readback values to a flattened array
+  logic [31:0] readback_array[25];
+  assign readback_array[0][0:0] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.enable.value : '0;
+  assign readback_array[0][1:1] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.allow_overwrite.value : '0;
+  assign readback_array[0][2:2] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.drop_invalid_slot.value : '0;
+  assign readback_array[0][3:3] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.drop_on_no_space.value : '0;
+  assign readback_array[0][31:4] = '0;
+  assign readback_array[1][0:0] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.full.next : '0;
+  assign readback_array[1][1:1] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.almost_full.next : '0;
+  assign readback_array[1][2:2] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.empty.next : '0;
+  assign readback_array[1][3:3] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.rd_busy.next : '0;
+  assign readback_array[1][7:4] = '0;
+  assign readback_array[1][8:8] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.err_cfg_align.next : '0;
+  assign readback_array[1][9:9] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.err_no_space.next : '0;
+  assign readback_array[1][10:10] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.err_slot_proto.next : '0;
+  assign readback_array[1][11:11] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.err_slot_too_large.next : '0;
+  assign readback_array[1][12:12] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.err_axi_wr_resp.next : '0;
+  assign readback_array[1][13:13] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.err_axi_rd_resp.next : '0;
+  assign readback_array[1][14:14] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.err_illegal_read.next : '0;
+  assign readback_array[1][31:15] = '0;
+  assign readback_array[2][31:0] = (decoded_reg_strb.RING_BASE_LO && !decoded_req_is_wr) ? field_storage.RING_BASE_LO.ring_base_lo.value : '0;
+  assign readback_array[3][31:0] = (decoded_reg_strb.RING_BASE_HI && !decoded_req_is_wr) ? field_storage.RING_BASE_HI.ring_base_hi.value : '0;
+  assign readback_array[4][31:0] = (decoded_reg_strb.RING_SIZE_BYTES && !decoded_req_is_wr) ? field_storage.RING_SIZE_BYTES.ring_size_bytes.value : '0;
+  assign readback_array[5][31:0] = (decoded_reg_strb.USED_BYTES && !decoded_req_is_wr) ? hwif_in.USED_BYTES.used_bytes.next : '0;
+  assign readback_array[6][31:0] = (decoded_reg_strb.FREE_BYTES && !decoded_req_is_wr) ? hwif_in.FREE_BYTES.free_bytes.next : '0;
+  assign readback_array[7][31:0] = (decoded_reg_strb.COMMITTED_BYTES && !decoded_req_is_wr) ? hwif_in.COMMITTED_BYTES.committed_bytes.next : '0;
+  assign readback_array[8][31:0] = (decoded_reg_strb.WR_PTR_LO && !decoded_req_is_wr) ? hwif_in.WR_PTR_LO.wr_ptr_lo.next : '0;
+  assign readback_array[9][31:0] = (decoded_reg_strb.WR_PTR_HI && !decoded_req_is_wr) ? hwif_in.WR_PTR_HI.wr_ptr_hi.next : '0;
+  assign readback_array[10][31:0] = (decoded_reg_strb.RD_PTR_LO && !decoded_req_is_wr) ? hwif_in.RD_PTR_LO.rd_ptr_lo.next : '0;
+  assign readback_array[11][31:0] = (decoded_reg_strb.RD_PTR_HI && !decoded_req_is_wr) ? hwif_in.RD_PTR_HI.rd_ptr_hi.next : '0;
+  assign readback_array[12][31:0] = (decoded_reg_strb.COMMIT_PTR_LO && !decoded_req_is_wr) ? hwif_in.COMMIT_PTR_LO.commit_ptr_lo.next : '0;
+  assign readback_array[13][31:0] = (decoded_reg_strb.COMMIT_PTR_HI && !decoded_req_is_wr) ? hwif_in.COMMIT_PTR_HI.commit_ptr_hi.next : '0;
+  assign readback_array[14][31:0] = (decoded_reg_strb.WRAP_COUNT && !decoded_req_is_wr) ? hwif_in.WRAP_COUNT.wrap_count.next : '0;
+  assign readback_array[15][31:0] = (decoded_reg_strb.OVERFLOW_COUNT && !decoded_req_is_wr) ? hwif_in.OVERFLOW_COUNT.overflow_count.next : '0;
+  assign readback_array[16][31:0] = (decoded_reg_strb.DROP_COUNT && !decoded_req_is_wr) ? hwif_in.DROP_COUNT.drop_count.next : '0;
+  assign readback_array[17][31:0] = (decoded_reg_strb.LAST_COMMIT_ADDR_LO && !decoded_req_is_wr) ? hwif_in.LAST_COMMIT_ADDR_LO.slot_addr_lo.next : '0;
+  assign readback_array[18][31:0] = (decoded_reg_strb.LAST_COMMIT_ADDR_HI && !decoded_req_is_wr) ? hwif_in.LAST_COMMIT_ADDR_HI.slot_addr_hi.next : '0;
+  assign readback_array[19][23:0] = (decoded_reg_strb.LAST_COMMIT_INFO && !decoded_req_is_wr) ? hwif_in.LAST_COMMIT_INFO.slot_bytes.next : '0;
+  assign readback_array[19][24:24] = (decoded_reg_strb.LAST_COMMIT_INFO && !decoded_req_is_wr) ? hwif_in.LAST_COMMIT_INFO.valid_good.next : '0;
+  assign readback_array[19][25:25] = (decoded_reg_strb.LAST_COMMIT_INFO && !decoded_req_is_wr) ? hwif_in.LAST_COMMIT_INFO.overflow_err.next : '0;
+  assign readback_array[19][30:26] = '0;
+  assign readback_array[19][31:31] = (decoded_reg_strb.LAST_COMMIT_INFO && !decoded_req_is_wr) ? hwif_in.LAST_COMMIT_INFO.commit_valid.next : '0;
+  assign readback_array[20][31:0] = (decoded_reg_strb.LAST_COMMIT_SEQ && !decoded_req_is_wr) ? hwif_in.LAST_COMMIT_SEQ.slot_seq.next : '0;
+  assign readback_array[21][31:0] = (decoded_reg_strb.HEAD_DESC_ADDR_LO && !decoded_req_is_wr) ? hwif_in.HEAD_DESC_ADDR_LO.slot_addr_lo.next : '0;
+  assign readback_array[22][31:0] = (decoded_reg_strb.HEAD_DESC_ADDR_HI && !decoded_req_is_wr) ? hwif_in.HEAD_DESC_ADDR_HI.slot_addr_hi.next : '0;
+  assign readback_array[23][23:0] = (decoded_reg_strb.HEAD_DESC_INFO && !decoded_req_is_wr) ? hwif_in.HEAD_DESC_INFO.slot_bytes.next : '0;
+  assign readback_array[23][24:24] = (decoded_reg_strb.HEAD_DESC_INFO && !decoded_req_is_wr) ? hwif_in.HEAD_DESC_INFO.valid_good.next : '0;
+  assign readback_array[23][25:25] = (decoded_reg_strb.HEAD_DESC_INFO && !decoded_req_is_wr) ? hwif_in.HEAD_DESC_INFO.overflow_err.next : '0;
+  assign readback_array[23][30:26] = '0;
+  assign readback_array[23][31:31] = (decoded_reg_strb.HEAD_DESC_INFO && !decoded_req_is_wr) ? hwif_in.HEAD_DESC_INFO.desc_valid.next : '0;
+  assign readback_array[24][31:0] = (decoded_reg_strb.HEAD_DESC_SEQ && !decoded_req_is_wr) ? hwif_in.HEAD_DESC_SEQ.slot_seq.next : '0;
 
-    // Reduce the array
-    always_comb begin
-        automatic logic [31:0] readback_data_var;
-        readback_done = decoded_req & ~decoded_req_is_wr;
-        readback_err = '0;
-        readback_data_var = '0;
-        for(int i=0; i<25; i++) readback_data_var |= readback_array[i];
-        readback_data = readback_data_var;
-    end
+  // Reduce the array
+  always_comb begin
+    automatic logic [31:0] readback_data_var;
+    readback_done     = decoded_req & ~decoded_req_is_wr;
+    readback_err      = '0;
+    readback_data_var = '0;
+    for (int i = 0; i < 25; i++) readback_data_var |= readback_array[i];
+    readback_data = readback_data_var;
+  end
 
-    assign cpuif_rd_ack = readback_done;
-    assign cpuif_rd_data = readback_data;
-    assign cpuif_rd_err = readback_err;
+  assign cpuif_rd_ack  = readback_done;
+  assign cpuif_rd_data = readback_data;
+  assign cpuif_rd_err  = readback_err;
 endmodule

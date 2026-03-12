@@ -21,7 +21,7 @@ module awr2243_ctrl_top_smoke_tb;
   logic        sys_rst_n;
   logic        csr_wr_en_i;
   logic        csr_rd_en_i;
-  logic [7:0]  csr_addr_i;
+  logic [ 7:0] csr_addr_i;
   logic [31:0] csr_wdata_i;
   logic [31:0] csr_rdata_o;
   logic        spi_sclk_o;
@@ -37,7 +37,7 @@ module awr2243_ctrl_top_smoke_tb;
   logic        ctrl_busy_o;
   logic        ctrl_done_o;
   logic [15:0] ctrl_err_code_o;
-  logic [3:0]  ctrl_state_o;
+  logic [ 3:0] ctrl_state_o;
 
   logic [31:0] csr_read_data;
   bit          saw_spi_cs_low;
@@ -45,13 +45,9 @@ module awr2243_ctrl_top_smoke_tb;
   bit          done_seen;
   int          cycles;
 
-  function automatic logic [63:0] make_cmd(
-      input logic [7:0] opcode,
-      input logic [7:0] flags,
-      input logic [15:0] step_id,
-      input logic [15:0] imm_a,
-      input logic [15:0] imm_b
-  );
+  function automatic logic [63:0] make_cmd(input logic [7:0] opcode, input logic [7:0] flags,
+                                           input logic [15:0] step_id, input logic [15:0] imm_a,
+                                           input logic [15:0] imm_b);
     begin
       make_cmd = {opcode, flags, step_id, imm_a, imm_b};
     end
@@ -60,14 +56,14 @@ module awr2243_ctrl_top_smoke_tb;
   task automatic csr_write(input logic [7:0] addr, input logic [31:0] data);
     begin
       @(negedge sys_clk);
-      csr_addr_i = addr;
+      csr_addr_i  = addr;
       csr_wdata_i = data;
       csr_wr_en_i = 1'b1;
       csr_rd_en_i = 1'b0;
 
       @(negedge sys_clk);
       csr_wr_en_i = 1'b0;
-      csr_addr_i = '0;
+      csr_addr_i  = '0;
       csr_wdata_i = '0;
     end
   endtask
@@ -75,47 +71,47 @@ module awr2243_ctrl_top_smoke_tb;
   task automatic csr_read(input logic [7:0] addr, output logic [31:0] data);
     begin
       @(negedge sys_clk);
-      csr_addr_i = addr;
+      csr_addr_i  = addr;
       csr_rd_en_i = 1'b1;
       csr_wr_en_i = 1'b0;
 
       @(negedge sys_clk);
-      data = csr_rdata_o;
+      data        = csr_rdata_o;
       csr_rd_en_i = 1'b0;
-      csr_addr_i = '0;
+      csr_addr_i  = '0;
     end
   endtask
 
   awr2243_ctrl_top #(
-      .CLK_FREQ_HZ(1_000_000),
-      .RESET_HOLD_US(32'd1),
-      .POST_RESET_WAIT_US(32'd2),
-      .SPI_CLK_DIV(1),
+      .CLK_FREQ_HZ        (1_000_000),
+      .RESET_HOLD_US      (32'd1),
+      .POST_RESET_WAIT_US (32'd2),
+      .SPI_CLK_DIV        (1),
       .SPI_CS_SETUP_CYCLES(1),
-      .SPI_CS_HOLD_CYCLES(1),
-      .SPI_TIMEOUT_CYCLES(128)
+      .SPI_CS_HOLD_CYCLES (1),
+      .SPI_TIMEOUT_CYCLES (128)
   ) dut (
-      .sys_clk(sys_clk),
-      .sys_rst_n(sys_rst_n),
-      .csr_wr_en_i(csr_wr_en_i),
-      .csr_rd_en_i(csr_rd_en_i),
-      .csr_addr_i(csr_addr_i),
-      .csr_wdata_i(csr_wdata_i),
-      .csr_rdata_o(csr_rdata_o),
-      .spi_sclk_o(spi_sclk_o),
-      .spi_cs_n_o(spi_cs_n_o),
-      .spi_mosi_o(spi_mosi_o),
-      .spi_miso_i(spi_miso_i),
-      .sop0_o(sop0_o),
-      .sop1_o(sop1_o),
-      .sop2_o(sop2_o),
-      .nreset_o(nreset_o),
-      .host_irq_i(host_irq_i),
-      .nerror_out_i(nerror_out_i),
-      .ctrl_busy_o(ctrl_busy_o),
-      .ctrl_done_o(ctrl_done_o),
+      .sys_clk        (sys_clk),
+      .sys_rst_n      (sys_rst_n),
+      .csr_wr_en_i    (csr_wr_en_i),
+      .csr_rd_en_i    (csr_rd_en_i),
+      .csr_addr_i     (csr_addr_i),
+      .csr_wdata_i    (csr_wdata_i),
+      .csr_rdata_o    (csr_rdata_o),
+      .spi_sclk_o     (spi_sclk_o),
+      .spi_cs_n_o     (spi_cs_n_o),
+      .spi_mosi_o     (spi_mosi_o),
+      .spi_miso_i     (spi_miso_i),
+      .sop0_o         (sop0_o),
+      .sop1_o         (sop1_o),
+      .sop2_o         (sop2_o),
+      .nreset_o       (nreset_o),
+      .host_irq_i     (host_irq_i),
+      .nerror_out_i   (nerror_out_i),
+      .ctrl_busy_o    (ctrl_busy_o),
+      .ctrl_done_o    (ctrl_done_o),
       .ctrl_err_code_o(ctrl_err_code_o),
-      .ctrl_state_o(ctrl_state_o)
+      .ctrl_state_o   (ctrl_state_o)
   );
 
   initial begin
@@ -124,22 +120,23 @@ module awr2243_ctrl_top_smoke_tb;
   end
 
   initial begin
-    sys_rst_n = 1'b0;
-    csr_wr_en_i = 1'b0;
-    csr_rd_en_i = 1'b0;
-    csr_addr_i = '0;
-    csr_wdata_i = '0;
-    spi_miso_i = 1'b0;
-    host_irq_i = 1'b0;
-    nerror_out_i = 1'b1;
-    saw_spi_cs_low = 1'b0;
+    sys_rst_n          = 1'b0;
+    csr_wr_en_i        = 1'b0;
+    csr_rd_en_i        = 1'b0;
+    csr_addr_i         = '0;
+    csr_wdata_i        = '0;
+    spi_miso_i         = 1'b0;
+    host_irq_i         = 1'b0;
+    nerror_out_i       = 1'b1;
+    saw_spi_cs_low     = 1'b0;
     saw_cmd_timer_busy = 1'b0;
 
     repeat (4) @(negedge sys_clk);
     sys_rst_n = 1'b1;
     @(negedge sys_clk);
 
-    dut.u_script_ram.word_mem_r[0] = make_cmd(AWR_CMD_DELAY_US, 8'h00, 16'h0001, 16'h0000, 16'h0001);
+    dut.u_script_ram.word_mem_r[0] =
+        make_cmd(AWR_CMD_DELAY_US, 8'h00, 16'h0001, 16'h0000, 16'h0001);
     dut.u_script_ram.word_mem_r[1] = make_cmd(AWR_CMD_SPI_WR, 8'h00, 16'h0002, 16'h0000, 16'ha55a);
     dut.u_script_ram.word_mem_r[2] = make_cmd(AWR_CMD_END, 8'h00, 16'h0003, 16'h0000, 16'h0000);
     dut.u_script_ram.base_addr_r[0] = '0;
@@ -182,20 +179,10 @@ module awr2243_ctrl_top_smoke_tb;
     if (!ctrl_done_o) begin
       $display(
           "init timeout: seq_state=%0d err=%0h reset_state=%0d fetch_state=%0d decode_state=%0d active_script=%0d fetch_done=%0b cmd_done=%0b cmd_err=%0b timer_busy=%0b timer_done=%0b spi_busy=%0b spi_done=%0b",
-          dut.u_cfg_sequencer.state_o,
-          ctrl_err_code_o,
-          dut.u_reset_ctrl.state_o,
-          dut.u_cmd_fetch.state_o,
-          dut.u_cmd_decode.state_o,
-          dut.u_cfg_sequencer.active_script_o,
-          dut.fetch_script_done,
-          dut.decode_cmd_done,
-          dut.decode_cmd_error,
-          dut.u_cmd_timer.busy_o,
-          dut.u_cmd_timer.done_o,
-          dut.u_spi_master.busy_o,
-          dut.u_spi_master.done_o
-      );
+          dut.u_cfg_sequencer.state_o, ctrl_err_code_o, dut.u_reset_ctrl.state_o,
+          dut.u_cmd_fetch.state_o, dut.u_cmd_decode.state_o, dut.u_cfg_sequencer.active_script_o,
+          dut.fetch_script_done, dut.decode_cmd_done, dut.decode_cmd_error, dut.u_cmd_timer.busy_o,
+          dut.u_cmd_timer.done_o, dut.u_spi_master.busy_o, dut.u_spi_master.done_o);
       $fatal(1, "init flow timed out");
     end
     if (ctrl_err_code_o !== 16'h0000) begin
@@ -233,13 +220,9 @@ module awr2243_ctrl_top_smoke_tb;
     end
     host_irq_i = 1'b0;
     if (!done_seen) begin
-      $display(
-          "start timeout: seq_state=%0d err=%0h host_irq_sticky=%0b irq_count=%0d",
-          dut.u_cfg_sequencer.state_o,
-          ctrl_err_code_o,
-          dut.u_status_mon.host_irq_sticky_o,
-          dut.u_status_mon.irq_count_o
-      );
+      $display("start timeout: seq_state=%0d err=%0h host_irq_sticky=%0b irq_count=%0d",
+               dut.u_cfg_sequencer.state_o, ctrl_err_code_o, dut.u_status_mon.host_irq_sticky_o,
+               dut.u_status_mon.irq_count_o);
       $fatal(1, "start flow timed out waiting for host IRQ");
     end
     if (ctrl_err_code_o !== 16'h0000) begin
@@ -281,13 +264,8 @@ module awr2243_ctrl_top_smoke_tb;
       end
     end
     if (!ctrl_done_o) begin
-      $display(
-          "hard reset timeout: seq_state=%0d err=%0h reset_state=%0d nreset=%0b",
-          dut.u_cfg_sequencer.state_o,
-          ctrl_err_code_o,
-          dut.u_reset_ctrl.state_o,
-          nreset_o
-      );
+      $display("hard reset timeout: seq_state=%0d err=%0h reset_state=%0d nreset=%0b",
+               dut.u_cfg_sequencer.state_o, ctrl_err_code_o, dut.u_reset_ctrl.state_o, nreset_o);
       $fatal(1, "hard reset flow timed out");
     end
     if (nreset_o !== 1'b1) begin
