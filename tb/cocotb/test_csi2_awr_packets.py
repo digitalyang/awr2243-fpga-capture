@@ -7,6 +7,18 @@ from typing import Any
 import cocotb
 from cocotb.triggers import RisingEdge
 
+from awr_payload_model import (
+    CQ_BYTES,
+    RX_HEADER_BYTES_EACH as RX_HEADER_BYTES,
+    RX_HEADER_BYTES_TOTAL as RX_HEADERS_TOTAL_BYTES,
+    SAMPLE_BYTES as SAMPLE_PACKED_BYTES,
+    gen_awr_payload as model_gen_awr_payload,
+    gen_one_sample as model_gen_one_sample,
+    pack_rx_header as model_pack_rx_header,
+    pack_u12_list_le as model_pack_u12_list_le,
+    sign_to_u12 as model_sign_to_u12,
+)
+
 
 # -----------------------------------------------------------------------------
 # CSI-2 constants
@@ -30,11 +42,7 @@ VC_DEFAULT = 0
 NUM_LANES_DEFAULT = 4
 
 RX_HEADER_COUNT = 4
-RX_HEADER_BYTES = 2
-RX_HEADERS_TOTAL_BYTES = RX_HEADER_COUNT * RX_HEADER_BYTES
 SAMPLE_COMPONENTS = 8
-SAMPLE_PACKED_BYTES = 12
-CQ_BYTES = 8
 
 CRC16_INIT = 0xFFFF
 CRC16_POLY_REVERSED = 0x8408
@@ -108,71 +116,19 @@ async def _drive_with_optional_ready(clk, valid_sig, ready_sig) -> None:
 # Layer 1: payload generation
 # -----------------------------------------------------------------------------
 def sign_to_u12(x: int) -> int:
-    """Convert signed 12-bit integer to raw u12.
-
-    For convenience this helper also accepts pre-encoded raw 12-bit values
-    in the range [0x800, 0xFFF], which is useful for pattern vectors like 0xFEE.
-    """
-
-    if 0 <= x <= U12_MASK:
-        return x
-    if U12_SIGNED_MIN <= x <= U12_SIGNED_MAX:
-        return x & U12_MASK
-    raise ValueError(f"value does not fit 12-bit signed/raw encoding: {x}")
+    return model_sign_to_u12(x)
 
 
 def pack_u12_list_le(values: list[int]) -> bytes:
-    packed_value = 0
-    bit_offset = 0
-
-    for idx, value in enumerate(values):
-        u12 = sign_to_u12(value)
-        packed_value |= (u12 & U12_MASK) << bit_offset
-        bit_offset += 12
-
-    if bit_offset == 0:
-        return b""
-
-    total_bytes = (bit_offset + 7) // 8
-    return packed_value.to_bytes(total_bytes, byteorder="little", signed=False)
+    return model_pack_u12_list_le(values)
 
 
 def pack_rx_header(chirp_profile: int, channel_id: int, chirp_num: int) -> bytes:
-    _check_range("chirp_profile", chirp_profile, 0, 0x7)
-    _check_range("channel_id", channel_id, 0, 0x3)
-    _check_range("chirp_num", chirp_num, 0, 0x7FF)
-
-    header = 0
-    header |= channel_id & 0x3
-    header |= (chirp_profile & 0x7) << 2
-    header |= (chirp_num & 0x7FF) << 5
-    return header.to_bytes(RX_HEADER_BYTES, byteorder="little", signed=False)
+    return model_pack_rx_header(channel_id=channel_id, chirp_profile=chirp_profile, chirp_num=chirp_num)
 
 
 def gen_one_sample(sample_idx: int, pattern: str = "ramp", rng=None) -> list[int]:
-    if pattern == "ramp":
-        return [
-            sample_idx,
-            -sample_idx,
-            0x100 + sample_idx,
-            -(0x100 + sample_idx),
-            0x200 + sample_idx,
-            -(0x200 + sample_idx),
-            0x300 + sample_idx,
-            -(0x300 + sample_idx),
-        ]
-
-    if pattern == "const":
-        return [0x011, 0xFEE, 0x022, 0xFDD, 0x033, 0xFCC, 0x044, 0xFBB]
-
-    if pattern == "channel_tag":
-        return [0x001, 0x101, 0x002, 0x102, 0x003, 0x103, 0x004, 0x104]
-
-    if pattern == "random":
-        local_rng = rng if rng is not None else random.Random()
-        return [local_rng.randint(U12_SIGNED_MIN, U12_SIGNED_MAX) for _ in range(SAMPLE_COMPONENTS)]
-
-    raise ValueError(f"unsupported pattern: {pattern}")
+    return model_gen_one_sample(sample_idx=sample_idx, pattern=pattern, rng=rng)
 
 
 def gen_awr_payload(
@@ -183,23 +139,14 @@ def gen_awr_payload(
     pattern: str = "ramp",
     seed: int | None = None,
 ) -> bytes:
-    _check_range("ns", ns, 0, WORD_COUNT_MASK)
-    _check_range("cq_data", cq_data, 0, (1 << 64) - 1)
-
-    rng = None
-    if pattern == "random":
-        rng = random.Random(chirp_num if seed is None else seed)
-
-    payload = bytearray()
-
-    for channel_id in range(RX_HEADER_COUNT):
-        payload.extend(pack_rx_header(chirp_profile=chirp_profile, channel_id=channel_id, chirp_num=chirp_num))
-
-    for sample_idx in range(ns):
-        payload.extend(pack_u12_list_le(gen_one_sample(sample_idx=sample_idx, pattern=pattern, rng=rng)))
-
-    payload.extend(cq_data.to_bytes(CQ_BYTES, byteorder="little", signed=False))
-    return bytes(payload)
+    return model_gen_awr_payload(
+        chirp_num=chirp_num,
+        ns=ns,
+        chirp_profile=chirp_profile,
+        cq_data=cq_data,
+        pattern=pattern,
+        seed=seed,
+    )
 
 
 # -----------------------------------------------------------------------------
@@ -530,4 +477,3 @@ def test_frame_multi_chirp() -> None:
     assert dts.count(DT_LS) == 4
     assert dts.count(DT_LE) == 4
     assert dts.count(DT_AWR_RAW) == 4
-

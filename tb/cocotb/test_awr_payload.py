@@ -8,7 +8,6 @@ All bit-packing follows the rules documented in the module docstrings.
 from __future__ import annotations
 
 import random
-import struct
 from dataclasses import dataclass
 from math import ceil
 from typing import List, Optional
@@ -16,146 +15,23 @@ from typing import List, Optional
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, RisingEdge
+from awr_payload_model import (
+    CQ_BYTES,
+    NUM_RX_CHANNELS,
+    RX_HEADER_BYTES_EACH,
+    RX_HEADER_BYTES_TOTAL,
+    SAMPLE_BYTES,
+    calc_expected_payload_size,
+    gen_awr_payload,
+    pack_cq_raw12,
+    pack_rx_header,
+    pack_u12_list_le,
+    sign_to_u12,
+    unpack_cq_raw12,
+    unpack_rx_header,
+    unpack_u12_list_le,
+)
 
-# ================================================================
-#  Constants
-# ================================================================
-NUM_RX_CHANNELS = 4
-RX_HEADER_BYTES_EACH = 2
-RX_HEADER_BYTES_TOTAL = NUM_RX_CHANNELS * RX_HEADER_BYTES_EACH  # 8
-IQ_PER_SAMPLE = NUM_RX_CHANNELS * 2  # 8 (I+Q per channel)
-SAMPLE_BITS = IQ_PER_SAMPLE * 12  # 96
-SAMPLE_BYTES = SAMPLE_BITS // 8  # 12
-CQ_BYTES = 8
-
-# ================================================================
-#  Utility: signed → unsigned 12-bit
-# ================================================================
-
-def sign_to_u12(x: int) -> int:
-    """Convert a signed integer to its unsigned 12-bit representation.
-
-    Negative values are converted via two's complement truncation:
-      sign_to_u12(-1)    → 0xFFF
-      sign_to_u12(-2048) → 0x800
-      sign_to_u12(2047)  → 0x7FF
-    """
-    return x & 0xFFF
-
-
-# ================================================================
-#  12-bit tight packing
-# ================================================================
-
-def pack_u12_list_le(values: List[int]) -> bytes:
-    """Pack *N* unsigned 12-bit values into a continuous little-endian byte stream.
-
-    Bit layout (LSB-first):
-      bit  0..11  = values[0]
-      bit 12..23  = values[1]
-      bit 24..35  = values[2]
-      ...
-
-    The resulting integer is converted to ``ceil(N*12/8)`` bytes, little-endian.
-
-    Example for 2 values (0xABC, 0xDEF):
-      bitstream = 0xDEF_ABC  →  bytes: [0xBC, 0xFA, 0xDE]
-    """
-    bitstream = 0
-    for i, v in enumerate(values):
-        bitstream |= (v & 0xFFF) << (i * 12)
-    byte_count = (len(values) * 12 + 7) // 8
-    return bitstream.to_bytes(byte_count, "little")
-
-
-# ================================================================
-#  RX header packing
-# ================================================================
-
-def pack_rx_header(channel_id: int, chirp_profile: int, chirp_num: int) -> bytes:
-    """Pack one RX header into 2 bytes (16-bit little-endian).
-
-    Bit mapping:
-      [1:0]   = channel_id   (2 bits)
-      [4:2]   = chirp_profile (3 bits)
-      [15:5]  = chirp_num[10:0] (11 bits, MSB-truncated)
-
-    Returns 2 bytes in little-endian order.
-    """
-    word = (
-        ((channel_id & 0x3) << 0)
-        | ((chirp_profile & 0x7) << 2)
-        | ((chirp_num & 0x7FF) << 5)
-    )
-    return struct.pack("<H", word)
-
-
-# ================================================================
-#  Single-sample IQ generation
-# ================================================================
-
-def gen_one_sample(
-    k: int,
-    pattern: str,
-    rng: Optional[random.Random] = None,
-) -> List[int]:
-    """Generate 8 unsigned 12-bit IQ values for sample index *k*.
-
-    Return order: [ch0_i, ch0_q, ch1_i, ch1_q, ch2_i, ch2_q, ch3_i, ch3_q]
-
-    Supported patterns:
-      "ramp"        – per-channel linear ramp with sign inversion on Q
-      "const"       – fixed diagnostic values
-      "channel_tag" – unique per-channel ID for cross-talk checks
-      "random"      – seeded pseudo-random 12-bit signed values
-    """
-    if pattern == "ramp":
-        vals = []
-        for ch in range(NUM_RX_CHANNELS):
-            base = ch * 0x100 + k
-            vals.append(sign_to_u12(base))
-            vals.append(sign_to_u12(-base))
-        return vals
-
-    if pattern == "const":
-        return [
-            0x011, 0xFEE,
-            0x022, 0xFDD,
-            0x033, 0xFCC,
-            0x044, 0xFBB,
-        ]
-
-    if pattern == "channel_tag":
-        return [
-            0x001, 0x101,
-            0x002, 0x102,
-            0x003, 0x103,
-            0x004, 0x104,
-        ]
-
-    if pattern == "random":
-        if rng is None:
-            rng = random.Random(42)
-        return [sign_to_u12(rng.randint(-2048, 2047)) for _ in range(IQ_PER_SAMPLE)]
-
-    raise ValueError(f"Unknown pattern: {pattern!r}")
-
-
-# ================================================================
-#  Payload size calculation
-# ================================================================
-
-def calc_expected_payload_size(ns: int) -> int:
-    """Return the expected payload byte count for *ns* samples.
-
-    Formula: 8 (header) + ns × 12 (samples) + 8 (CQ)
-    """
-    return RX_HEADER_BYTES_TOTAL + ns * SAMPLE_BYTES + CQ_BYTES
-
-
-# ================================================================
-#  Full payload generation
-# ================================================================
 
 def gen_awr2243_payload(
     chirp_num: int,
@@ -165,48 +41,14 @@ def gen_awr2243_payload(
     pattern: str = "ramp",
     seed: int = 42,
 ) -> bytes:
-    """Build a complete AWR2243 chirp payload.
-
-    Parameters
-    ----------
-    chirp_num : int
-        Chirp index (truncated to 11 bits in each RX header).
-    ns : int
-        Number of samples (1 .. 1024).
-    chirp_profile : int
-        Chirp profile index (3 bits).
-    cq_data : int
-        64-bit CQ word appended at the tail (LE).
-    pattern : str
-        Sample data pattern – "ramp", "const", "channel_tag", "random".
-    seed : int
-        PRNG seed for the "random" pattern.
-
-    Returns
-    -------
-    bytes
-        Complete payload: ``rx_headers || samples || cq``.
-    """
-    if not 1 <= ns <= 1024:
-        raise ValueError(f"ns must be 1..1024, got {ns}")
-
-    rng = random.Random(seed)
-    buf = bytearray()
-
-    # ── RX headers (4 channels × 2 bytes) ───────────────────
-    for ch in range(NUM_RX_CHANNELS):
-        buf.extend(pack_rx_header(ch, chirp_profile, chirp_num))
-
-    # ── Sample data ─────────────────────────────────────────
-    for k in range(ns):
-        iq_vals = gen_one_sample(k, pattern, rng=rng)
-        buf.extend(pack_u12_list_le(iq_vals))
-
-    # ── CQ data (64-bit LE) ─────────────────────────────────
-    buf.extend(struct.pack("<Q", cq_data & 0xFFFF_FFFF_FFFF_FFFF))
-
-    assert len(buf) == calc_expected_payload_size(ns)
-    return bytes(buf)
+    return gen_awr_payload(
+        chirp_num=chirp_num,
+        ns=ns,
+        chirp_profile=chirp_profile,
+        cq_data=cq_data,
+        pattern=pattern,
+        seed=seed,
+    )
 
 
 # ================================================================
@@ -356,31 +198,31 @@ async def apply_reset(dut) -> None:
 
 @cocotb.test()
 async def test_payload_ns_1(dut):
-    """ns=1 ramp – verify payload length = 8 + 1*12 + 8 = 28 bytes."""
+    """ns=1 ramp – verify payload length = 12 + 1*12 + 9 = 33 bytes."""
     await apply_reset(dut)
     payload = gen_awr2243_payload(chirp_num=0, ns=1, pattern="ramp")
     exp_len = calc_expected_payload_size(1)
-    assert exp_len == 28, f"Formula check: exp=28 got={exp_len}"
+    assert exp_len == 33, f"Formula check: exp=33 got={exp_len}"
     assert len(payload) == exp_len, f"Payload length: exp={exp_len} got={len(payload)}"
 
 
 @cocotb.test()
 async def test_payload_ns_64(dut):
-    """ns=64 ramp – verify payload length = 8 + 64*12 + 8 = 784 bytes."""
+    """ns=64 ramp – verify payload length = 12 + 64*12 + 9 = 789 bytes."""
     await apply_reset(dut)
     payload = gen_awr2243_payload(chirp_num=100, ns=64, pattern="ramp")
     exp_len = calc_expected_payload_size(64)
-    assert exp_len == 784
+    assert exp_len == 789
     assert len(payload) == exp_len
 
 
 @cocotb.test()
 async def test_payload_ns_1024(dut):
-    """ns=1024 ramp – maximum payload length = 8 + 1024*12 + 8 = 12304 bytes."""
+    """ns=1024 ramp – maximum payload length = 12 + 1024*12 + 9 = 12309 bytes."""
     await apply_reset(dut)
     payload = gen_awr2243_payload(chirp_num=2047, ns=1024, pattern="ramp")
     exp_len = calc_expected_payload_size(1024)
-    assert exp_len == 12304
+    assert exp_len == 12309
     assert len(payload) == exp_len
 
 
@@ -401,26 +243,24 @@ async def test_payload_const_pattern(dut):
 
     # ── Verify RX headers ───────────────────────────────────
     for ch in range(NUM_RX_CHANNELS):
-        hdr_word = struct.unpack_from("<H", payload, ch * 2)[0]
-        act_ch = hdr_word & 0x3
-        act_prof = (hdr_word >> 2) & 0x7
-        act_chirp = (hdr_word >> 5) & 0x7FF
+        act_ch, act_prof, act_chirp = unpack_rx_header(
+            payload[ch * RX_HEADER_BYTES_EACH : (ch + 1) * RX_HEADER_BYTES_EACH]
+        )
         assert act_ch == ch, f"Header ch={ch}: channel_id exp={ch} act={act_ch}"
         assert act_prof == chirp_profile, f"Header ch={ch}: profile exp={chirp_profile} act={act_prof}"
         assert act_chirp == chirp_num, f"Header ch={ch}: chirp_num exp={chirp_num} act={act_chirp}"
 
     # ── Verify sample IQ values (unpack 12-bit) ────────────
-    sample_ofs = RX_HEADER_BYTES_TOTAL  # 8
+    sample_ofs = RX_HEADER_BYTES_TOTAL
     sample_raw = payload[sample_ofs : sample_ofs + SAMPLE_BYTES]
-    bitstream = int.from_bytes(sample_raw, "little")
     expected_iq = [0x011, 0xFEE, 0x022, 0xFDD, 0x033, 0xFCC, 0x044, 0xFBB]
-    for i, exp_val in enumerate(expected_iq):
-        act_val = (bitstream >> (i * 12)) & 0xFFF
+    for i, act_val in enumerate(unpack_u12_list_le(sample_raw, len(expected_iq))):
+        exp_val = expected_iq[i]
         assert act_val == exp_val, f"IQ[{i}]: exp=0x{exp_val:03x} act=0x{act_val:03x}"
 
     # ── Verify CQ ───────────────────────────────────────────
     cq_ofs = sample_ofs + SAMPLE_BYTES
-    act_cq = struct.unpack_from("<Q", payload, cq_ofs)[0]
+    act_cq = unpack_cq_raw12(payload[cq_ofs : cq_ofs + CQ_BYTES])
     assert act_cq == cq_val, f"CQ: exp=0x{cq_val:016x} act=0x{act_cq:016x}"
 
 
@@ -464,10 +304,10 @@ async def test_axis_send_128bit(dut):
     rem = len(payload) % beat_bytes
     expected_last_tkeep = (1 << beat_bytes) - 1 if rem == 0 else (1 << rem) - 1
 
-    exp_len = calc_expected_payload_size(32)  # 8 + 384 + 8 = 400
+    exp_len = calc_expected_payload_size(32)  # 12 + 384 + 9 = 405
     assert len(payload) == exp_len
-    assert expected_beats == ceil(400 / 16)  # 25
-    assert expected_last_tkeep == (1 << beat_bytes) - 1  # 400 % 16 = 0 → full
+    assert expected_beats == ceil(405 / 16)  # 26
+    assert expected_last_tkeep == (1 << 5) - 1  # 405 % 16 = 5
 
 
 @cocotb.test()

@@ -1,7 +1,8 @@
 `include "slot_packer_macros.svh"
 
-// Converts accepted packets into fixed-size capture slots with a deterministic
-// header, sample-area padding, and CQ/alignment padding for DDR storage.
+// Captures one AWR payload, then replays it as a fixed-size slot:
+//   12B RX headers + 1024*12B sample area + 9B CQ tail + 64B alignment padding.
+// Missing samples are zero-filled and the legacy synthetic slot header is removed.
 module fixed_slot_packer #(
     parameter int unsigned AXIS_DATA_W = `SLOT_PKR_AXIS_DATA_W_DFLT,
     parameter int unsigned AXIS_USER_W = `SLOT_PKR_AXIS_USER_W_DFLT,
@@ -12,8 +13,6 @@ module fixed_slot_packer #(
     parameter int unsigned CQ_AREA_BYTES = `SLOT_PKR_CQ_AREA_BYTES_DFLT,
     parameter int unsigned HEADER_BYTES = `SLOT_PKR_HEADER_BYTES_DFLT,
     parameter int unsigned ALIGN_BYTES = `SLOT_PKR_ALIGN_BYTES_DFLT,
-    parameter logic [31:0] SLOT_HDR_MAGIC = slot_packer_pkg::SLOT_HDR_MAGIC_VAL_DFLT,
-    parameter logic [7:0] SLOT_HDR_VERSION = slot_packer_pkg::SLOT_HDR_VERSION_VAL_DFLT,
     parameter int unsigned SLOT_BYTES_W = slot_packer_pkg::clog2_safe(
         slot_packer_pkg::align_up_u(
             HEADER_BYTES + SAMPLE_SLOT_NUM * SAMPLE_UNIT_BYTES + CQ_AREA_BYTES, ALIGN_BYTES) + 1
@@ -22,10 +21,10 @@ module fixed_slot_packer #(
     input logic clk_i,
     input logic rst_ni,
 
-    // ── configuration ──────────────────────────────────────────
+    // Drop packets already marked invalid by the CSI packet extractor.
     input logic cfg_drop_invalid_pkt_i,
 
-    // ── upstream packet sideband (from CSI Packet Extractor) ──
+    // Upstream packet sideband.
     input logic                      pkt_start_i,
     input logic                      pkt_done_i,
     input logic [PKT_BYTE_CNT_W-1:0] pkt_bytes_i,
@@ -35,7 +34,7 @@ module fixed_slot_packer #(
     input logic                      pkt_trunc_err_i,
     input logic                      pkt_valid_good_i,
 
-    // ── downstream slot sideband (to DDR RingBuffer) ──────────
+    // Downstream slot sideband.
     output logic                    slot_start_o,
     output logic                    slot_done_o,
     output logic [SLOT_BYTES_W-1:0] slot_bytes_o,
@@ -43,7 +42,6 @@ module fixed_slot_packer #(
     output logic                    slot_valid_good_o,
     output logic                    slot_overflow_err_o,
 
-    // ── AXI-Stream interfaces ─────────────────────────────────
     axis_stream_if.slave  s_axis,
     axis_stream_if.master m_axis
 );
@@ -51,70 +49,43 @@ module fixed_slot_packer #(
   import slot_packer_pkg::*;
 
   // ================================================================
-  //  Localparam derivations
+  //  Layout constants
   // ================================================================
   localparam int unsigned AXIS_KEEP_W = AXIS_DATA_W / 8;
   localparam int unsigned AXIS_BEAT_BYTES = AXIS_DATA_W / 8;
   localparam int unsigned BEAT_BYTE_CNT_W = clog2_safe(AXIS_BEAT_BYTES + 1);
+  localparam int unsigned CAP_IDX_W = clog2_safe(ceil_div_u(
+      HEADER_BYTES + SAMPLE_SLOT_NUM * SAMPLE_UNIT_BYTES + CQ_AREA_BYTES,
+      AXIS_BEAT_BYTES));
 
-  localparam int unsigned SAMPLE_UNIT_BITS = SAMPLE_UNIT_BYTES * 8;
   localparam int unsigned SAMPLE_AREA_BYTES = SAMPLE_SLOT_NUM * SAMPLE_UNIT_BYTES;
   localparam int unsigned SAMPLE_CNT_W = clog2_safe(SAMPLE_SLOT_NUM + 1);
 
-  localparam int unsigned HEADER_BITS = HEADER_BYTES * 8;
-
   localparam int unsigned SLOT_TOTAL_UNALIGNED = HEADER_BYTES + SAMPLE_AREA_BYTES + CQ_AREA_BYTES;
   localparam int unsigned SLOT_TOTAL_ALIGNED = align_up_u(SLOT_TOTAL_UNALIGNED, ALIGN_BYTES);
-  localparam int unsigned PAD_BYTES = SLOT_TOTAL_ALIGNED - SLOT_TOTAL_UNALIGNED;
-
-  localparam int unsigned HEADER_BEATS = HEADER_BYTES / AXIS_BEAT_BYTES;
-  localparam int unsigned SAMPLE_AREA_BEATS = SAMPLE_AREA_BYTES / AXIS_BEAT_BYTES;
-  localparam int unsigned CQ_AREA_BEATS = CQ_AREA_BYTES / AXIS_BEAT_BYTES;
-  localparam int unsigned PAD_BEATS = PAD_BYTES / AXIS_BEAT_BYTES;
   localparam int unsigned SLOT_TOTAL_BEATS = SLOT_TOTAL_ALIGNED / AXIS_BEAT_BYTES;
 
-  localparam int unsigned CAP_BUF_BEATS = SAMPLE_AREA_BEATS;
-  localparam int unsigned BEAT_CNT_W = clog2_safe(max_u(SLOT_TOTAL_BEATS, 1) + 1);
-
-  // Header field bit positions (byte offset * 8)
-  localparam int unsigned HDR_MAGIC_BIT_LSB = SLOT_HDR_MAGIC_BYTE_OFS * 8;
-  localparam int unsigned HDR_VERSION_BIT_LSB = SLOT_HDR_VERSION_BYTE_OFS * 8;
-  localparam int unsigned HDR_FLAGS_BIT_LSB = SLOT_HDR_FLAGS_BYTE_OFS * 8;
-  localparam int unsigned HDR_PKT_SEQ_BIT_LSB = SLOT_HDR_PKT_SEQ_BYTE_OFS * 8;
-  localparam int unsigned HDR_PKT_BYTES_BIT_LSB = SLOT_HDR_PKT_BYTES_BYTE_OFS * 8;
-  localparam int unsigned HDR_SAMPLE_CNT_BIT_LSB = SLOT_HDR_SAMPLE_CNT_BYTE_OFS * 8;
-  localparam int unsigned HDR_SLOT_BYTES_BIT_LSB = SLOT_HDR_SLOT_BYTES_BYTE_OFS * 8;
-  localparam int unsigned HDR_SAMPLE_AREA_BIT_LSB = SLOT_HDR_SAMPLE_AREA_BYTE_OFS * 8;
-  localparam int unsigned HDR_CQ_AREA_BIT_LSB = SLOT_HDR_CQ_AREA_BYTE_OFS * 8;
-
-  localparam int unsigned HDR_PKT_SEQ_FIELD_BITS = SLOT_HDR_PKT_SEQ_BYTES * 8;
-  localparam int unsigned HDR_PKT_BYTES_FIELD_BITS = SLOT_HDR_PKT_BYTES_BYTES * 8;
-  localparam int unsigned HDR_SAMPLE_CNT_FIELD_BITS = SLOT_HDR_SAMPLE_CNT_BYTES * 8;
+  localparam int unsigned CAP_BUF_BYTES = SLOT_TOTAL_UNALIGNED;
+  localparam int unsigned CAP_BUF_BEATS = ceil_div_u(CAP_BUF_BYTES, AXIS_BEAT_BYTES);
+  localparam int unsigned BEAT_CNT_W = clog2_safe(max_u(SLOT_TOTAL_BEATS, CAP_BUF_BEATS) + 1);
 
   // ================================================================
   //  Type declarations
   // ================================================================
-  typedef enum logic [2:0] {
+  typedef enum logic [1:0] {
     ST_IDLE,
     ST_CAPTURE,
-    ST_HEADER,
-    ST_PAYLOAD,
-    ST_SAMPLE_PAD,
-    ST_CQ_PAD,
-    ST_ALIGN_PAD
+    ST_OUTPUT
   } packer_state_e;
 
   // ================================================================
-  //  Register declarations
+  //  Registers
   // ================================================================
   packer_state_e                       state_r;
   packer_state_e                       state_n;
 
   logic          [     BEAT_CNT_W-1:0] out_beat_cnt_r;
   logic          [     BEAT_CNT_W-1:0] out_beat_cnt_n;
-  logic          [     BEAT_CNT_W-1:0] total_out_beat_cnt_r;
-  logic          [     BEAT_CNT_W-1:0] total_out_beat_cnt_n;
-
   logic          [     BEAT_CNT_W-1:0] cap_beat_cnt_r;
   logic          [     BEAT_CNT_W-1:0] cap_beat_cnt_n;
 
@@ -134,8 +105,8 @@ module fixed_slot_packer #(
   logic                                cap_overflow_r;
   logic                                cap_overflow_n;
 
-  // Capture buffer (register array)
-  logic          [    AXIS_DATA_W-1:0] cap_buf_data_r       [0:CAP_BUF_BEATS-1];
+  // Register array that holds the original packet bytes until the full slot is replayed.
+  logic          [    AXIS_DATA_W-1:0] cap_buf_data_r [0:CAP_BUF_BEATS-1];
 
   // ================================================================
   //  Combinational wires
@@ -144,16 +115,21 @@ module fixed_slot_packer #(
   logic                                m_fire_c;
   logic          [BEAT_BYTE_CNT_W-1:0] keep_bytes_c;
   logic          [    AXIS_DATA_W-1:0] masked_data_c;
-  logic                                is_slot_last_beat_c;
   logic                                should_drop_c;
+  logic                                is_slot_last_beat_c;
 
-  logic          [     BEAT_CNT_W-1:0] sample_pad_beats_c;
-  logic          [    HEADER_BITS-1:0] hdr_word_c;
+  logic          [ PKT_BYTE_CNT_W-1:0] cap_payload_bytes_capped_c;
+  logic          [ PKT_BYTE_CNT_W-1:0] hdr_valid_bytes_c;
+  logic          [ PKT_BYTE_CNT_W-1:0] sample_input_bytes_c;
+  logic          [ PKT_BYTE_CNT_W-1:0] cq_input_ofs_c;
+  logic          [ PKT_BYTE_CNT_W-1:0] cq_input_bytes_c;
   logic          [   SAMPLE_CNT_W-1:0] actual_sample_cnt_c;
 
   logic                                cap_buf_wr_en_c;
-  logic          [     BEAT_CNT_W-1:0] cap_buf_wr_idx_c;
+  logic          [      CAP_IDX_W-1:0] cap_buf_wr_idx_c;
   logic          [    AXIS_DATA_W-1:0] cap_buf_wr_data_c;
+
+  logic          [    AXIS_DATA_W-1:0] out_data_c;
 
   // ================================================================
   //  Functions
@@ -172,7 +148,8 @@ module fixed_slot_packer #(
   endfunction
 
   function automatic logic [AXIS_DATA_W-1:0] mask_data_with_keep(
-      input logic [AXIS_DATA_W-1:0] data, input logic [AXIS_KEEP_W-1:0] keep);
+      input logic [AXIS_DATA_W-1:0] data,
+      input logic [AXIS_KEEP_W-1:0] keep);
     logic        [AXIS_DATA_W-1:0] result;
     int unsigned                   idx;
     begin
@@ -186,58 +163,72 @@ module fixed_slot_packer #(
     end
   endfunction
 
+  function automatic logic [7:0] capture_byte_at(input int unsigned byte_idx);
+    int unsigned beat_idx;
+    int unsigned lane_idx;
+    begin
+      capture_byte_at = '0;
+
+      if (byte_idx < CAP_BUF_BYTES) begin
+        beat_idx = byte_idx / AXIS_BEAT_BYTES;
+        lane_idx = byte_idx % AXIS_BEAT_BYTES;
+        capture_byte_at = cap_buf_data_r[beat_idx][lane_idx*8+:8];
+      end
+    end
+  endfunction
+
+  function automatic logic [7:0] slot_byte_at(input int unsigned byte_idx);
+    int unsigned sample_byte_idx;
+    int unsigned cq_byte_idx;
+    int unsigned cq_input_idx;
+    begin
+      slot_byte_at = '0;
+      cq_input_idx = 0;
+
+      if (byte_idx < HEADER_BYTES) begin
+        if (byte_idx < hdr_valid_bytes_c) begin
+          slot_byte_at = capture_byte_at(byte_idx);
+        end
+      end else if (byte_idx < (HEADER_BYTES + SAMPLE_AREA_BYTES)) begin
+        sample_byte_idx = byte_idx - HEADER_BYTES;
+        if (sample_byte_idx < sample_input_bytes_c) begin
+          slot_byte_at = capture_byte_at(HEADER_BYTES + sample_byte_idx);
+        end
+      end else if (byte_idx < SLOT_TOTAL_UNALIGNED) begin
+        cq_byte_idx = byte_idx - HEADER_BYTES - SAMPLE_AREA_BYTES;
+        if (cq_byte_idx < cq_input_bytes_c) begin
+          cq_input_idx = int'(cq_input_ofs_c) + cq_byte_idx;
+          slot_byte_at = capture_byte_at(cq_input_idx);
+        end
+      end
+    end
+  endfunction
+
   // ================================================================
   //  Continuous assignments
   // ================================================================
   assign s_fire_c = s_axis.tvalid && s_axis.tready;
   assign m_fire_c = m_axis.tvalid && m_axis.tready;
+
   assign keep_bytes_c = count_keep_bytes(s_axis.tkeep);
   assign masked_data_c = mask_data_with_keep(s_axis.tdata, s_axis.tkeep);
 
-  assign is_slot_last_beat_c = (total_out_beat_cnt_r == BEAT_CNT_W'(SLOT_TOTAL_BEATS - 1));
-
-  assign sample_pad_beats_c = BEAT_CNT_W'(SAMPLE_AREA_BEATS) - cap_beat_cnt_r;
-
   assign should_drop_c = !pkt_valid_good_i && cfg_drop_invalid_pkt_i;
+  assign is_slot_last_beat_c = (out_beat_cnt_r == BEAT_CNT_W'(SLOT_TOTAL_BEATS - 1));
 
-  // Actual sample count placed in sample area (capped at SAMPLE_SLOT_NUM)
-  assign actual_sample_cnt_c =
-        (cap_pkt_bytes_r >= PKT_BYTE_CNT_W'(SAMPLE_AREA_BYTES))
-            ? SAMPLE_CNT_W'(SAMPLE_SLOT_NUM)
-            : SAMPLE_CNT_W'(cap_pkt_bytes_r / SAMPLE_UNIT_BYTES);
+  assign cap_payload_bytes_capped_c =
+      (cap_pkt_bytes_r >= PKT_BYTE_CNT_W'(CAP_BUF_BYTES))
+          ? PKT_BYTE_CNT_W'(CAP_BUF_BYTES)
+          : cap_pkt_bytes_r;
 
-  // ────────────────────────────────────────────────────────────
-  //  Combinational header word construction
-  //  Built from captured registers; stable during output phase.
-  // ────────────────────────────────────────────────────────────
-  always_comb begin
-    hdr_word_c = '0;
+  assign hdr_valid_bytes_c =
+      (cap_payload_bytes_capped_c >= PKT_BYTE_CNT_W'(HEADER_BYTES))
+          ? PKT_BYTE_CNT_W'(HEADER_BYTES)
+          : cap_payload_bytes_capped_c;
 
-    hdr_word_c[HDR_MAGIC_BIT_LSB+:32] = SLOT_HDR_MAGIC;
-    hdr_word_c[HDR_VERSION_BIT_LSB+:8] = SLOT_HDR_VERSION;
+  assign actual_sample_cnt_c = SAMPLE_CNT_W'(sample_input_bytes_c / SAMPLE_UNIT_BYTES);
 
-    hdr_word_c[HDR_FLAGS_BIT_LSB+SLOT_HDR_FLAG_CRC_ERR_BIT] = cap_pkt_crc_err_r;
-    hdr_word_c[HDR_FLAGS_BIT_LSB+SLOT_HDR_FLAG_ECC_ERR_BIT] = cap_pkt_ecc_err_r;
-    hdr_word_c[HDR_FLAGS_BIT_LSB+SLOT_HDR_FLAG_TRUNC_ERR_BIT] = cap_pkt_trunc_err_r;
-    hdr_word_c[HDR_FLAGS_BIT_LSB+SLOT_HDR_FLAG_VALID_GOOD_BIT] = cap_pkt_valid_good_r;
-    hdr_word_c[HDR_FLAGS_BIT_LSB+SLOT_HDR_FLAG_OVERFLOW_BIT] = cap_overflow_r;
-
-    hdr_word_c[HDR_PKT_SEQ_BIT_LSB    +: HDR_PKT_SEQ_FIELD_BITS]    =
-            HDR_PKT_SEQ_FIELD_BITS'(cap_pkt_seq_r);
-    hdr_word_c[HDR_PKT_BYTES_BIT_LSB  +: HDR_PKT_BYTES_FIELD_BITS]  =
-            HDR_PKT_BYTES_FIELD_BITS'(cap_pkt_bytes_r);
-    hdr_word_c[HDR_SAMPLE_CNT_BIT_LSB +: HDR_SAMPLE_CNT_FIELD_BITS] =
-            HDR_SAMPLE_CNT_FIELD_BITS'(actual_sample_cnt_c);
-
-    hdr_word_c[HDR_SLOT_BYTES_BIT_LSB+:32] = 32'(SLOT_TOTAL_ALIGNED);
-    hdr_word_c[HDR_SAMPLE_AREA_BIT_LSB+:32] = 32'(SAMPLE_AREA_BYTES);
-    hdr_word_c[HDR_CQ_AREA_BIT_LSB+:16] = 16'(CQ_AREA_BYTES);
-  end
-
-  // ────────────────────────────────────────────────────────────
-  //  Slot-level sideband outputs
-  // ────────────────────────────────────────────────────────────
-  assign slot_start_o        = m_axis.tvalid && (total_out_beat_cnt_r == '0);
+  assign slot_start_o        = m_axis.tvalid && (out_beat_cnt_r == '0);
   assign slot_done_o         = m_axis.tvalid && is_slot_last_beat_c;
   assign slot_bytes_o        = SLOT_BYTES_W'(SLOT_TOTAL_ALIGNED);
   assign slot_seq_o          = cap_pkt_seq_r;
@@ -245,13 +236,80 @@ module fixed_slot_packer #(
   assign slot_overflow_err_o = cap_overflow_r;
 
   // ================================================================
-  //  Main combinational block (FSM + datapath)
+  //  Decode the captured payload into raw header / sample / CQ regions.
+  //  Valid packets carry CQ immediately after the actual sample payload.
+  //  Truncated packets are assumed to end somewhere inside the sample area.
   // ================================================================
   always_comb begin
-    // ── defaults (hold) ────────────────────────────────────
+    logic [PKT_BYTE_CNT_W-1:0] data_after_hdr_c;
+    logic [PKT_BYTE_CNT_W-1:0] sample_candidate_c;
+    logic [PKT_BYTE_CNT_W-1:0] cq_candidate_c;
+
+    data_after_hdr_c    = '0;
+    sample_candidate_c  = '0;
+    cq_candidate_c      = '0;
+
+    sample_input_bytes_c = '0;
+    cq_input_ofs_c       = PKT_BYTE_CNT_W'(HEADER_BYTES);
+    cq_input_bytes_c     = '0;
+
+    if (cap_payload_bytes_capped_c > PKT_BYTE_CNT_W'(HEADER_BYTES)) begin
+      data_after_hdr_c = cap_payload_bytes_capped_c - PKT_BYTE_CNT_W'(HEADER_BYTES);
+
+      if (cap_pkt_trunc_err_r) begin
+        sample_input_bytes_c =
+            (data_after_hdr_c >= PKT_BYTE_CNT_W'(SAMPLE_AREA_BYTES))
+                ? PKT_BYTE_CNT_W'(SAMPLE_AREA_BYTES)
+                : data_after_hdr_c;
+
+        cq_input_ofs_c = PKT_BYTE_CNT_W'(HEADER_BYTES + SAMPLE_AREA_BYTES);
+        if (cap_payload_bytes_capped_c > PKT_BYTE_CNT_W'(HEADER_BYTES + SAMPLE_AREA_BYTES)) begin
+          cq_candidate_c = cap_payload_bytes_capped_c - PKT_BYTE_CNT_W'(HEADER_BYTES + SAMPLE_AREA_BYTES);
+          cq_input_bytes_c =
+              (cq_candidate_c >= PKT_BYTE_CNT_W'(CQ_AREA_BYTES))
+                  ? PKT_BYTE_CNT_W'(CQ_AREA_BYTES)
+                  : cq_candidate_c;
+        end
+      end else begin
+        if (data_after_hdr_c <= PKT_BYTE_CNT_W'(CQ_AREA_BYTES)) begin
+          cq_input_bytes_c = data_after_hdr_c;
+        end else begin
+          sample_candidate_c = data_after_hdr_c - PKT_BYTE_CNT_W'(CQ_AREA_BYTES);
+          sample_input_bytes_c =
+              (sample_candidate_c >= PKT_BYTE_CNT_W'(SAMPLE_AREA_BYTES))
+                  ? PKT_BYTE_CNT_W'(SAMPLE_AREA_BYTES)
+                  : sample_candidate_c;
+
+          cq_input_ofs_c = PKT_BYTE_CNT_W'(HEADER_BYTES) + sample_input_bytes_c;
+          cq_candidate_c = cap_payload_bytes_capped_c - cq_input_ofs_c;
+          cq_input_bytes_c =
+              (cq_candidate_c >= PKT_BYTE_CNT_W'(CQ_AREA_BYTES))
+                  ? PKT_BYTE_CNT_W'(CQ_AREA_BYTES)
+                  : cq_candidate_c;
+        end
+      end
+    end
+  end
+
+  // Assemble the current output beat from the captured packet bytes and zero padding.
+  always_comb begin
+    int unsigned byte_idx;
+    int unsigned lane_idx;
+
+    out_data_c = '0;
+    byte_idx   = int'(out_beat_cnt_r) * AXIS_BEAT_BYTES;
+
+    for (lane_idx = 0; lane_idx < AXIS_BEAT_BYTES; lane_idx++) begin
+      out_data_c[lane_idx*8+:8] = slot_byte_at(byte_idx + lane_idx);
+    end
+  end
+
+  // ================================================================
+  //  Main combinational FSM
+  // ================================================================
+  always_comb begin
     state_n              = state_r;
     out_beat_cnt_n       = out_beat_cnt_r;
-    total_out_beat_cnt_n = total_out_beat_cnt_r;
     cap_beat_cnt_n       = cap_beat_cnt_r;
     cap_pkt_seq_n        = cap_pkt_seq_r;
     cap_pkt_bytes_n      = cap_pkt_bytes_r;
@@ -261,25 +319,19 @@ module fixed_slot_packer #(
     cap_pkt_valid_good_n = cap_pkt_valid_good_r;
     cap_overflow_n       = cap_overflow_r;
 
-    // ── input side defaults ────────────────────────────────
     s_axis.tready        = 1'b0;
 
-    // ── output side defaults ───────────────────────────────
     m_axis.tdata         = '0;
     m_axis.tkeep         = '0;
     m_axis.tvalid        = 1'b0;
     m_axis.tlast         = 1'b0;
     m_axis.tuser         = '0;
 
-    // ── buffer write defaults ──────────────────────────────
     cap_buf_wr_en_c      = 1'b0;
     cap_buf_wr_idx_c     = '0;
     cap_buf_wr_data_c    = '0;
 
     case (state_r)
-      // ────────────────────────────────────────────────────
-      //  ST_IDLE: wait for first beat of a new packet
-      // ────────────────────────────────────────────────────
       ST_IDLE: begin
         s_axis.tready = 1'b1;
 
@@ -288,29 +340,29 @@ module fixed_slot_packer #(
           cap_buf_wr_idx_c  = '0;
           cap_buf_wr_data_c = masked_data_c;
 
-          cap_beat_cnt_n    = BEAT_CNT_W'(1);
-          cap_pkt_seq_n     = pkt_seq_i;
-          cap_overflow_n    = 1'b0;
+          cap_beat_cnt_n       = BEAT_CNT_W'(1);
+          cap_pkt_seq_n        = pkt_seq_i;
+          cap_pkt_bytes_n      = '0;
+          cap_pkt_crc_err_n    = 1'b0;
+          cap_pkt_ecc_err_n    = 1'b0;
+          cap_pkt_trunc_err_n  = 1'b0;
+          cap_pkt_valid_good_n = 1'b0;
+          cap_overflow_n       = 1'b0;
 
           if (pkt_done_i) begin
-            // Single-beat packet: latch final metadata
             cap_pkt_bytes_n      = pkt_bytes_i;
             cap_pkt_crc_err_n    = pkt_crc_err_i;
             cap_pkt_ecc_err_n    = pkt_ecc_err_i;
             cap_pkt_trunc_err_n  = pkt_trunc_err_i;
             cap_pkt_valid_good_n = pkt_valid_good_i;
-
-            if (pkt_bytes_i > PKT_BYTE_CNT_W'(SAMPLE_AREA_BYTES)) begin
-              cap_overflow_n = 1'b1;
-            end
+            cap_overflow_n       = (pkt_bytes_i > PKT_BYTE_CNT_W'(CAP_BUF_BYTES));
 
             if (should_drop_c) begin
               state_n        = ST_IDLE;
               cap_beat_cnt_n = '0;
             end else begin
-              state_n              = ST_HEADER;
-              out_beat_cnt_n       = '0;
-              total_out_beat_cnt_n = '0;
+              state_n        = ST_OUTPUT;
+              out_beat_cnt_n = '0;
             end
           end else begin
             state_n = ST_CAPTURE;
@@ -318,16 +370,13 @@ module fixed_slot_packer #(
         end
       end
 
-      // ────────────────────────────────────────────────────
-      //  ST_CAPTURE: absorb remaining beats of the packet
-      // ────────────────────────────────────────────────────
       ST_CAPTURE: begin
         s_axis.tready = 1'b1;
 
         if (s_fire_c) begin
           if (cap_beat_cnt_r < BEAT_CNT_W'(CAP_BUF_BEATS)) begin
             cap_buf_wr_en_c   = 1'b1;
-            cap_buf_wr_idx_c  = cap_beat_cnt_r;
+            cap_buf_wr_idx_c  = CAP_IDX_W'(cap_beat_cnt_r);
             cap_buf_wr_data_c = masked_data_c;
             cap_beat_cnt_n    = cap_beat_cnt_r + BEAT_CNT_W'(1);
           end else begin
@@ -341,7 +390,7 @@ module fixed_slot_packer #(
             cap_pkt_trunc_err_n  = pkt_trunc_err_i;
             cap_pkt_valid_good_n = pkt_valid_good_i;
 
-            if (pkt_bytes_i > PKT_BYTE_CNT_W'(SAMPLE_AREA_BYTES)) begin
+            if (pkt_bytes_i > PKT_BYTE_CNT_W'(CAP_BUF_BYTES)) begin
               cap_overflow_n = 1'b1;
             end
 
@@ -349,142 +398,26 @@ module fixed_slot_packer #(
               state_n        = ST_IDLE;
               cap_beat_cnt_n = '0;
             end else begin
-              state_n              = ST_HEADER;
-              out_beat_cnt_n       = '0;
-              total_out_beat_cnt_n = '0;
+              state_n        = ST_OUTPUT;
+              out_beat_cnt_n = '0;
             end
           end
         end
       end
 
-      // ────────────────────────────────────────────────────
-      //  ST_HEADER: output header beats
-      // ────────────────────────────────────────────────────
-      ST_HEADER: begin
-        m_axis.tdata  = hdr_word_c[out_beat_cnt_r*AXIS_DATA_W+:AXIS_DATA_W];
+      ST_OUTPUT: begin
+        m_axis.tdata  = out_data_c;
         m_axis.tkeep  = {AXIS_KEEP_W{1'b1}};
         m_axis.tvalid = 1'b1;
         m_axis.tlast  = is_slot_last_beat_c;
 
         if (m_fire_c) begin
-          out_beat_cnt_n       = out_beat_cnt_r + BEAT_CNT_W'(1);
-          total_out_beat_cnt_n = total_out_beat_cnt_r + BEAT_CNT_W'(1);
-
-          if (out_beat_cnt_r == BEAT_CNT_W'(HEADER_BEATS - 1)) begin
-            out_beat_cnt_n = '0;
-            if (cap_beat_cnt_r > '0) begin
-              state_n = ST_PAYLOAD;
-            end else if (SAMPLE_AREA_BEATS > 0) begin
-              state_n = ST_SAMPLE_PAD;
-            end else if (CQ_AREA_BEATS > 0) begin
-              state_n = ST_CQ_PAD;
-            end else if (PAD_BEATS > 0) begin
-              state_n = ST_ALIGN_PAD;
-            end else begin
-              state_n        = ST_IDLE;
-              cap_beat_cnt_n = '0;
-            end
-          end
-        end
-      end
-
-      // ────────────────────────────────────────────────────
-      //  ST_PAYLOAD: output captured sample data from buffer
-      // ────────────────────────────────────────────────────
-      ST_PAYLOAD: begin
-        m_axis.tdata  = cap_buf_data_r[out_beat_cnt_r];
-        m_axis.tkeep  = {AXIS_KEEP_W{1'b1}};
-        m_axis.tvalid = 1'b1;
-        m_axis.tlast  = is_slot_last_beat_c;
-
-        if (m_fire_c) begin
-          out_beat_cnt_n       = out_beat_cnt_r + BEAT_CNT_W'(1);
-          total_out_beat_cnt_n = total_out_beat_cnt_r + BEAT_CNT_W'(1);
-
-          if (out_beat_cnt_r == cap_beat_cnt_r - BEAT_CNT_W'(1)) begin
-            out_beat_cnt_n = '0;
-            if (cap_beat_cnt_r < BEAT_CNT_W'(SAMPLE_AREA_BEATS)) begin
-              state_n = ST_SAMPLE_PAD;
-            end else if (CQ_AREA_BEATS > 0) begin
-              state_n = ST_CQ_PAD;
-            end else if (PAD_BEATS > 0) begin
-              state_n = ST_ALIGN_PAD;
-            end else begin
-              state_n        = ST_IDLE;
-              cap_beat_cnt_n = '0;
-            end
-          end
-        end
-      end
-
-      // ────────────────────────────────────────────────────
-      //  ST_SAMPLE_PAD: zero-fill remaining sample area
-      // ────────────────────────────────────────────────────
-      ST_SAMPLE_PAD: begin
-        m_axis.tdata  = '0;
-        m_axis.tkeep  = {AXIS_KEEP_W{1'b1}};
-        m_axis.tvalid = 1'b1;
-        m_axis.tlast  = is_slot_last_beat_c;
-
-        if (m_fire_c) begin
-          out_beat_cnt_n       = out_beat_cnt_r + BEAT_CNT_W'(1);
-          total_out_beat_cnt_n = total_out_beat_cnt_r + BEAT_CNT_W'(1);
-
-          if (out_beat_cnt_r == sample_pad_beats_c - BEAT_CNT_W'(1)) begin
-            out_beat_cnt_n = '0;
-            if (CQ_AREA_BEATS > 0) begin
-              state_n = ST_CQ_PAD;
-            end else if (PAD_BEATS > 0) begin
-              state_n = ST_ALIGN_PAD;
-            end else begin
-              state_n        = ST_IDLE;
-              cap_beat_cnt_n = '0;
-            end
-          end
-        end
-      end
-
-      // ────────────────────────────────────────────────────
-      //  ST_CQ_PAD: zero-fill CQ area
-      // ────────────────────────────────────────────────────
-      ST_CQ_PAD: begin
-        m_axis.tdata  = '0;
-        m_axis.tkeep  = {AXIS_KEEP_W{1'b1}};
-        m_axis.tvalid = 1'b1;
-        m_axis.tlast  = is_slot_last_beat_c;
-
-        if (m_fire_c) begin
-          out_beat_cnt_n       = out_beat_cnt_r + BEAT_CNT_W'(1);
-          total_out_beat_cnt_n = total_out_beat_cnt_r + BEAT_CNT_W'(1);
-
-          if (out_beat_cnt_r == BEAT_CNT_W'(CQ_AREA_BEATS - 1)) begin
-            out_beat_cnt_n = '0;
-            if (PAD_BEATS > 0) begin
-              state_n = ST_ALIGN_PAD;
-            end else begin
-              state_n        = ST_IDLE;
-              cap_beat_cnt_n = '0;
-            end
-          end
-        end
-      end
-
-      // ────────────────────────────────────────────────────
-      //  ST_ALIGN_PAD: zero-fill to 64B alignment
-      // ────────────────────────────────────────────────────
-      ST_ALIGN_PAD: begin
-        m_axis.tdata  = '0;
-        m_axis.tkeep  = {AXIS_KEEP_W{1'b1}};
-        m_axis.tvalid = 1'b1;
-        m_axis.tlast  = is_slot_last_beat_c;
-
-        if (m_fire_c) begin
-          out_beat_cnt_n       = out_beat_cnt_r + BEAT_CNT_W'(1);
-          total_out_beat_cnt_n = total_out_beat_cnt_r + BEAT_CNT_W'(1);
-
-          if (out_beat_cnt_r == BEAT_CNT_W'(PAD_BEATS - 1)) begin
+          if (is_slot_last_beat_c) begin
             state_n        = ST_IDLE;
+            out_beat_cnt_n = '0;
             cap_beat_cnt_n = '0;
+          end else begin
+            out_beat_cnt_n = out_beat_cnt_r + BEAT_CNT_W'(1);
           end
         end
       end
@@ -496,13 +429,12 @@ module fixed_slot_packer #(
   end
 
   // ================================================================
-  //  Register update (single always_ff for all control + buffer)
+  //  Register update
   // ================================================================
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
       state_r              <= ST_IDLE;
       out_beat_cnt_r       <= '0;
-      total_out_beat_cnt_r <= '0;
       cap_beat_cnt_r       <= '0;
       cap_pkt_seq_r        <= '0;
       cap_pkt_bytes_r      <= '0;
@@ -514,7 +446,6 @@ module fixed_slot_packer #(
     end else begin
       state_r              <= state_n;
       out_beat_cnt_r       <= out_beat_cnt_n;
-      total_out_beat_cnt_r <= total_out_beat_cnt_n;
       cap_beat_cnt_r       <= cap_beat_cnt_n;
       cap_pkt_seq_r        <= cap_pkt_seq_n;
       cap_pkt_bytes_r      <= cap_pkt_bytes_n;
@@ -539,29 +470,21 @@ module fixed_slot_packer #(
     `SLOT_PKR_STATIC_ASSERT(is_pow2_u(AXIS_BEAT_BYTES), "AXIS_BEAT_BYTES must be a power of two")
 
     `SLOT_PKR_STATIC_ASSERT(HEADER_BYTES > 0, "HEADER_BYTES must be greater than zero")
-    `SLOT_PKR_STATIC_ASSERT((HEADER_BYTES % AXIS_BEAT_BYTES) == 0,
-                            "HEADER_BYTES must be a multiple of AXIS_BEAT_BYTES")
-
     `SLOT_PKR_STATIC_ASSERT(SAMPLE_SLOT_NUM > 0, "SAMPLE_SLOT_NUM must be greater than zero")
     `SLOT_PKR_STATIC_ASSERT(SAMPLE_UNIT_BYTES > 0, "SAMPLE_UNIT_BYTES must be greater than zero")
-    `SLOT_PKR_STATIC_ASSERT((SAMPLE_AREA_BYTES % AXIS_BEAT_BYTES) == 0,
-                            "SAMPLE_AREA_BYTES must be a multiple of AXIS_BEAT_BYTES")
-
-    `SLOT_PKR_STATIC_ASSERT((CQ_AREA_BYTES % AXIS_BEAT_BYTES) == 0,
-                            "CQ_AREA_BYTES must be a multiple of AXIS_BEAT_BYTES")
+    `SLOT_PKR_STATIC_ASSERT(CQ_AREA_BYTES > 0, "CQ_AREA_BYTES must be greater than zero")
 
     `SLOT_PKR_STATIC_ASSERT(is_pow2_u(ALIGN_BYTES), "ALIGN_BYTES must be a power of two")
     `SLOT_PKR_STATIC_ASSERT(ALIGN_BYTES >= AXIS_BEAT_BYTES,
                             "ALIGN_BYTES must be >= AXIS_BEAT_BYTES")
     `SLOT_PKR_STATIC_ASSERT((ALIGN_BYTES % AXIS_BEAT_BYTES) == 0,
                             "ALIGN_BYTES must be a multiple of AXIS_BEAT_BYTES")
+    `SLOT_PKR_STATIC_ASSERT((SLOT_TOTAL_ALIGNED % AXIS_BEAT_BYTES) == 0,
+                            "Aligned slot size must be a multiple of AXIS_BEAT_BYTES")
 
     `SLOT_PKR_STATIC_ASSERT(SLOT_TOTAL_BEATS > 0, "SLOT_TOTAL_BEATS must be greater than zero")
     `SLOT_PKR_STATIC_ASSERT(SLOT_TOTAL_ALIGNED <= (1 << SLOT_BYTES_W),
                             "SLOT_BYTES_W too narrow for SLOT_TOTAL_ALIGNED")
-
-    `SLOT_PKR_STATIC_ASSERT(HEADER_BITS <= (HEADER_BEATS * AXIS_DATA_W),
-                            "HEADER_BITS mismatch with HEADER_BEATS * AXIS_DATA_W")
 
     `SLOT_PKR_STATIC_ASSERT($bits(m_axis.tdata) == AXIS_DATA_W,
                             "Input and output AXIS data widths must match")

@@ -1,54 +1,31 @@
 from __future__ import annotations
 
 import random
-import struct
-from dataclasses import dataclass, field
-from typing import List, Optional
+from dataclasses import dataclass
+from typing import List
 
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, RisingEdge
+
+from awr_payload_model import (
+    ALIGN_BYTES,
+    CQ_BYTES as CQ_AREA_BYTES,
+    RX_HEADER_BYTES_TOTAL as HEADER_BYTES,
+    SAMPLE_AREA_BYTES,
+    SAMPLE_BYTES as SAMPLE_UNIT_BYTES,
+    SLOT_TOTAL_ALIGNED,
+    SLOT_TOTAL_UNALIGNED,
+    build_expected_slot_bytes,
+    expected_sample_count,
+)
 
 # ────────────────────────────────────────────────────────────────
 #  DUT parameters (must match cocotb_top defaults)
 # ────────────────────────────────────────────────────────────────
 AXIS_DATA_W = 256
 AXIS_BEAT_BYTES = AXIS_DATA_W // 8  # 32
-
-SAMPLE_SLOT_NUM = 1024
-SAMPLE_UNIT_BYTES = 4
-SAMPLE_AREA_BYTES = SAMPLE_SLOT_NUM * SAMPLE_UNIT_BYTES  # 4096
-CQ_AREA_BYTES = 128
-HEADER_BYTES = 64
-ALIGN_BYTES = 64
-
-SLOT_TOTAL_UNALIGNED = HEADER_BYTES + SAMPLE_AREA_BYTES + CQ_AREA_BYTES
-SLOT_TOTAL_ALIGNED = (
-    ((SLOT_TOTAL_UNALIGNED + ALIGN_BYTES - 1) // ALIGN_BYTES) * ALIGN_BYTES
-)
 SLOT_TOTAL_BEATS = SLOT_TOTAL_ALIGNED // AXIS_BEAT_BYTES
-
-HEADER_BEATS = HEADER_BYTES // AXIS_BEAT_BYTES
-
-# Header field byte offsets (little-endian, mirrors slot_packer_pkg)
-HDR_MAGIC_OFS = 0
-HDR_VERSION_OFS = 4
-HDR_FLAGS_OFS = 5
-HDR_PKT_SEQ_OFS = 8
-HDR_PKT_BYTES_OFS = 10
-HDR_SAMPLE_CNT_OFS = 12
-HDR_SLOT_BYTES_OFS = 16
-HDR_SAMPLE_AREA_OFS = 20
-HDR_CQ_AREA_OFS = 24
-
-FLAG_CRC_ERR_BIT = 0
-FLAG_ECC_ERR_BIT = 1
-FLAG_TRUNC_ERR_BIT = 2
-FLAG_VALID_GOOD_BIT = 3
-FLAG_OVERFLOW_BIT = 4
-
-SLOT_MAGIC = 0xAA551024
-SLOT_VERSION = 0x01
 
 
 # ────────────────────────────────────────────────────────────────
@@ -226,9 +203,9 @@ def verify_slot(
     pkt_trunc_err: int = 0,
 ) -> None:
     valid_good = int(not (pkt_crc_err or pkt_ecc_err or pkt_trunc_err))
-    overflow = int(len(payload) > SAMPLE_AREA_BYTES)
-    eff_bytes = min(len(payload), SAMPLE_AREA_BYTES)
-    exp_sample_cnt = eff_bytes // SAMPLE_UNIT_BYTES
+    overflow = int(len(payload) > SLOT_TOTAL_UNALIGNED)
+    exp_sample_cnt = expected_sample_count(payload, pkt_trunc_err=bool(pkt_trunc_err))
+    expected_slot = build_expected_slot_bytes(payload, pkt_trunc_err=bool(pkt_trunc_err))
     d = cap.data
 
     # ── protocol ────────────────────────────────────────────
@@ -255,67 +232,8 @@ def verify_slot(
         f"slot_overflow mismatch: exp={overflow} act={cap.sb_slot_overflow_err}"
     )
 
-    # ── header fields ───────────────────────────────────────
-    act_magic = struct.unpack_from("<I", d, HDR_MAGIC_OFS)[0]
-    assert act_magic == SLOT_MAGIC, f"Header magic: exp=0x{SLOT_MAGIC:08x} act=0x{act_magic:08x}"
-
-    act_ver = d[HDR_VERSION_OFS]
-    assert act_ver == SLOT_VERSION, f"Header version: exp=0x{SLOT_VERSION:02x} act=0x{act_ver:02x}"
-
-    act_flags = d[HDR_FLAGS_OFS]
-    assert ((act_flags >> FLAG_CRC_ERR_BIT) & 1) == pkt_crc_err, "Header crc_err flag mismatch"
-    assert ((act_flags >> FLAG_ECC_ERR_BIT) & 1) == pkt_ecc_err, "Header ecc_err flag mismatch"
-    assert ((act_flags >> FLAG_TRUNC_ERR_BIT) & 1) == pkt_trunc_err, "Header trunc_err flag mismatch"
-    assert ((act_flags >> FLAG_VALID_GOOD_BIT) & 1) == valid_good, "Header valid_good flag mismatch"
-    assert ((act_flags >> FLAG_OVERFLOW_BIT) & 1) == overflow, "Header overflow flag mismatch"
-
-    act_seq = struct.unpack_from("<H", d, HDR_PKT_SEQ_OFS)[0]
-    assert act_seq == (pkt_seq & 0xFFFF), f"Header pkt_seq: exp={pkt_seq & 0xFFFF} act={act_seq}"
-
-    act_pkt_bytes = struct.unpack_from("<H", d, HDR_PKT_BYTES_OFS)[0]
-    assert act_pkt_bytes == (len(payload) & 0xFFFF), (
-        f"Header pkt_bytes: exp={len(payload) & 0xFFFF} act={act_pkt_bytes}"
-    )
-
-    act_sample_cnt = struct.unpack_from("<H", d, HDR_SAMPLE_CNT_OFS)[0]
-    assert act_sample_cnt == exp_sample_cnt, (
-        f"Header sample_cnt: exp={exp_sample_cnt} act={act_sample_cnt}"
-    )
-
-    act_slot_bytes = struct.unpack_from("<I", d, HDR_SLOT_BYTES_OFS)[0]
-    assert act_slot_bytes == SLOT_TOTAL_ALIGNED, (
-        f"Header slot_bytes: exp={SLOT_TOTAL_ALIGNED} act={act_slot_bytes}"
-    )
-
-    act_sample_area = struct.unpack_from("<I", d, HDR_SAMPLE_AREA_OFS)[0]
-    assert act_sample_area == SAMPLE_AREA_BYTES, (
-        f"Header sample_area: exp={SAMPLE_AREA_BYTES} act={act_sample_area}"
-    )
-
-    act_cq_area = struct.unpack_from("<H", d, HDR_CQ_AREA_OFS)[0]
-    assert act_cq_area == CQ_AREA_BYTES, (
-        f"Header cq_area: exp={CQ_AREA_BYTES} act={act_cq_area}"
-    )
-
-    # ── payload data ────────────────────────────────────────
-    sample_ofs = HEADER_BYTES
-    for i in range(eff_bytes):
-        assert d[sample_ofs + i] == payload[i], (
-            f"Payload byte {i}: exp=0x{payload[i]:02x} act=0x{d[sample_ofs + i]:02x}"
-        )
-
-    # ── sample area zero-padding ────────────────────────────
-    for i in range(eff_bytes, SAMPLE_AREA_BYTES):
-        assert d[sample_ofs + i] == 0, (
-            f"Sample pad not zero at offset {sample_ofs + i}: act=0x{d[sample_ofs + i]:02x}"
-        )
-
-    # ── CQ area zero-fill ───────────────────────────────────
-    cq_ofs = HEADER_BYTES + SAMPLE_AREA_BYTES
-    for i in range(CQ_AREA_BYTES):
-        assert d[cq_ofs + i] == 0, (
-            f"CQ area not zero at offset {cq_ofs + i}: act=0x{d[cq_ofs + i]:02x}"
-        )
+    assert exp_sample_cnt <= (SAMPLE_AREA_BYTES // SAMPLE_UNIT_BYTES)
+    assert d == expected_slot, "slot payload layout mismatch"
 
 
 # ────────────────────────────────────────────────────────────────
@@ -351,7 +269,7 @@ async def test_smoke(dut):
 
 @cocotb.test()
 async def test_short_pkt(dut):
-    """4-byte packet → verify extensive zero-padding in sample area."""
+    """4-byte packet → verify short payload zero-fills the fixed slot layout."""
     await apply_reset(dut)
     payload = gen_payload(4)
     await run_and_verify(dut, payload, pkt_seq=1)
@@ -367,17 +285,17 @@ async def test_single_beat(dut):
 
 @cocotb.test()
 async def test_full_slot(dut):
-    """Packet exactly fills sample area (4096 bytes) – no sample padding needed."""
+    """Packet exactly fills the fixed raw payload area (12309 bytes)."""
     await apply_reset(dut)
-    payload = gen_payload(SAMPLE_AREA_BYTES)
+    payload = gen_payload(SLOT_TOTAL_UNALIGNED)
     await run_and_verify(dut, payload, pkt_seq=3)
 
 
 @cocotb.test()
 async def test_overflow(dut):
-    """Packet exceeds sample area → verify truncation + overflow flag."""
+    """Packet exceeds the fixed payload envelope → verify truncation + overflow flag."""
     await apply_reset(dut)
-    payload = gen_payload(SAMPLE_AREA_BYTES + 256)
+    payload = gen_payload(SLOT_TOTAL_UNALIGNED + 256)
     await run_and_verify(dut, payload, pkt_seq=4)
 
 
@@ -422,7 +340,7 @@ async def test_multi_pkt(dut):
     """Multiple packets in sequence → verify each slot independently."""
     await apply_reset(dut)
 
-    sizes = [32, 256, 1024, SAMPLE_AREA_BYTES, 64]
+    sizes = [32, 256, 1024, SLOT_TOTAL_UNALIGNED, 64]
     for seq, sz in enumerate(sizes):
         payload = gen_payload(sz, seed=seq)
         dut._log.info(f"Sending packet seq={seq} size={sz}")

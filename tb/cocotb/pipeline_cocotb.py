@@ -1,12 +1,22 @@
 from __future__ import annotations
 
-import struct
 from dataclasses import dataclass
 from typing import Dict, List
 
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, FallingEdge, RisingEdge
+
+from awr_payload_model import (
+    CQ_BYTES as CQ_AREA_BYTES,
+    RX_HEADER_BYTES_TOTAL as HEADER_BYTES,
+    SAMPLE_AREA_BYTES,
+    SAMPLE_BYTES as SAMPLE_UNIT_BYTES,
+    SLOT_TOTAL_ALIGNED,
+    SLOT_TOTAL_UNALIGNED,
+    build_expected_slot_bytes,
+    expected_sample_count,
+)
 
 from test_csi2_awr_packets import (
     DT_AWR_RAW as CSI2_DT_AWR_RAW,
@@ -44,34 +54,6 @@ RD_TUSER_VALID_BIT = 2
 RD_TUSER_OVF_BIT = 3
 RD_TUSER_SEQ_LSB = 8
 RD_TUSER_BYTES_LSB = 32
-
-SAMPLE_SLOT_NUM = 1024
-SAMPLE_UNIT_BYTES = 4
-SAMPLE_AREA_BYTES = SAMPLE_SLOT_NUM * SAMPLE_UNIT_BYTES
-CQ_AREA_BYTES = 128
-HEADER_BYTES = 64
-ALIGN_BYTES = 64
-SLOT_TOTAL_UNALIGNED = HEADER_BYTES + SAMPLE_AREA_BYTES + CQ_AREA_BYTES
-SLOT_TOTAL_ALIGNED = ((SLOT_TOTAL_UNALIGNED + ALIGN_BYTES - 1) // ALIGN_BYTES) * ALIGN_BYTES
-
-HDR_MAGIC_OFS = 0
-HDR_VERSION_OFS = 4
-HDR_FLAGS_OFS = 5
-HDR_PKT_SEQ_OFS = 8
-HDR_PKT_BYTES_OFS = 10
-HDR_SAMPLE_CNT_OFS = 12
-HDR_SLOT_BYTES_OFS = 16
-HDR_SAMPLE_AREA_OFS = 20
-HDR_CQ_AREA_OFS = 24
-
-FLAG_CRC_ERR_BIT = 0
-FLAG_ECC_ERR_BIT = 1
-FLAG_TRUNC_ERR_BIT = 2
-FLAG_VALID_GOOD_BIT = 3
-FLAG_OVERFLOW_BIT = 4
-
-SLOT_MAGIC = 0xAA551024
-SLOT_VERSION = 0x01
 
 RING_BASE_ADDR = 0x1000
 RING_SIZE_BYTES = 0x4000
@@ -559,69 +541,15 @@ def verify_slot_layout(
     pkt_trunc_err: int,
 ) -> None:
     valid_good = int(not (pkt_crc_err or pkt_ecc_err or pkt_trunc_err))
-    overflow = int(len(payload) > SAMPLE_AREA_BYTES)
-    eff_bytes = min(len(payload), SAMPLE_AREA_BYTES)
-    exp_sample_cnt = eff_bytes // SAMPLE_UNIT_BYTES
+    overflow = int(len(payload) > SLOT_TOTAL_UNALIGNED)
+    exp_sample_cnt = expected_sample_count(payload, pkt_trunc_err=bool(pkt_trunc_err))
+    expected_slot = build_expected_slot_bytes(payload, pkt_trunc_err=bool(pkt_trunc_err))
 
     assert len(slot_data) == SLOT_TOTAL_ALIGNED, (
         f"Slot size mismatch: exp={SLOT_TOTAL_ALIGNED} act={len(slot_data)}"
     )
-
-    act_magic = struct.unpack_from("<I", slot_data, HDR_MAGIC_OFS)[0]
-    assert act_magic == SLOT_MAGIC, f"Header magic mismatch: 0x{act_magic:08x}"
-
-    act_ver = slot_data[HDR_VERSION_OFS]
-    assert act_ver == SLOT_VERSION, f"Header version mismatch: exp={SLOT_VERSION} act={act_ver}"
-
-    act_flags = slot_data[HDR_FLAGS_OFS]
-    assert ((act_flags >> FLAG_CRC_ERR_BIT) & 1) == pkt_crc_err, "crc_err flag mismatch"
-    assert ((act_flags >> FLAG_ECC_ERR_BIT) & 1) == pkt_ecc_err, "ecc_err flag mismatch"
-    assert ((act_flags >> FLAG_TRUNC_ERR_BIT) & 1) == pkt_trunc_err, "trunc_err flag mismatch"
-    assert ((act_flags >> FLAG_VALID_GOOD_BIT) & 1) == valid_good, "valid_good flag mismatch"
-    assert ((act_flags >> FLAG_OVERFLOW_BIT) & 1) == overflow, "overflow flag mismatch"
-
-    act_seq = struct.unpack_from("<H", slot_data, HDR_PKT_SEQ_OFS)[0]
-    assert act_seq == (pkt_seq & 0xFFFF), f"pkt_seq mismatch: exp={pkt_seq & 0xFFFF} act={act_seq}"
-
-    act_pkt_bytes = struct.unpack_from("<H", slot_data, HDR_PKT_BYTES_OFS)[0]
-    assert act_pkt_bytes == (len(payload) & 0xFFFF), (
-        f"pkt_bytes mismatch: exp={len(payload) & 0xFFFF} act={act_pkt_bytes}"
-    )
-
-    act_sample_cnt = struct.unpack_from("<H", slot_data, HDR_SAMPLE_CNT_OFS)[0]
-    assert act_sample_cnt == exp_sample_cnt, (
-        f"sample_cnt mismatch: exp={exp_sample_cnt} act={act_sample_cnt}"
-    )
-
-    act_slot_bytes = struct.unpack_from("<I", slot_data, HDR_SLOT_BYTES_OFS)[0]
-    assert act_slot_bytes == SLOT_TOTAL_ALIGNED, (
-        f"slot_bytes mismatch: exp={SLOT_TOTAL_ALIGNED} act={act_slot_bytes}"
-    )
-
-    act_sample_area = struct.unpack_from("<I", slot_data, HDR_SAMPLE_AREA_OFS)[0]
-    assert act_sample_area == SAMPLE_AREA_BYTES, (
-        f"sample_area mismatch: exp={SAMPLE_AREA_BYTES} act={act_sample_area}"
-    )
-
-    act_cq_area = struct.unpack_from("<H", slot_data, HDR_CQ_AREA_OFS)[0]
-    assert act_cq_area == CQ_AREA_BYTES, f"cq_area mismatch: exp={CQ_AREA_BYTES} act={act_cq_area}"
-
-    sample_ofs = HEADER_BYTES
-    for idx in range(eff_bytes):
-        assert slot_data[sample_ofs + idx] == payload[idx], (
-            f"Payload mismatch at byte {idx}: exp=0x{payload[idx]:02x} act=0x{slot_data[sample_ofs + idx]:02x}"
-        )
-
-    for idx in range(eff_bytes, SAMPLE_AREA_BYTES):
-        assert slot_data[sample_ofs + idx] == 0, (
-            f"Sample zero pad mismatch at offset {sample_ofs + idx}: act=0x{slot_data[sample_ofs + idx]:02x}"
-        )
-
-    cq_ofs = HEADER_BYTES + SAMPLE_AREA_BYTES
-    for idx in range(CQ_AREA_BYTES):
-        assert slot_data[cq_ofs + idx] == 0, (
-            f"CQ zero pad mismatch at offset {cq_ofs + idx}: act=0x{slot_data[cq_ofs + idx]:02x}"
-        )
+    assert exp_sample_cnt <= (SAMPLE_AREA_BYTES // SAMPLE_UNIT_BYTES)
+    assert slot_data == expected_slot, "stored slot payload layout mismatch"
 
 
 async def verify_raw_long_packet_roundtrip(
@@ -632,7 +560,7 @@ async def verify_raw_long_packet_roundtrip(
     expected_seq: int,
 ) -> None:
     exp_valid_good = int(raw_long_packet.header_ecc_ok and raw_long_packet.crc_ok and not raw_long_packet.trunc_err)
-    exp_overflow = int(len(raw_long_packet.payload) > SAMPLE_AREA_BYTES)
+    exp_overflow = int(len(raw_long_packet.payload) > SLOT_TOTAL_UNALIGNED)
 
     commit = await wait_commit(dut)
     assert commit.seq == expected_seq, f"Unexpected committed seq: exp={expected_seq} act={commit.seq}"
@@ -799,7 +727,7 @@ async def pipeline_controller_drops_invalid(dut):
     )
     await drive_packet(dut, bad_pkt)
 
-    await expect_no_commit(dut, cycles=200)
+    await expect_no_commit(dut, cycles=(SLOT_TOTAL_ALIGNED // AXIS_BEAT_BYTES) + 100)
     assert int(dut.drop_count_o.value) == 1, "Controller should count one dropped slot"
     assert int(dut.used_bytes_o.value) == 0, "Dropped invalid slot must not consume ring space"
     assert int(dut.rd_slot_valid_o.value) == 0, "Dropped invalid slot must not become readable"

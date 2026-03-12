@@ -18,8 +18,6 @@ module pipeline_cocotb_top #(
     parameter int unsigned CQ_AREA_BYTES = `SLOT_PKR_CQ_AREA_BYTES_DFLT,
     parameter int unsigned HEADER_BYTES = `SLOT_PKR_HEADER_BYTES_DFLT,
     parameter int unsigned SLOT_ALIGN_BYTES = `SLOT_PKR_ALIGN_BYTES_DFLT,
-    parameter logic [31:0] SLOT_HDR_MAGIC = slot_packer_pkg::SLOT_HDR_MAGIC_VAL_DFLT,
-    parameter logic [7:0] SLOT_HDR_VERSION = slot_packer_pkg::SLOT_HDR_VERSION_VAL_DFLT,
     parameter int unsigned AXI_DATA_W = `DDR_RING_AXI_DATA_W_DFLT,
     parameter int unsigned AXI_ADDR_W = `DDR_RING_AXI_ADDR_W_DFLT,
     parameter int unsigned RD_AXIS_USER_W = `DDR_RING_AXIS_USER_W_DFLT,
@@ -284,8 +282,6 @@ module pipeline_cocotb_top #(
       .CQ_AREA_BYTES    (CQ_AREA_BYTES),
       .HEADER_BYTES     (HEADER_BYTES),
       .ALIGN_BYTES      (SLOT_ALIGN_BYTES),
-      .SLOT_HDR_MAGIC   (SLOT_HDR_MAGIC),
-      .SLOT_HDR_VERSION (SLOT_HDR_VERSION),
       .SLOT_BYTES_W     (PACKER_SLOT_BYTES_W)
   ) packer_u (
       .clk_i                 (clk_i),
