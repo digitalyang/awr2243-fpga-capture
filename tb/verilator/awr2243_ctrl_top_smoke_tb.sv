@@ -19,11 +19,7 @@ module awr2243_ctrl_top_smoke_tb;
 
   logic        sys_clk;
   logic        sys_rst_n;
-  logic        csr_wr_en_i;
-  logic        csr_rd_en_i;
-  logic [ 7:0] csr_addr_i;
-  logic [31:0] csr_wdata_i;
-  logic [31:0] csr_rdata_o;
+  axi4_lite_if #(.ADDR_W(8), .DATA_W(32)) s_axil();
   logic        spi_sclk_o;
   logic        spi_cs_n_o;
   logic        spi_mosi_o;
@@ -55,30 +51,36 @@ module awr2243_ctrl_top_smoke_tb;
 
   task automatic csr_write(input logic [7:0] addr, input logic [31:0] data);
     begin
-      @(negedge sys_clk);
-      csr_addr_i  = addr;
-      csr_wdata_i = data;
-      csr_wr_en_i = 1'b1;
-      csr_rd_en_i = 1'b0;
-
-      @(negedge sys_clk);
-      csr_wr_en_i = 1'b0;
-      csr_addr_i  = '0;
-      csr_wdata_i = '0;
+      s_axil.awaddr = addr;
+      s_axil.awvalid = 1'b1;
+      s_axil.wdata = data;
+      s_axil.wvalid = 1'b1;
+      s_axil.wstrb = 4'hF;
+      s_axil.bready = 1'b0;
+      while (!(s_axil.awready && s_axil.wready)) @(posedge sys_clk);
+      @(posedge sys_clk);
+      s_axil.awvalid = 1'b0;
+      s_axil.wvalid = 1'b0;
+      s_axil.bready = 1'b1;
+      while (!s_axil.bvalid) @(posedge sys_clk);
+      @(posedge sys_clk);
+      s_axil.bready = 1'b0;
     end
   endtask
 
   task automatic csr_read(input logic [7:0] addr, output logic [31:0] data);
     begin
-      @(negedge sys_clk);
-      csr_addr_i  = addr;
-      csr_rd_en_i = 1'b1;
-      csr_wr_en_i = 1'b0;
-
-      @(negedge sys_clk);
-      data        = csr_rdata_o;
-      csr_rd_en_i = 1'b0;
-      csr_addr_i  = '0;
+      s_axil.araddr = addr;
+      s_axil.arvalid = 1'b1;
+      s_axil.rready = 1'b0;
+      while (!s_axil.arready) @(posedge sys_clk);
+      @(posedge sys_clk);
+      s_axil.arvalid = 1'b0;
+      s_axil.rready = 1'b1;
+      while (!s_axil.rvalid) @(posedge sys_clk);
+      data = s_axil.rdata;
+      @(posedge sys_clk);
+      s_axil.rready = 1'b0;
     end
   endtask
 
@@ -93,11 +95,7 @@ module awr2243_ctrl_top_smoke_tb;
   ) dut (
       .sys_clk        (sys_clk),
       .sys_rst_n      (sys_rst_n),
-      .csr_wr_en_i    (csr_wr_en_i),
-      .csr_rd_en_i    (csr_rd_en_i),
-      .csr_addr_i     (csr_addr_i),
-      .csr_wdata_i    (csr_wdata_i),
-      .csr_rdata_o    (csr_rdata_o),
+      .s_axil         (s_axil),
       .spi_sclk_o     (spi_sclk_o),
       .spi_cs_n_o     (spi_cs_n_o),
       .spi_mosi_o     (spi_mosi_o),
@@ -121,10 +119,15 @@ module awr2243_ctrl_top_smoke_tb;
 
   initial begin
     sys_rst_n          = 1'b0;
-    csr_wr_en_i        = 1'b0;
-    csr_rd_en_i        = 1'b0;
-    csr_addr_i         = '0;
-    csr_wdata_i        = '0;
+    s_axil.awaddr      = '0;
+    s_axil.awvalid     = 1'b0;
+    s_axil.wdata       = '0;
+    s_axil.wvalid      = 1'b0;
+    s_axil.wstrb       = '0;
+    s_axil.bready      = 1'b0;
+    s_axil.araddr      = '0;
+    s_axil.arvalid     = 1'b0;
+    s_axil.rready      = 1'b0;
     spi_miso_i         = 1'b0;
     host_irq_i         = 1'b0;
     nerror_out_i       = 1'b1;

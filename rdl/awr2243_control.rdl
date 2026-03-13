@@ -1,0 +1,127 @@
+addrmap awr2243_control_csr {
+    name = "AWR2243 Control CSR";
+    desc = "CSR for AWR2243 radar configuration control: version, control pulses, status, error/step/opcode/counts, script IDs, scratch.";
+
+    reg {
+        name = "VERSION";
+        desc = "CSR block version; 0x4353_0100 = 'CS' v1.0.";
+        field { sw = r; hw = r; } version [31:0] = 0x43530100;
+    } VERSION @ 0x000;
+
+    reg {
+        name = "CONTROL";
+        desc = "Control pulses (singlepulse: write 1 to assert one cycle).";
+        field { sw = w; hw = r; singlepulse = true; desc = "Start init script."; } start_init   [0:0]  = 0x0;
+        field { sw = w; hw = r; singlepulse = true; desc = "Start sensor (frame) script."; } start_sensor [1:1]  = 0x0;
+        field { sw = w; hw = r; singlepulse = true; desc = "Stop sensor."; } stop_sensor  [2:2]  = 0x0;
+        field { sw = w; hw = r; singlepulse = true; desc = "Hard reset radar."; } hard_reset   [3:3]  = 0x0;
+        field { sw = w; hw = r; singlepulse = true; desc = "Clear error/sticky flags."; } clear_error  [4:4]  = 0x0;
+    } CONTROL @ 0x004;
+
+    reg {
+        name = "STATUS";
+        desc = "Live and sticky status.";
+        field { sw = r; hw = w; } busy            [0:0];
+        field { sw = r; hw = w; } done            [1:1];
+        field { sw = r; hw = w; } done_sticky     [8:8];
+        field { sw = r; hw = w; } err_sticky      [9:9];
+        field { sw = r; hw = w; } irq_seen_sticky [10:10];
+        field { sw = r; hw = w; } fault_seen_sticky [11:11];
+    } STATUS @ 0x008;
+
+    reg {
+        name = "ERR_CODE_LIVE";
+        desc = "Current error code from sequencer.";
+        field { sw = r; hw = w; } err_code_live [15:0];
+    } ERR_CODE_LIVE @ 0x00C;
+
+    reg {
+        name = "ERR_CODE_STICKY";
+        desc = "Sticky error code (cleared by clear_error).";
+        field { sw = r; hw = w; } err_code_sticky [15:0];
+    } ERR_CODE_STICKY @ 0x010;
+
+    reg {
+        name = "STEP_ID_LIVE";
+        desc = "Current step ID from sequencer.";
+        field { sw = r; hw = w; } step_id_live [7:0];
+    } STEP_ID_LIVE @ 0x014;
+
+    reg {
+        name = "STEP_ID_SNAPSHOT";
+        desc = "Snapshot step ID at done/error.";
+        field { sw = r; hw = w; } step_id_snapshot [7:0];
+    } STEP_ID_SNAPSHOT @ 0x018;
+
+    reg {
+        name = "LAST_OPCODE_LIVE";
+        desc = "Last opcode from sequencer.";
+        field { sw = r; hw = w; } last_opcode_live [15:0];
+    } LAST_OPCODE_LIVE @ 0x01C;
+
+    reg {
+        name = "LAST_OPCODE_SNAP";
+        desc = "Snapshot last opcode at done/error.";
+        field { sw = r; hw = w; } last_opcode_snap [15:0];
+    } LAST_OPCODE_SNAP @ 0x020;
+
+    reg {
+        name = "IRQ_COUNT";
+        desc = "Host IRQ count.";
+        field { sw = r; hw = w; } irq_count [31:0];
+    } IRQ_COUNT @ 0x024;
+
+    reg {
+        name = "FAULT_COUNT";
+        desc = "Fault count.";
+        field { sw = r; hw = w; } fault_count [31:0];
+    } FAULT_COUNT @ 0x028;
+
+    reg {
+        name = "INIT_SCRIPT_ID";
+        desc = "Script ID for init.";
+        field { sw = rw; hw = rw; } init_script_id [7:0] = 0x0;
+    } INIT_SCRIPT_ID @ 0x02C;
+
+    reg {
+        name = "RF_SCRIPT_ID";
+        desc = "Script ID for RF config.";
+        field { sw = rw; hw = rw; } rf_script_id [7:0] = 0x1;
+    } RF_SCRIPT_ID @ 0x030;
+
+    reg {
+        name = "PROFILE_SCRIPT_ID";
+        desc = "Script ID for profile.";
+        field { sw = rw; hw = rw; } profile_script_id [7:0] = 0x2;
+    } PROFILE_SCRIPT_ID @ 0x034;
+
+    reg {
+        name = "FRAME_SCRIPT_ID";
+        desc = "Script ID for frame.";
+        field { sw = rw; hw = rw; } frame_script_id [7:0] = 0x3;
+    } FRAME_SCRIPT_ID @ 0x038;
+
+    reg {
+        name = "MONITOR_SCRIPT_ID";
+        desc = "Script ID for monitor.";
+        field { sw = rw; hw = rw; } monitor_script_id [7:0] = 0x4;
+    } MONITOR_SCRIPT_ID @ 0x03C;
+
+    reg {
+        name = "START_SCRIPT_ID";
+        desc = "Script ID for start sensor.";
+        field { sw = rw; hw = rw; } start_script_id [7:0] = 0x5;
+    } START_SCRIPT_ID @ 0x040;
+
+    reg {
+        name = "STOP_SCRIPT_ID";
+        desc = "Script ID for stop.";
+        field { sw = rw; hw = rw; } stop_script_id [7:0] = 0x6;
+    } STOP_SCRIPT_ID @ 0x044;
+
+    reg {
+        name = "SCRATCH";
+        desc = "Scratch register for software.";
+        field { sw = rw; hw = rw; } scratch [31:0] = 0x0;
+    } SCRATCH @ 0x048;
+};

@@ -65,6 +65,7 @@ Available targets:
   sim-cdc      Run the simulation-platform CDC regression
   sim-platform Run the unified simulation-platform cocotb regression
   pcie-e2e     Run the end-to-end regression scenario matrix
+  awr-bar0     Run BAR0 decode + AWR2243 CSR cocotb regression
   sanity       Expand to: csi, fixed, ddr, pipeline
   full         Expand to: sanity, awr-payload, awr-slot, sim-platform
 EOF
@@ -168,6 +169,9 @@ expand_target() {
       ;;
     pcie-e2e|e2e|e2e-regression|sim-e2e)
       append_unique_target "pcie-e2e"
+      ;;
+    awr-bar0|bar0)
+      append_unique_target "awr-bar0"
       ;;
     sanity)
       expand_target "csi"
@@ -279,6 +283,9 @@ target_script() {
       ;;
     pcie-e2e)
       echo "${REPO_ROOT}/tb/cocotb/run_pcie_e2e.py"
+      ;;
+    awr-bar0)
+      echo "${REPO_ROOT}/tb/cocotb/run_awr2243_bar0_bridge.py"
       ;;
     *)
       die "no runner script mapped for target: ${target}"

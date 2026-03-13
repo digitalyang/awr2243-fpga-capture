@@ -1,8 +1,6 @@
 `include "awr2243_script_macros.svh"
 
 module awr2243_ctrl_top #(
-    parameter int unsigned CSR_ADDR_W = 8,
-    parameter int unsigned CSR_DATA_W = 32,
     parameter int unsigned CLK_FREQ_HZ = 100_000_000,
     parameter int unsigned SCRIPT_WORD_W = `AWR2243_SCRIPT_WORD_W_DFLT,
     parameter int unsigned SCRIPT_DEPTH = `AWR2243_SCRIPT_MEM_DEPTH_DFLT,
@@ -29,11 +27,7 @@ module awr2243_ctrl_top #(
 ) (
     input  logic                       sys_clk,
     input  logic                       sys_rst_n,
-    input  logic                       csr_wr_en_i,
-    input  logic                       csr_rd_en_i,
-    input  logic [     CSR_ADDR_W-1:0] csr_addr_i,
-    input  logic [     CSR_DATA_W-1:0] csr_wdata_i,
-    output logic [     CSR_DATA_W-1:0] csr_rdata_o,
+    axi4_lite_if.slave                 s_axil,
     output logic                       spi_sclk_o,
     output logic                       spi_cs_n_o,
     output logic                       spi_mosi_o,
@@ -51,6 +45,10 @@ module awr2243_ctrl_top #(
 );
 
   localparam logic WARM_RESET_TIED_LOW = 1'b0;
+
+  import awr2243_control_csr_pkg::*;
+  awr2243_control_csr__in_t  hwif_in;
+  awr2243_control_csr__out_t hwif_out;
 
   logic                       csr_start_init;
   logic                       csr_start_sensor;
@@ -147,51 +145,152 @@ module awr2243_ctrl_top #(
     end
   end
 
+  // Control pulses and script IDs from RDL-generated CSR (hwif_out)
+  assign csr_start_init   = hwif_out.CONTROL.start_init.value;
+  assign csr_start_sensor = hwif_out.CONTROL.start_sensor.value;
+  assign csr_stop_sensor  = hwif_out.CONTROL.stop_sensor.value;
+  assign csr_hard_reset   = hwif_out.CONTROL.hard_reset.value;
+  assign csr_clear_error  = hwif_out.CONTROL.clear_error.value;
+  assign csr_init_script_id    = hwif_out.INIT_SCRIPT_ID.init_script_id.value[SCRIPT_ID_W-1:0];
+  assign csr_rf_script_id      = hwif_out.RF_SCRIPT_ID.rf_script_id.value[SCRIPT_ID_W-1:0];
+  assign csr_profile_script_id = hwif_out.PROFILE_SCRIPT_ID.profile_script_id.value[SCRIPT_ID_W-1:0];
+  assign csr_frame_script_id   = hwif_out.FRAME_SCRIPT_ID.frame_script_id.value[SCRIPT_ID_W-1:0];
+  assign csr_monitor_script_id = hwif_out.MONITOR_SCRIPT_ID.monitor_script_id.value[SCRIPT_ID_W-1:0];
+  assign csr_start_script_id   = hwif_out.START_SCRIPT_ID.start_script_id.value[SCRIPT_ID_W-1:0];
+  assign csr_stop_script_id    = hwif_out.STOP_SCRIPT_ID.stop_script_id.value[SCRIPT_ID_W-1:0];
+
+  assign status_ack_pulse_c   = csr_start_init || csr_start_sensor || csr_stop_sensor || csr_hard_reset;
+  assign sticky_clear_pulse_c = csr_clear_error || csr_hard_reset;
   assign status_clear_any = csr_clear_error || csr_hard_reset || csr_start_init;
   assign status_clr_irq_sticky = decode_clr_irq_sticky || status_clear_any || csr_start_sensor;
   assign status_clr_fault_sticky = decode_clr_fault_sticky || status_clear_any;
   assign status_clr_warm_reset_sticky = status_clear_any;
 
+  // Sticky/snapshot state (was inside csr_reg_block; now drives hwif_in)
+  logic                   done_sticky_r;
+  logic                   err_sticky_r;
+  logic                   irq_seen_sticky_r;
+  logic                   fault_seen_sticky_r;
+  logic [CTRL_ERR_CODE_W-1:0] err_code_sticky_r;
+  logic [  STEP_ID_W-1:0] step_id_snapshot_r;
+  logic [   OPCODE_W-1:0] last_opcode_snapshot_r;
+  logic [ STATUS_COUNT_W-1:0] irq_count_seen_r;
+  logic [ STATUS_COUNT_W-1:0] fault_count_seen_r;
+  logic                   done_event_c;
+  logic                   irq_event_c;
+  logic                   fault_event_c;
+  logic                   err_event_c;
+  logic                   snapshot_update_c;
+
+  assign done_event_c = seq_done && !(status_ack_pulse_c || sticky_clear_pulse_c);
+  assign irq_event_c  = !sticky_clear_pulse_c && (status_irq_count != irq_count_seen_r);
+  assign fault_event_c = !sticky_clear_pulse_c && (status_fault_count != fault_count_seen_r);
+  assign err_event_c  = (seq_err_code != '0);
+  assign snapshot_update_c = done_event_c || err_event_c;
+
+  always_ff @(posedge sys_clk or negedge sys_rst_n) begin
+    if (!sys_rst_n) begin
+      err_code_sticky_r   <= '0;
+      step_id_snapshot_r  <= '0;
+      last_opcode_snapshot_r <= '0;
+      irq_count_seen_r    <= '0;
+      fault_count_seen_r  <= '0;
+      done_sticky_r       <= 1'b0;
+      err_sticky_r        <= 1'b0;
+      irq_seen_sticky_r   <= 1'b0;
+      fault_seen_sticky_r <= 1'b0;
+    end else begin
+      if (status_ack_pulse_c || sticky_clear_pulse_c) begin
+        done_sticky_r          <= 1'b0;
+        step_id_snapshot_r     <= '0;
+        last_opcode_snapshot_r <= '0;
+      end
+      if (sticky_clear_pulse_c) begin
+        err_code_sticky_r   <= '0;
+        err_sticky_r        <= 1'b0;
+        irq_seen_sticky_r   <= 1'b0;
+        fault_seen_sticky_r <= 1'b0;
+        irq_count_seen_r    <= status_irq_count;
+        fault_count_seen_r  <= status_fault_count;
+      end
+      if (done_event_c)
+        done_sticky_r <= 1'b1;
+      if (snapshot_update_c) begin
+        step_id_snapshot_r     <= seq_step_id;
+        last_opcode_snapshot_r <= seq_last_opcode;
+      end
+      if (err_event_c) begin
+        err_code_sticky_r <= seq_err_code;
+        err_sticky_r      <= 1'b1;
+      end
+      if (irq_event_c) begin
+        irq_count_seen_r  <= status_irq_count;
+        irq_seen_sticky_r <= 1'b1;
+      end
+      if (fault_event_c) begin
+        fault_count_seen_r  <= status_fault_count;
+        fault_seen_sticky_r <= 1'b1;
+      end
+    end
+  end
+
+  // hwif_in: drive readback values for status/error/step/opcode/counts
+  // (No global '0 for hwif_in: Verilator cannot assign struct from integer.)
+  always_comb begin
+    hwif_in.STATUS.busy.next            = seq_busy;
+    hwif_in.STATUS.done.next           = seq_done;
+    hwif_in.STATUS.done_sticky.next     = done_sticky_r;
+    hwif_in.STATUS.err_sticky.next      = err_sticky_r;
+    hwif_in.STATUS.irq_seen_sticky.next = irq_seen_sticky_r;
+    hwif_in.STATUS.fault_seen_sticky.next = fault_seen_sticky_r;
+    hwif_in.ERR_CODE_LIVE.err_code_live.next   = seq_err_code;
+    hwif_in.ERR_CODE_STICKY.err_code_sticky.next = err_code_sticky_r;
+    hwif_in.STEP_ID_LIVE.step_id_live.next     = seq_step_id;
+    hwif_in.STEP_ID_SNAPSHOT.step_id_snapshot.next = step_id_snapshot_r;
+    hwif_in.LAST_OPCODE_LIVE.last_opcode_live.next = seq_last_opcode;
+    hwif_in.LAST_OPCODE_SNAP.last_opcode_snap.next = last_opcode_snapshot_r;
+    hwif_in.IRQ_COUNT.irq_count.next   = status_irq_count;
+    hwif_in.FAULT_COUNT.fault_count.next = status_fault_count;
+    // RDL hw=rw registers: drive .next from .value so non-SW cycles do not overwrite
+    hwif_in.INIT_SCRIPT_ID.init_script_id.next    = hwif_out.INIT_SCRIPT_ID.init_script_id.value;
+    hwif_in.RF_SCRIPT_ID.rf_script_id.next        = hwif_out.RF_SCRIPT_ID.rf_script_id.value;
+    hwif_in.PROFILE_SCRIPT_ID.profile_script_id.next = hwif_out.PROFILE_SCRIPT_ID.profile_script_id.value;
+    hwif_in.FRAME_SCRIPT_ID.frame_script_id.next  = hwif_out.FRAME_SCRIPT_ID.frame_script_id.value;
+    hwif_in.MONITOR_SCRIPT_ID.monitor_script_id.next = hwif_out.MONITOR_SCRIPT_ID.monitor_script_id.value;
+    hwif_in.START_SCRIPT_ID.start_script_id.next = hwif_out.START_SCRIPT_ID.start_script_id.value;
+    hwif_in.STOP_SCRIPT_ID.stop_script_id.next    = hwif_out.STOP_SCRIPT_ID.stop_script_id.value;
+    hwif_in.SCRATCH.scratch.next                  = hwif_out.SCRATCH.scratch.value;
+  end
+
+  awr2243_control_csr u_csr (
+      .clk           (sys_clk),
+      .arst_n        (sys_rst_n),
+      .s_axil_awready(s_axil.awready),
+      .s_axil_awvalid(s_axil.awvalid),
+      .s_axil_awaddr (s_axil.awaddr[6:0]),
+      .s_axil_awprot (s_axil.awprot),
+      .s_axil_wready (s_axil.wready),
+      .s_axil_wvalid (s_axil.wvalid),
+      .s_axil_wdata  (s_axil.wdata),
+      .s_axil_wstrb  (s_axil.wstrb),
+      .s_axil_bready (s_axil.bready),
+      .s_axil_bvalid (s_axil.bvalid),
+      .s_axil_bresp  (s_axil.bresp),
+      .s_axil_arready(s_axil.arready),
+      .s_axil_arvalid(s_axil.arvalid),
+      .s_axil_araddr (s_axil.araddr[6:0]),
+      .s_axil_arprot (s_axil.arprot),
+      .s_axil_rready (s_axil.rready),
+      .s_axil_rvalid (s_axil.rvalid),
+      .s_axil_rdata  (s_axil.rdata),
+      .s_axil_rresp  (s_axil.rresp),
+      .hwif_in       (hwif_in),
+      .hwif_out      (hwif_out)
+  );
+
   // awr2243_cmd_decode emits a 2-bit timer unit, but the shared timer only consumes
   // the established cycle/us LSB encoding today.
   assign seq_cmd_err_code = CTRL_ERR_CODE_W'(decode_err_code);
-
-  csr_reg_block #(
-      .CSR_ADDR_W (CSR_ADDR_W),
-      .CSR_DATA_W (CSR_DATA_W),
-      .SCRIPT_ID_W(SCRIPT_ID_W),
-      .ERR_CODE_W (CTRL_ERR_CODE_W),
-      .STEP_ID_W  (STEP_ID_W),
-      .OPCODE_W   (OPCODE_W),
-      .COUNT_W    (STATUS_COUNT_W)
-  ) u_csr_reg_block (
-      .sys_clk            (sys_clk),
-      .sys_rst_n          (sys_rst_n),
-      .csr_wr_en_i        (csr_wr_en_i),
-      .csr_rd_en_i        (csr_rd_en_i),
-      .csr_addr_i         (csr_addr_i),
-      .csr_wdata_i        (csr_wdata_i),
-      .csr_rdata_o        (csr_rdata_o),
-      .start_init_o       (csr_start_init),
-      .start_sensor_o     (csr_start_sensor),
-      .stop_sensor_o      (csr_stop_sensor),
-      .hard_reset_o       (csr_hard_reset),
-      .clear_error_o      (csr_clear_error),
-      .init_script_id_o   (csr_init_script_id),
-      .rf_script_id_o     (csr_rf_script_id),
-      .profile_script_id_o(csr_profile_script_id),
-      .frame_script_id_o  (csr_frame_script_id),
-      .monitor_script_id_o(csr_monitor_script_id),
-      .start_script_id_o  (csr_start_script_id),
-      .stop_script_id_o   (csr_stop_script_id),
-      .busy_i             (seq_busy),
-      .done_i             (seq_done),
-      .err_code_i         (seq_err_code),
-      .step_id_i          (seq_step_id),
-      .last_opcode_i      (seq_last_opcode),
-      .irq_count_i        (status_irq_count),
-      .fault_count_i      (status_fault_count)
-  );
 
   awr2243_cfg_sequencer #(
       .SCRIPT_ID_W   (SCRIPT_ID_W),
