@@ -77,3 +77,23 @@
 - controller 按配置丢弃 invalid slot
 - 基于 AWR2243 风格 `FS/LS/Long/LE/FE` 原始 CSI-2 packet 序列的链路验证
 - raw long packet 的 header ECC / payload CRC 错误映射到 extractor sideband
+
+## PCIe host smoke
+
+目录下还提供了一个基于 `cocotbext-pcie` 的 host-side smoke bring-up：
+
+- `drivers/host_rc_driver.py`：root complex / BAR / slot DMA helper
+- `model/ddr_ringbuffer_pcie_stub.py`：BAR0 CSR + BAR2 DDR 的 endpoint stub
+- `run_pcie_host_smoke.py`：最小 smoke runner
+
+运行命令：
+
+```sh
+~/.venvs/awr2243-cocotb-py39/bin/python tb/cocotb/run_pcie_host_smoke.py
+```
+
+当前假设：
+
+- endpoint RTL 侧尚未接好时，使用 Python stub 验证 host API
+- BAR0 用于 CSR 访问，BAR2 用于 slot readback DMA 读
+- `READ_CMD.issue_head_read` 先按 pulse/no-op 建模，等 endpoint ready 后再替换为真实时序

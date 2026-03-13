@@ -60,6 +60,7 @@ cmd-decode   awr2243_cmd_decode regression
 awr-script   expands to: script-ram, cmd-fetch, cmd-decode
 awr-payload  AWR payload generator tests
 awr-slot     AWR payload -> fixed slot integration tests
+pcie-host    cocotbext-pcie host smoke regression
 sanity       expands to: csi, fixed, ddr, pipeline
 full         expands to: sanity, awr-payload, awr-slot
 ```
@@ -138,6 +139,7 @@ cmd-fetch.log
 cmd-decode.log
 awr-payload.log
 awr-slot.log
+pcie-host.log
 ```
 
 The wrapper prints a short PASS/FAIL summary to the terminal and keeps the full

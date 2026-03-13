@@ -1,3 +1,4 @@
 cocotb>=2.0,<2.1
 cocotbext-axi>=0.1,<0.2
+cocotbext-pcie>=0.2.16,<0.3
 pytest>=8.0,<9.0

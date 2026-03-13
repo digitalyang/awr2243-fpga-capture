@@ -201,13 +201,13 @@ await axis_source.write(data_bytes, tuser=user_value)
 
 | 信号名 | 方向 | 位宽 | 说明 |
 |--------|------|------|------|
-| `m_axi_awaddr` | Output | `CFG_AXI_ADDR_W` (64) | 写地址 |
+| `m_axi_awaddr` | Output | `CFG_AXI_ADDR_W` (34) | 写地址 |
 | `m_axi_awlen` | Output | 8 | Burst 长度 |
 | `m_axi_awsize` | Output | 3 | Burst size |
 | `m_axi_awburst` | Output | 2 | Burst type |
 | `m_axi_awvalid` | Output | 1 | 地址有效 |
 | `m_axi_awready` | Input | 1 | 地址 ready |
-| `m_axi_wdata` | Output | `AXI_DATA_W` (512) | 写数据 |
+| `m_axi_wdata` | Output | `AXI_DATA_W` (256) | 写数据 |
 | `m_axi_wstrb` | Output | `AXI_DATA_W/8` | Write strobe |
 | `m_axi_wlast` | Output | 1 | 最后一个 beat |
 | `m_axi_wvalid` | Output | 1 | 数据有效 |

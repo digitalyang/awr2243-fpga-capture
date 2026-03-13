@@ -8,24 +8,17 @@ from cocotb_tools.runner import get_runner
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TB_DIR = Path(__file__).resolve().parent
-TOPLEVEL = "top_tb"
+TOPLEVEL = "axi_ddr_subsystem_smoke_top"
 
 
 def build_sources() -> list[Path]:
     return [
-        REPO_ROOT / "rtl/pkg/csi_packet_pkg.sv",
-        REPO_ROOT / "rtl/pkg/slot_packer_pkg.sv",
         REPO_ROOT / "rtl/pkg/ddr_ringbuffer_pkg.sv",
-        REPO_ROOT / "rtl/if/axis_stream_if.sv",
         REPO_ROOT / "rtl/if/axi4_mm_if.sv",
-        REPO_ROOT / "rtl/core/csi_packet_extractor.sv",
-        REPO_ROOT / "rtl/core/fixed_slot_packer.sv",
-        REPO_ROOT / "rtl/core/ddr_ringbuffer_controller.sv",
-        REPO_ROOT / "tb/models/csi_rx_behavioral_mock.sv",
-        REPO_ROOT / "tb/models/axis_async_fifo.sv",
-        REPO_ROOT / "tb/models/radar_pipeline_ddr_bridge.sv",
-        TB_DIR / "pipeline_cocotb_top.sv",
-        REPO_ROOT / "tb/top_tb.sv",
+        REPO_ROOT / "rtl/axi/axi_ddr_subsystem_pkg.sv",
+        REPO_ROOT / "rtl/axi/axi_ddr_subsystem.sv",
+        REPO_ROOT / "sim/litedram/litedram_axi_wrapper_stub.sv",
+        REPO_ROOT / "tb/models/axi_ddr_subsystem_smoke_top.sv",
     ]
 
 

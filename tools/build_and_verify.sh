@@ -52,16 +52,19 @@ Available targets:
   fixed        Run fixed_slot_packer cocotb regression
   ddr          Run ddr_ringbuffer_controller cocotb regression
   pipeline     Run chained pipeline cocotb regression
+  pcie-dma     Run PCIe endpoint DMA shell smoke regression
   script-ram   Run awr2243_script_ram cocotb regression
   cmd-fetch    Run awr2243_cmd_fetch cocotb regression
   cmd-decode   Run awr2243_cmd_decode cocotb regression
   awr-script   Expand to: script-ram, cmd-fetch, cmd-decode
   awr-payload  Run AWR payload generator tests
   awr-slot     Run AWR slot integration tests
+  pcie-host    Run cocotbext-pcie host smoke regression
   sim-pipeline Run the simulation-platform pipeline regression
   sim-ringbuffer Run the simulation-platform ringbuffer regression
   sim-cdc      Run the simulation-platform CDC regression
   sim-platform Run the unified simulation-platform cocotb regression
+  pcie-e2e     Run the end-to-end regression scenario matrix
   sanity       Expand to: csi, fixed, ddr, pipeline
   full         Expand to: sanity, awr-payload, awr-slot, sim-platform
 EOF
@@ -74,6 +77,16 @@ die() {
 
 have_cmd() {
   command -v "$1" >/dev/null 2>&1
+}
+
+log_has_success_summary() {
+  local logfile="$1"
+
+  if have_cmd rg; then
+    rg -q "TESTS=.*FAIL=0" "${logfile}"
+  else
+    grep -qE "TESTS=.*FAIL=0" "${logfile}"
+  fi
 }
 
 python_supported() {
@@ -115,6 +128,9 @@ expand_target() {
     pipeline)
       append_unique_target "pipeline"
       ;;
+    pcie-dma|pcie-dma-smoke)
+      append_unique_target "pcie-dma"
+      ;;
     script-ram|awr-script-ram)
       append_unique_target "script-ram"
       ;;
@@ -135,6 +151,9 @@ expand_target() {
     awr-slot)
       append_unique_target "awr-slot"
       ;;
+    pcie-host|host)
+      append_unique_target "pcie-host"
+      ;;
     sim-pipeline)
       append_unique_target "sim-pipeline"
       ;;
@@ -146,6 +165,9 @@ expand_target() {
       ;;
     sim-platform|platform)
       append_unique_target "sim-platform"
+      ;;
+    pcie-e2e|e2e|e2e-regression|sim-e2e)
+      append_unique_target "pcie-e2e"
       ;;
     sanity)
       expand_target "csi"
@@ -222,6 +244,9 @@ target_script() {
     pipeline)
       echo "${REPO_ROOT}/tb/cocotb/run_pipeline.py"
       ;;
+    pcie-dma)
+      echo "${REPO_ROOT}/tb/cocotb/run_pcie_endpoint_dma.py"
+      ;;
     script-ram)
       echo "${REPO_ROOT}/tb/cocotb/run_awr2243_script_ram.py"
       ;;
@@ -237,6 +262,9 @@ target_script() {
     awr-slot)
       echo "${REPO_ROOT}/tb/cocotb/run_awr_slot_integration.py"
       ;;
+    pcie-host)
+      echo "${REPO_ROOT}/tb/cocotb/run_pcie_host_smoke.py"
+      ;;
     sim-pipeline)
       echo "${REPO_ROOT}/tb/cocotb/run_sim_pipeline.py"
       ;;
@@ -248,6 +276,9 @@ target_script() {
       ;;
     sim-platform)
       echo "${REPO_ROOT}/tb/cocotb/run_sim_platform.py"
+      ;;
+    pcie-e2e)
+      echo "${REPO_ROOT}/tb/cocotb/run_pcie_e2e.py"
       ;;
     *)
       die "no runner script mapped for target: ${target}"
@@ -365,11 +396,18 @@ run_target() {
 
   echo "[build_and_verify] running ${target}"
   if "${cmd[@]}" >"${logfile}" 2>&1; then
-    echo "[build_and_verify] PASS ${target}"
-    if have_cmd rg; then
-      rg -n "TESTS=|FAIL=|PASS=" "${logfile}" | tail -n 5 || true
+    if log_has_success_summary "${logfile}"; then
+      echo "[build_and_verify] PASS ${target}"
+      if have_cmd rg; then
+        rg -n "TESTS=|FAIL=|PASS=" "${logfile}" | tail -n 5 || true
+      else
+        grep -nE "TESTS=|FAIL=|PASS=" "${logfile}" | tail -n 5 || true
+      fi
     else
-      grep -nE "TESTS=|FAIL=|PASS=" "${logfile}" | tail -n 5 || true
+      echo "[build_and_verify] FAIL ${target} (runner exited 0 but no passing test summary was found)" >&2
+      echo "[build_and_verify] tail of ${logfile}:" >&2
+      tail -n 80 "${logfile}" >&2 || true
+      exit 1
     fi
   else
     echo "[build_and_verify] FAIL ${target}" >&2

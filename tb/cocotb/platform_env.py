@@ -41,6 +41,16 @@ class CommitInfo:
 
 
 @dataclass(frozen=True)
+class BridgeCounters:
+    aw_count: int
+    w_beat_count: int
+    w_byte_count: int
+    b_count: int
+    ar_count: int
+    r_beat_count: int
+
+
+@dataclass(frozen=True)
 class RawCsi2Packet:
     raw: bytes
     vc: int
@@ -115,6 +125,42 @@ class SimulationPlatformEnv:
             ring_base_addr=self.config.ring_base_addr,
             ring_size_bytes=self.config.ring_size_bytes,
         )
+
+    def snapshot_bridge_counters(self) -> BridgeCounters:
+        return BridgeCounters(
+            aw_count=int(self.dut.radar_bridge_aw_count.value),
+            w_beat_count=int(self.dut.radar_bridge_w_beat_count.value),
+            w_byte_count=int(self.dut.radar_bridge_w_byte_count.value),
+            b_count=int(self.dut.radar_bridge_b_count.value),
+            ar_count=int(self.dut.radar_bridge_ar_count.value),
+            r_beat_count=int(self.dut.radar_bridge_r_beat_count.value),
+        )
+
+    def assert_bridge_write_activity(
+        self,
+        before: BridgeCounters,
+        *,
+        expected_byte_delta: int | None = None,
+    ) -> BridgeCounters:
+        after = self.snapshot_bridge_counters()
+        aw_delta = after.aw_count - before.aw_count
+        w_delta = after.w_beat_count - before.w_beat_count
+        b_delta = after.b_count - before.b_count
+        byte_delta = after.w_byte_count - before.w_byte_count
+
+        if aw_delta <= 0:
+            raise AssertionError(f"Bridge observed no AXI write address handshake: before={before} after={after}")
+        if w_delta <= 0:
+            raise AssertionError(f"Bridge observed no AXI write data handshake: before={before} after={after}")
+        if b_delta <= 0:
+            raise AssertionError(f"Bridge observed no AXI write response handshake: before={before} after={after}")
+        if expected_byte_delta is not None and byte_delta != expected_byte_delta:
+            raise AssertionError(
+                f"Bridge write byte delta mismatch: expected {expected_byte_delta} got {byte_delta} "
+                f"(before={before} after={after})"
+            )
+
+        return after
 
     async def start(self, *, clocks: ClockBundle | None = None) -> None:
         if clocks is not None:
@@ -285,9 +331,7 @@ class SimulationPlatformEnv:
                 raise AssertionError("Unexpected wr_slot_commit_o")
 
     async def verify_memory_for_last_commit(self) -> None:
-        if not self.scoreboard.pending_reads:
-            raise AssertionError("No committed slot available for memory verification")
-        self.scoreboard.check_memory(self.memory, self.scoreboard.pending_reads[-1])
+        self.scoreboard.check_memory(self.memory, self.scoreboard.last_committed_expectation())
 
     async def readback_next_slot(self, timeout_cycles: int = 1500):
         readback = await self.host.read_and_consume(timeout_cycles=timeout_cycles)

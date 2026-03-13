@@ -199,9 +199,9 @@ fixed_slot_packer #(
 
 ```systemverilog
 ddr_ringbuffer_controller #(
-    .CFG_AXI_ADDR_W(64),
+    .CFG_AXI_ADDR_W(34),
     .AXIS_DATA_W(32),
-    .AXI_DATA_W(512),
+    .AXI_DATA_W(256),
     // ... 其他参数
 ) ringbuffer_u (
     .clk_i(axi_clk),
@@ -587,9 +587,9 @@ module top_tb;
     
     // DDR RingBuffer Controller 实例化
     ddr_ringbuffer_controller #(
-        .CFG_AXI_ADDR_W(64),
+        .CFG_AXI_ADDR_W(34),
         .AXIS_DATA_W(32),
-        .AXI_DATA_W(512)
+        .AXI_DATA_W(256)
     ) ringbuffer_u (
         .clk_i(axi_clk),
         .rst_ni(axi_rst_n),

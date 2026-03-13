@@ -4,6 +4,8 @@
 
 本文档是「毫米波雷达采集链路完整仿真平台」设计文档的总览与入口。本平台基于 **TI AWR2243** 雷达器件的 MIPI CSI-2 输出，设计了一个端到端的仿真验证环境，覆盖从 CSI-2 packet 提取、固定长度 slot 封装、DDR ring buffer 管理到 Host 读回的完整数据路径。
 
+面向新增的 `Host -> PCIe -> DMA -> AXI -> DDR -> Radar Data Pipeline` 扩展，增量架构合同见 **[11_pcie_dma_extension_contract.md](11_pcie_dma_extension_contract.md)**。该合同固定第一阶段继续沿用当前仓库的 `AXI_ADDR_W=34`、`AXI_DATA_W=256`、现有 BAR0/CSR 偏移与 ring buffer 语义。
+
 **技术栈**：
 - **RTL**：SystemVerilog（CSI Packet Extractor、Fixed Slot Packer、DDR RingBuffer Controller）
 - **仿真平台**：cocotb + Verilator
@@ -14,7 +16,7 @@
 
 ## 文档结构
 
-本设计文档共包含 **10 个章节**，按设计流程组织：
+本设计文档共包含 **11 个章节**，按设计流程组织：
 
 | 文档 | 标题 | 主要内容 |
 |------|------|----------|
@@ -28,6 +30,7 @@
 | **[08_recommended_test_cases.md](08_recommended_test_cases.md)** | 推荐测试用例 | 测试用例分类（Sanity/功能/错误处理/CDC/性能）、覆盖目标、cocotb 映射、优先级 |
 | **[09_top_level_testbench_structure.md](09_top_level_testbench_structure.md)** | 顶层 Testbench 结构 | Testbench 层次、时钟/复位生成、DUT 实例化、开源模型集成、cocotb 绑定、最小骨架代码 |
 | **[10_engineering_implementation_steps.md](10_engineering_implementation_steps.md)** | 工程实施步骤 | 有序实施步骤（仓库/依赖/模型集成/RTL/IP/cocotb/TB/首次运行/回归）、命令与文件清单 |
+| **[11_pcie_dma_extension_contract.md](11_pcie_dma_extension_contract.md)** | Host / PCIe / DMA 扩展架构约定 | 当前平台到 Host/PCIe/DMA/AXI/DDR 端到端平台的边界、地址图、时钟/复位与 handoff 约定 |
 
 ---
 

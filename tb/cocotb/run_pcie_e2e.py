@@ -15,16 +15,7 @@ TEST_MODULES = [
 TESTCASES = [
     "test_top_sanity",
     "test_pipeline_back_to_back_slots",
-    "test_pipeline_invalid_slot_roundtrip",
-    "test_pipeline_controller_drops_invalid",
-    "test_pipeline_awr_frame_roundtrip",
-    "test_pipeline_short_packet_missing_ls",
-    "test_pipeline_short_packet_early_fe",
-    "test_pipeline_short_packet_orphan_control_packets",
-    "test_pipeline_short_packet_cross_frame_recovery",
-    "test_ringbuffer_commit_addr_progression",
     "test_ringbuffer_wraparound",
-    "test_cdc_async_fifo_smoke",
     "test_cdc_timing_skewed_clocks_and_mock_gaps",
     "test_cdc_fifo_fill_and_backpressure",
     "test_e2e_host_burst_read",
@@ -36,13 +27,8 @@ TESTCASES = [
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run Verilator+cocotb regression for the unified simulation platform")
-    parser.add_argument(
-        "--testcase",
-        action="append",
-        choices=TESTCASES,
-        help="Specific cocotb testcase to run. Defaults to the full simulation-platform regression.",
-    )
+    parser = argparse.ArgumentParser(description="Run the end-to-end radar DDR regression matrix")
+    parser.add_argument("--testcase", action="append", choices=TESTCASES, help="Specific cocotb testcase to run.")
     parser.add_argument("--waves", action="store_true", help="Enable waveform dump")
     parser.add_argument("--no-clean", action="store_true", help="Reuse existing build directory")
     return parser.parse_args(argv)
@@ -51,7 +37,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
     run_regression(
-        build_root_name="sim_platform_cocotb",
+        build_root_name="pcie_e2e_regression",
         test_modules=TEST_MODULES,
         testcases=args.testcase or TESTCASES,
         waves=args.waves,

@@ -157,6 +157,32 @@ module top_tb;
   logic                         m_axis_rd_tlast;
   logic [   RD_AXIS_USER_W-1:0] m_axis_rd_tuser;
 
+  logic [       AXI_ADDR_W-1:0] radar_m_axi_awaddr;
+  logic [                  7:0] radar_m_axi_awlen;
+  logic [                  2:0] radar_m_axi_awsize;
+  logic [                  1:0] radar_m_axi_awburst;
+  logic                         radar_m_axi_awvalid;
+  logic                         radar_m_axi_awready;
+  logic [       AXI_DATA_W-1:0] radar_m_axi_wdata;
+  logic [   (AXI_DATA_W/8)-1:0] radar_m_axi_wstrb;
+  logic                         radar_m_axi_wlast;
+  logic                         radar_m_axi_wvalid;
+  logic                         radar_m_axi_wready;
+  logic [                  1:0] radar_m_axi_bresp;
+  logic                         radar_m_axi_bvalid;
+  logic                         radar_m_axi_bready;
+  logic [       AXI_ADDR_W-1:0] radar_m_axi_araddr;
+  logic [                  7:0] radar_m_axi_arlen;
+  logic [                  2:0] radar_m_axi_arsize;
+  logic [                  1:0] radar_m_axi_arburst;
+  logic                         radar_m_axi_arvalid;
+  logic                         radar_m_axi_arready;
+  logic [       AXI_DATA_W-1:0] radar_m_axi_rdata;
+  logic [                  1:0] radar_m_axi_rresp;
+  logic                         radar_m_axi_rlast;
+  logic                         radar_m_axi_rvalid;
+  logic                         radar_m_axi_rready;
+
   logic [       AXI_ADDR_W-1:0] m_axi_awaddr;
   logic [                  7:0] m_axi_awlen;
   logic [                  2:0] m_axi_awsize;
@@ -182,6 +208,13 @@ module top_tb;
   logic                         m_axi_rlast;
   logic                         m_axi_rvalid;
   logic                         m_axi_rready;
+
+  logic [        COUNTER_W-1:0] radar_bridge_aw_count;
+  logic [        COUNTER_W-1:0] radar_bridge_w_beat_count;
+  logic [        COUNTER_W-1:0] radar_bridge_w_byte_count;
+  logic [        COUNTER_W-1:0] radar_bridge_b_count;
+  logic [        COUNTER_W-1:0] radar_bridge_ar_count;
+  logic [        COUNTER_W-1:0] radar_bridge_r_beat_count;
 
   initial begin
     video_aclk                    = 1'b0;
@@ -410,30 +443,95 @@ module top_tb;
       .m_axis_rd_tready       (m_axis_rd_tready),
       .m_axis_rd_tlast        (m_axis_rd_tlast),
       .m_axis_rd_tuser        (m_axis_rd_tuser),
-      .m_axi_awaddr           (m_axi_awaddr),
-      .m_axi_awlen            (m_axi_awlen),
-      .m_axi_awsize           (m_axi_awsize),
-      .m_axi_awburst          (m_axi_awburst),
-      .m_axi_awvalid          (m_axi_awvalid),
-      .m_axi_awready          (m_axi_awready),
-      .m_axi_wdata            (m_axi_wdata),
-      .m_axi_wstrb            (m_axi_wstrb),
-      .m_axi_wlast            (m_axi_wlast),
-      .m_axi_wvalid           (m_axi_wvalid),
-      .m_axi_wready           (m_axi_wready),
-      .m_axi_bresp            (m_axi_bresp),
-      .m_axi_bvalid           (m_axi_bvalid),
-      .m_axi_bready           (m_axi_bready),
-      .m_axi_araddr           (m_axi_araddr),
-      .m_axi_arlen            (m_axi_arlen),
-      .m_axi_arsize           (m_axi_arsize),
-      .m_axi_arburst          (m_axi_arburst),
-      .m_axi_arvalid          (m_axi_arvalid),
-      .m_axi_arready          (m_axi_arready),
-      .m_axi_rdata            (m_axi_rdata),
-      .m_axi_rresp            (m_axi_rresp),
-      .m_axi_rlast            (m_axi_rlast),
-      .m_axi_rvalid           (m_axi_rvalid),
-      .m_axi_rready           (m_axi_rready)
+      .m_axi_awaddr           (radar_m_axi_awaddr),
+      .m_axi_awlen            (radar_m_axi_awlen),
+      .m_axi_awsize           (radar_m_axi_awsize),
+      .m_axi_awburst          (radar_m_axi_awburst),
+      .m_axi_awvalid          (radar_m_axi_awvalid),
+      .m_axi_awready          (radar_m_axi_awready),
+      .m_axi_wdata            (radar_m_axi_wdata),
+      .m_axi_wstrb            (radar_m_axi_wstrb),
+      .m_axi_wlast            (radar_m_axi_wlast),
+      .m_axi_wvalid           (radar_m_axi_wvalid),
+      .m_axi_wready           (radar_m_axi_wready),
+      .m_axi_bresp            (radar_m_axi_bresp),
+      .m_axi_bvalid           (radar_m_axi_bvalid),
+      .m_axi_bready           (radar_m_axi_bready),
+      .m_axi_araddr           (radar_m_axi_araddr),
+      .m_axi_arlen            (radar_m_axi_arlen),
+      .m_axi_arsize           (radar_m_axi_arsize),
+      .m_axi_arburst          (radar_m_axi_arburst),
+      .m_axi_arvalid          (radar_m_axi_arvalid),
+      .m_axi_arready          (radar_m_axi_arready),
+      .m_axi_rdata            (radar_m_axi_rdata),
+      .m_axi_rresp            (radar_m_axi_rresp),
+      .m_axi_rlast            (radar_m_axi_rlast),
+      .m_axi_rvalid           (radar_m_axi_rvalid),
+      .m_axi_rready           (radar_m_axi_rready)
+  );
+
+  radar_pipeline_ddr_bridge #(
+      .AXI_ADDR_W(AXI_ADDR_W),
+      .AXI_DATA_W(AXI_DATA_W),
+      .COUNTER_W (COUNTER_W)
+  ) radar_pipeline_ddr_bridge_u (
+      .clk_i                (axis_clk),
+      .rst_ni               (rst_ni),
+      .s_axi_awaddr         (radar_m_axi_awaddr),
+      .s_axi_awlen          (radar_m_axi_awlen),
+      .s_axi_awsize         (radar_m_axi_awsize),
+      .s_axi_awburst        (radar_m_axi_awburst),
+      .s_axi_awvalid        (radar_m_axi_awvalid),
+      .s_axi_awready        (radar_m_axi_awready),
+      .s_axi_wdata          (radar_m_axi_wdata),
+      .s_axi_wstrb          (radar_m_axi_wstrb),
+      .s_axi_wlast          (radar_m_axi_wlast),
+      .s_axi_wvalid         (radar_m_axi_wvalid),
+      .s_axi_wready         (radar_m_axi_wready),
+      .s_axi_bresp          (radar_m_axi_bresp),
+      .s_axi_bvalid         (radar_m_axi_bvalid),
+      .s_axi_bready         (radar_m_axi_bready),
+      .s_axi_araddr         (radar_m_axi_araddr),
+      .s_axi_arlen          (radar_m_axi_arlen),
+      .s_axi_arsize         (radar_m_axi_arsize),
+      .s_axi_arburst        (radar_m_axi_arburst),
+      .s_axi_arvalid        (radar_m_axi_arvalid),
+      .s_axi_arready        (radar_m_axi_arready),
+      .s_axi_rdata          (radar_m_axi_rdata),
+      .s_axi_rresp          (radar_m_axi_rresp),
+      .s_axi_rlast          (radar_m_axi_rlast),
+      .s_axi_rvalid         (radar_m_axi_rvalid),
+      .s_axi_rready         (radar_m_axi_rready),
+      .m_axi_awaddr         (m_axi_awaddr),
+      .m_axi_awlen          (m_axi_awlen),
+      .m_axi_awsize         (m_axi_awsize),
+      .m_axi_awburst        (m_axi_awburst),
+      .m_axi_awvalid        (m_axi_awvalid),
+      .m_axi_awready        (m_axi_awready),
+      .m_axi_wdata          (m_axi_wdata),
+      .m_axi_wstrb          (m_axi_wstrb),
+      .m_axi_wlast          (m_axi_wlast),
+      .m_axi_wvalid         (m_axi_wvalid),
+      .m_axi_wready         (m_axi_wready),
+      .m_axi_bresp          (m_axi_bresp),
+      .m_axi_bvalid         (m_axi_bvalid),
+      .m_axi_bready         (m_axi_bready),
+      .m_axi_araddr         (m_axi_araddr),
+      .m_axi_arlen          (m_axi_arlen),
+      .m_axi_arsize         (m_axi_arsize),
+      .m_axi_arburst        (m_axi_arburst),
+      .m_axi_arvalid        (m_axi_arvalid),
+      .m_axi_arready        (m_axi_arready),
+      .m_axi_rdata          (m_axi_rdata),
+      .m_axi_rresp          (m_axi_rresp),
+      .m_axi_rlast          (m_axi_rlast),
+      .m_axi_rvalid         (m_axi_rvalid),
+      .m_axi_rready         (m_axi_rready),
+      .status_aw_count_o    (radar_bridge_aw_count),
+      .status_w_beat_count_o(radar_bridge_w_beat_count),
+      .status_w_byte_count_o(radar_bridge_w_byte_count),
+      .status_b_count_o     (radar_bridge_b_count),
+      .status_ar_count_o    (radar_bridge_ar_count),
+      .status_r_beat_count_o(radar_bridge_r_beat_count)
   );
 endmodule

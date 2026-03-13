@@ -78,8 +78,10 @@ async def test_top_sanity(dut):
     await env.configure()
 
     payload = gen_payload(96, seed=0x11)
+    bridge_before = env.snapshot_bridge_counters()
     await env.send_packet(payload, seq=0)
     commit = await env.wait_for_commit()
+    env.assert_bridge_write_activity(bridge_before, expected_byte_delta=commit.slot_bytes)
     await env.verify_memory_for_last_commit()
     readback = await env.readback_next_slot()
 

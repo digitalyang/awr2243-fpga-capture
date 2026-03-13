@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import deque
 
-from model.slot_refmodel import SlotExpectation, SlotRefModel
+from model.slot_refmodel import HostVisibleSlot, SlotExpectation, SlotRefModel
 
 
 class SlotScoreboard:
@@ -32,7 +32,12 @@ class SlotScoreboard:
             pkt_ecc_err=pkt_ecc_err,
             pkt_trunc_err=pkt_trunc_err,
         )
-        expectation.addr = self.refmodel.predict_commit_addr(self.ring_base_addr, self._wr_ptr)
+        self.refmodel.place_expectation(
+            expectation,
+            ring_base_addr=self.ring_base_addr,
+            ring_size_bytes=self.ring_size_bytes,
+            wr_ptr=self._wr_ptr,
+        )
         self._wr_ptr = self.refmodel.advance_wr_ptr(self._wr_ptr, self.ring_size_bytes, expectation.slot_bytes)
         self.pending_commits.append(expectation)
         return expectation
@@ -62,21 +67,44 @@ class SlotScoreboard:
         return exp
 
     def check_memory(self, memory_model, expectation: SlotExpectation) -> None:
-        assert expectation.addr is not None
+        host_slot = self.host_slot_for(expectation)
         stored = memory_model.read_ring_bytes(
             ring_base=self.ring_base_addr,
             ring_size=self.ring_size_bytes,
-            start_addr=expectation.addr,
-            byte_count=expectation.slot_bytes,
+            start_addr=host_slot.addr,
+            byte_count=host_slot.slot_bytes,
         )
-        assert stored == expectation.slot_data, f"Stored slot mismatch for seq={expectation.seq}"
+        assert stored == host_slot.data, (
+            f"Stored slot mismatch for seq={expectation.seq} spans={self._span_debug(host_slot)}"
+        )
         self.matches += 1
+
+    def check_host_dma_read(
+        self,
+        *,
+        addr: int,
+        data: bytes,
+        expectation: SlotExpectation | None = None,
+        seq: int | None = None,
+    ) -> SlotExpectation:
+        exp = expectation if expectation is not None else self.last_committed_expectation()
+        host_slot = self.host_slot_for(exp)
+        if seq is not None:
+            assert seq == exp.seq, f"Host/DMA seq mismatch: exp={exp.seq} act={seq}"
+        expected = host_slot.read(start_addr=addr, byte_count=len(data))
+        assert data == expected, (
+            f"Host/DMA read mismatch for seq={exp.seq} addr=0x{addr:x} bytes={len(data)} "
+            f"spans={self._span_debug(host_slot)}"
+        )
+        self.matches += 1
+        return exp
 
     def check_readback(self, read_slot) -> SlotExpectation:
         if not self.pending_reads:
             raise AssertionError("No queued expectation for readback")
 
         exp = self.pending_reads.popleft()
+        host_slot = self.host_slot_for(exp)
         assert read_slot.seq == exp.seq, f"Readback seq mismatch: exp={exp.seq} act={read_slot.seq}"
         assert read_slot.slot_bytes == exp.slot_bytes, (
             f"Readback slot_bytes mismatch: exp={exp.slot_bytes} act={read_slot.slot_bytes}"
@@ -87,9 +115,26 @@ class SlotScoreboard:
         assert read_slot.overflow_err == exp.overflow_err, (
             f"Readback overflow mismatch: exp={exp.overflow_err} act={read_slot.overflow_err}"
         )
-        assert read_slot.payload == exp.slot_data, f"Readback payload mismatch for seq={exp.seq}"
+        assert read_slot.payload == host_slot.data, f"Readback payload mismatch for seq={exp.seq}"
         self.matches += 1
         return exp
+
+    def last_committed_expectation(self) -> SlotExpectation:
+        if not self.pending_reads:
+            raise AssertionError("No committed expectation is pending for readback")
+        return self.pending_reads[-1]
+
+    def host_slot_for(self, expectation: SlotExpectation) -> HostVisibleSlot:
+        if expectation.host_slot is None:
+            raise AssertionError(f"Expectation seq={expectation.seq} does not have host-slot mapping")
+        return expectation.host_slot
+
+    @staticmethod
+    def _span_debug(host_slot: HostVisibleSlot) -> str:
+        return ",".join(
+            f"[addr=0x{span.addr:x} len={span.length} slot_ofs={span.slot_offset}]"
+            for span in host_slot.spans
+        )
 
     def summary(self) -> dict[str, int]:
         return {

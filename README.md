@@ -13,6 +13,16 @@ tools/build_and_verify.sh
 详细使用说明见：
 [BUILD_AND_VERIFY.md](BUILD_AND_VERIFY.md)
 
+## Host / PCIe / DMA 仿真扩展约定
+
+当前仓库中 Host 侧回归仍以 cocotb behavioral driver 为主。新增的 `Host -> PCIe -> DMA -> AXI -> DDR -> Radar Data Pipeline` 端到端扩展合同见 [docs/sim_platform/11_pcie_dma_extension_contract.md](docs/sim_platform/11_pcie_dma_extension_contract.md)。
+
+该合同固定第一阶段：
+
+* 继续沿用现有 `AXI_ADDR_W=34`、`AXI_DATA_W=256`
+* 保持 `RDL` 导出的 BAR0/CSR 偏移 `0x000-0x08C`
+* PCIe RC / endpoint / DMA 先保持 behavioral，避免在各分支并行发散出第二套控制面
+
 # 1 系统设计目标
 
 构建基于 **AWR2243 + FPGA + DDR4 + PCIe XDMA** 的高速雷达数据采集系统，实现：

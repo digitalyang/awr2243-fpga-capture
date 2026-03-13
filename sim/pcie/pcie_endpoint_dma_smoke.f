@@ -1,0 +1,9 @@
+rtl/pkg/ddr_ringbuffer_pkg.sv
+rtl/pkg/pcie_dma_pkg.sv
+rtl/if/axi4_lite_if.sv
+rtl/if/axi4_mm_if.sv
+rtl/if/pcie_rc_model_if.sv
+rtl/pcie/pcie_endpoint_dma_shell.sv
+rtl/pcie/pcie_endpoint_dma_vpcie_adapter.sv
+rtl/pcie/pcie_endpoint_dma_integration.sv
+tb/cocotb/pcie_endpoint_dma_cocotb_top.sv
