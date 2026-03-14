@@ -85,7 +85,7 @@ RingBuffer Controller
    │
    ▼
 AXI SmartConnect
-   ├── AXI host master
+   ├  <--- XDMA
    └── DDR model
 
 ```

@@ -131,3 +131,24 @@ __pycache__/
 /CURSOR_PARALLEL_PROMPT.md
 /cursor_parallel/
 /notes/
+
+# Vivado 生成文件
+*.jou
+*.log
+*.str
+*.xml
+*.wcfg
+*.xpr
+*.xise
+*.xco
+*.xws
+*.rst
+*.bda
+*.pb
+*.lpr
+*.rpt
+*.dcp
+*.wdf
+*.js
+*.vds
+*.ui

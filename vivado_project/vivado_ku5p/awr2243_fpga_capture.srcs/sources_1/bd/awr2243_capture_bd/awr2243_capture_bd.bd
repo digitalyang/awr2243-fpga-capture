@@ -1,0 +1,15 @@
+{
+  "design": {
+    "design_info": {
+      "boundary_crc": "0x0",
+      "device": "xcku5p-ffvb676-2-e",
+      "gen_directory": "../../../../awr2243_fpga_capture.gen/sources_1/bd/awr2243_capture_bd",
+      "name": "awr2243_capture_bd",
+      "rev_ctrl_bd_flag": "RevCtrlBdOff",
+      "synth_flow_mode": "Hierarchical",
+      "tool_version": "2022.2",
+      "validated": "true"
+    },
+    "design_tree": {}
+  }
+}

@@ -1,0 +1,11 @@
+set_property SRC_FILE_INFO {cfile:E:/fpga/xilinxfpga/awr2243-fpga-capture/constraints/awr2243_project_stub.xdc rfile:../../../../../constraints/awr2243_project_stub.xdc id:1} [current_design]
+set_property SRC_FILE_INFO {cfile:D:/fpga/Vivado/2022.2/data/ip/xpm/xpm_memory/tcl/xpm_memory_xdc.tcl rfile:D:/fpga/Vivado/2022.2/data/ip/xpm/xpm_memory/tcl/xpm_memory_xdc.tcl id:2 order:LATE scoped_inst:u_ddr_ringbuffer_controller_axil/u_ddr_ringbuffer_controller/u_slot_buf_mem unmanaged:yes} [current_design]
+set_property src_info {type:XDC file:1 line:3 export:INPUT save:INPUT read:READ} [current_design]
+create_clock -period 5.000  -name video_aclk_200m [get_ports video_aclk]
+set_property src_info {type:XDC file:1 line:4 export:INPUT save:INPUT read:READ} [current_design]
+create_clock -period 4.000  -name axi_aclk_250m   [get_ports axi_aclk]
+set_property src_info {type:XDC file:1 line:6 export:INPUT save:INPUT read:READ} [current_design]
+set_clock_groups -asynchronous  -group [get_clocks sys_clk_100m]  -group [get_clocks video_aclk_200m]  -group [get_clocks axi_aclk_250m]
+current_instance u_ddr_ringbuffer_controller_axil/u_ddr_ringbuffer_controller/u_slot_buf_mem
+set_property src_info {type:SCOPED_XDC file:2 line:3 export:INPUT save:NONE read:READ} [current_design]
+set my_var [get_property dram_emb_xdc [get_cells -quiet -hier -filter {PRIMITIVE_SUBGROUP==LUTRAM || PRIMITIVE_SUBGROUP==dram || PRIMITIVE_SUBGROUP==uram || PRIMITIVE_SUBGROUP==BRAM}]]

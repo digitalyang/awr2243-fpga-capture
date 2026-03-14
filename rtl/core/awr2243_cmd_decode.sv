@@ -8,25 +8,25 @@ module awr2243_cmd_decode #(
     parameter int unsigned TIMER_VALUE_W = `AWR2243_SCRIPT_TIMER_VALUE_W_DFLT,
     parameter int unsigned TIMER_UNIT_W = `AWR2243_SCRIPT_TIMER_UNIT_W_DFLT
 ) (
-    input logic clk_i,
-    input logic rst_ni,
+    input  logic clk_i,
+    input  logic rst_ni,
 
-    input logic              cmd_valid_i,
-    input logic [WORD_W-1:0] cmd_word_i,
-    input logic [  PC_W-1:0] pc_i,
+    input  logic              cmd_valid_i,
+    input  logic [WORD_W-1:0] cmd_word_i,
+    input  logic [PC_W-1:0]   pc_i,
 
-    output logic            fetch_advance_o,
-    output logic            fetch_hold_o,
-    output logic            jump_en_o,
-    output logic [PC_W-1:0] jump_addr_o,
+    output logic              fetch_advance_o,
+    output logic              fetch_hold_o,
+    output logic              jump_en_o,
+    output logic [PC_W-1:0]   jump_addr_o,
 
     output logic                  cmd_done_o,
     output logic                  cmd_error_o,
     output logic [ERR_CODE_W-1:0] error_code_o,
-    output logic [ STEP_ID_W-1:0] step_id_o,
-    output logic [           7:0] last_opcode_o,
+    output logic [STEP_ID_W-1:0]  step_id_o,
+    output logic [7:0]            last_opcode_o,
     output logic                  busy_o,
-    output logic [           3:0] state_o,
+    output logic [3:0]            state_o,
 
     output logic        spi_cmd_valid_o,
     input  logic        spi_cmd_ready_i,
@@ -41,7 +41,7 @@ module awr2243_cmd_decode #(
     output logic                     timer_start_o,
     output logic                     timer_clear_o,
     output logic [TIMER_VALUE_W-1:0] timer_period_value_o,
-    output logic [ TIMER_UNIT_W-1:0] timer_period_unit_o,
+    output logic [TIMER_UNIT_W-1:0]  timer_period_unit_o,
     input  logic                     timer_busy_i,
     input  logic                     timer_done_i,
     input  logic                     timer_expired_i,
@@ -71,31 +71,24 @@ module awr2243_cmd_decode #(
     D_WAIT_IRQ
   } decode_state_e;
 
-  decode_state_e                     state_r;
-  decode_state_e                     state_n;
-  logic          [       WORD_W-1:0] cmd_word_r;
-  logic          [       WORD_W-1:0] cmd_word_n;
-  logic          [              7:0] opcode_r;
-  logic          [              7:0] opcode_n;
-  logic          [              7:0] flags_r;
-  logic          [              7:0] flags_n;
-  logic          [    STEP_ID_W-1:0] step_id_r;
-  logic          [    STEP_ID_W-1:0] step_id_n;
-  logic          [             15:0] imm_a_r;
-  logic          [             15:0] imm_a_n;
-  logic          [             15:0] imm_b_r;
-  logic          [             15:0] imm_b_n;
-  logic          [TIMER_VALUE_W-1:0] timer_value_r;
-  logic          [TIMER_VALUE_W-1:0] timer_value_n;
-  logic          [         PC_W-1:0] cmd_pc_r;
-  logic          [         PC_W-1:0] cmd_pc_n;
-  logic          [             15:0] spi_rsp_word_r;
-  logic          [             15:0] spi_rsp_word_n;
-  logic          [   ERR_CODE_W-1:0] error_code_r;
-  logic          [   ERR_CODE_W-1:0] error_code_n;
+  decode_state_e state_r, state_n;
 
-  logic          [             63:0] accept_word_c;
-  logic          [             15:0] spi_rsp_cmp_c;
+  logic [WORD_W-1:0]        cmd_word_r, cmd_word_n;
+  logic [7:0]               opcode_r, opcode_n;
+  logic [7:0]               flags_r, flags_n;
+  logic [STEP_ID_W-1:0]     step_id_r, step_id_n;
+  logic [15:0]              imm_a_r, imm_a_n;
+  logic [15:0]              imm_b_r, imm_b_n;
+  logic [TIMER_VALUE_W-1:0] timer_value_r, timer_value_n;
+  logic [PC_W-1:0]          cmd_pc_r, cmd_pc_n;
+  logic [15:0]              spi_rsp_word_r, spi_rsp_word_n;
+  logic [ERR_CODE_W-1:0]    error_code_r, error_code_n;
+
+  logic [63:0]              accept_word_c;
+  logic [15:0]              spi_rsp_cmp_c;
+  logic [15:0]              imm_b_cmd_c;
+  logic [31:0]              imm32_cmd_c;
+  logic [ERR_CODE_W-1:0]    fail_err_code_c;
 
   initial begin
     if (WORD_W < SCRIPT_WORD_W_DFLT) begin
@@ -103,8 +96,11 @@ module awr2243_cmd_decode #(
     end
   end
 
-  assign accept_word_c = cmd_word_i[63:0];
-  assign spi_rsp_cmp_c = spi_rsp_valid_i ? spi_rsp_word_i : spi_rsp_word_r;
+  assign accept_word_c   = cmd_word_i[63:0];
+  assign spi_rsp_cmp_c   = spi_rsp_valid_i ? spi_rsp_word_i : spi_rsp_word_r;
+  assign imm_b_cmd_c     = cmd_imm_b(accept_word_c);
+  assign imm32_cmd_c     = cmd_imm32(accept_word_c);
+  assign fail_err_code_c = imm_b_cmd_c[ERR_CODE_W-1:0];
 
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
@@ -155,14 +151,13 @@ module awr2243_cmd_decode #(
           flags_n       = cmd_flags(accept_word_c);
           step_id_n     = STEP_ID_W'(cmd_step_id(accept_word_c));
           imm_a_n       = cmd_imm_a(accept_word_c);
-          imm_b_n       = cmd_imm_b(accept_word_c);
-          timer_value_n = TIMER_VALUE_W'(cmd_imm32(accept_word_c));
+          imm_b_n       = imm_b_cmd_c;
+          timer_value_n = TIMER_VALUE_W'(imm32_cmd_c);
           cmd_pc_n      = pc_i;
 
-          case (cmd_opcode(
-              accept_word_c
-          ))
-            AWR_CMD_NOP, AWR_CMD_END: begin
+          case (cmd_opcode(accept_word_c))
+            AWR_CMD_NOP,
+            AWR_CMD_END: begin
               state_n = D_PULSE_DONE;
             end
 
@@ -171,8 +166,8 @@ module awr2243_cmd_decode #(
             end
 
             AWR_CMD_FAIL: begin
-              error_code_n = (cmd_imm_b(accept_word_c) [ERR_CODE_W-1:0] != '0) ?
-                  cmd_imm_b(accept_word_c) [ERR_CODE_W-1:0] : AWR_CMD_ERR_FAIL_OPCODE;
+              error_code_n = (fail_err_code_c != {ERR_CODE_W{1'b0}}) ?
+                             fail_err_code_c : AWR_CMD_ERR_FAIL_OPCODE;
               state_n = D_PULSE_ERROR_ADV;
             end
 
@@ -185,13 +180,14 @@ module awr2243_cmd_decode #(
               end
             end
 
-            AWR_CMD_SPI_WR, AWR_CMD_SPI_RD: begin
-              spi_rsp_word_n = '0;
+            AWR_CMD_SPI_WR,
+            AWR_CMD_SPI_RD: begin
+              spi_rsp_word_n = 16'd0;
               state_n        = D_SPI_REQ;
             end
 
             AWR_CMD_DELAY_US: begin
-              if (cmd_imm32(accept_word_c) == '0) begin
+              if (imm32_cmd_c == 32'd0) begin
                 state_n = D_PULSE_DONE;
               end else begin
                 state_n = D_DELAY_ARM;
@@ -273,7 +269,7 @@ module awr2243_cmd_decode #(
       D_WAIT_IRQ_ARM: begin
         if (host_irq_rise_i) begin
           state_n = D_PULSE_DONE;
-        end else if (timer_value_r == '0) begin
+        end else if (timer_value_r == {TIMER_VALUE_W{1'b0}}) begin
           state_n = D_WAIT_IRQ;
         end else if (!timer_busy_i) begin
           state_n = D_WAIT_IRQ;
@@ -283,7 +279,8 @@ module awr2243_cmd_decode #(
       D_WAIT_IRQ: begin
         if (host_irq_rise_i || host_irq_sticky_i) begin
           state_n = D_PULSE_DONE;
-        end else if ((timer_value_r != '0) && (timer_done_i || timer_expired_i)) begin
+        end else if ((timer_value_r != {TIMER_VALUE_W{1'b0}}) &&
+                     (timer_done_i || timer_expired_i)) begin
           error_code_n = AWR_CMD_ERR_WAIT_IRQ_TO;
           state_n      = D_PULSE_ERROR;
         end
@@ -359,7 +356,9 @@ module awr2243_cmd_decode #(
       D_WAIT_IRQ_ARM: begin
         fetch_hold_o     = 1'b1;
         clr_irq_sticky_o = 1'b1;
-        if ((timer_value_r != '0) && !timer_busy_i && !host_irq_rise_i) begin
+        if ((timer_value_r != {TIMER_VALUE_W{1'b0}}) &&
+            !timer_busy_i &&
+            !host_irq_rise_i) begin
           timer_start_o = 1'b1;
         end
       end
@@ -367,8 +366,9 @@ module awr2243_cmd_decode #(
       D_WAIT_IRQ: begin
         fetch_hold_o = 1'b1;
         if ((host_irq_rise_i || host_irq_sticky_i) ||
-            ((timer_value_r != '0) && (timer_done_i || timer_expired_i))) begin
-          timer_clear_o = (timer_value_r != '0);
+            ((timer_value_r != {TIMER_VALUE_W{1'b0}}) &&
+             (timer_done_i || timer_expired_i))) begin
+          timer_clear_o = (timer_value_r != {TIMER_VALUE_W{1'b0}});
         end
       end
 

@@ -33,6 +33,7 @@ module pcie_endpoint_dma_shell #(
   localparam int unsigned AXI_STRB_W = AXI_DATA_W / 8;
   localparam int unsigned AXI_BEAT_BYTES = AXI_DATA_W / 8;
   localparam int unsigned AXI_BURST_SIZE = pcie_dma_pkg::clog2_safe(AXI_BEAT_BYTES);
+
   localparam logic [BAR_ADDR_W-1:0] BAR0_INTERNAL_BYTES_C = BAR_ADDR_W'(BAR0_INTERNAL_BYTES);
   localparam logic [BAR_ADDR_W-1:0] BAR0_FORWARD_BASE_C   = BAR_ADDR_W'(BAR0_FORWARD_BASE);
   localparam logic [1:0] AXI_RESP_OKAY = 2'b00;
@@ -60,40 +61,40 @@ module pcie_endpoint_dma_shell #(
   logic irq_pending_r;
   logic dma_error_r;
 
-  logic [63:0]                shadow_axi_addr_r;
-  logic [31:0]                shadow_len_bytes_r;
-  logic [31:0]                shadow_pattern_seed_r;
-  logic [DMA_DESC_ID_W-1:0]   shadow_desc_id_r;
-  logic                       shadow_irq_on_done_r;
+  logic [63:0]              shadow_axi_addr_r;
+  logic [31:0]              shadow_len_bytes_r;
+  logic [31:0]              shadow_pattern_seed_r;
+  logic [DMA_DESC_ID_W-1:0] shadow_desc_id_r;
+  logic                     shadow_irq_on_done_r;
 
-  logic [AXI_ADDR_W-1:0]      dma_base_addr_r;
-  logic [31:0]                dma_total_len_r;
-  logic [31:0]                dma_pattern_seed_r;
-  logic [DMA_DESC_ID_W-1:0]   dma_desc_id_r;
-  logic                       dma_irq_on_done_r;
-  logic [31:0]                dma_bytes_sent_r;
-  logic [7:0]                 dma_burst_beats_r;
-  logic [31:0]                dma_burst_bytes_r;
-  logic [7:0]                 dma_beat_index_r;
+  logic [AXI_ADDR_W-1:0]    dma_base_addr_r;
+  logic [31:0]              dma_total_len_r;
+  logic [31:0]              dma_pattern_seed_r;
+  logic [DMA_DESC_ID_W-1:0] dma_desc_id_r;
+  logic                     dma_irq_on_done_r;
+  logic [31:0]              dma_bytes_sent_r;
+  logic [7:0]               dma_burst_beats_r;
+  logic [31:0]              dma_burst_bytes_r;
+  logic [7:0]               dma_beat_index_r;
 
-  logic [DMA_DESC_ID_W-1:0]   last_completed_desc_id_r;
-  logic [31:0]                last_completed_len_r;
-  logic [15:0]                completed_count_r;
-  logic                       dma_done_pulse_r;
-  logic [DMA_DESC_ID_W-1:0]   dma_done_desc_id_r;
+  logic [DMA_DESC_ID_W-1:0] last_completed_desc_id_r;
+  logic [31:0]              last_completed_len_r;
+  logic [15:0]              completed_count_r;
+  logic                     dma_done_pulse_r;
+  logic [DMA_DESC_ID_W-1:0] dma_done_desc_id_r;
 
-  logic                       host_rsp_valid_r;
-  logic [BAR_DATA_W-1:0]      host_rsp_data_r;
-  logic [1:0]                 host_rsp_status_r;
-  logic [RC_TAG_W-1:0]        host_rsp_tag_r;
+  logic                     host_rsp_valid_r;
+  logic [BAR_DATA_W-1:0]    host_rsp_data_r;
+  logic [1:0]               host_rsp_status_r;
+  logic [RC_TAG_W-1:0]      host_rsp_tag_r;
 
-  logic [BAR_ADDR_W-1:0]      mmio_addr_r;
-  logic [BAR_DATA_W-1:0]      mmio_wdata_r;
-  logic [BAR_STRB_W-1:0]      mmio_wstrb_r;
-  logic [RC_TAG_W-1:0]        mmio_tag_r;
-  logic [AXIL_ADDR_W-1:0]     mmio_axil_addr_r;
-  logic                       mmio_aw_sent_r;
-  logic                       mmio_w_sent_r;
+  logic [BAR_ADDR_W-1:0]    mmio_addr_r;
+  logic [BAR_DATA_W-1:0]    mmio_wdata_r;
+  logic [BAR_STRB_W-1:0]    mmio_wstrb_r;
+  logic [RC_TAG_W-1:0]      mmio_tag_r;
+  logic [AXIL_ADDR_W-1:0]   mmio_axil_addr_r;
+  logic                     mmio_aw_sent_r;
+  logic                     mmio_w_sent_r;
 
   logic host_req_fire;
   logic host_rsp_fire;
@@ -105,11 +106,20 @@ module pcie_endpoint_dma_shell #(
   logic dma_aw_fire;
   logic dma_w_fire;
   logic dma_b_fire;
+
   logic status_clear_irq_c;
   logic status_clear_error_c;
   logic doorbell_fire_c;
   logic doorbell_start_ok_c;
   logic doorbell_error_c;
+
+  logic [BAR_DATA_W-1:0] host_req_write_data_masked_c;
+  logic                  req_bar0_c;
+  logic                  req_status_write_c;
+  logic                  req_doorbell_write_c;
+  logic                  status_irq_bit_set_c;
+  logic                  status_error_bit_set_c;
+  logic                  doorbell_bit_set_c;
 
   function automatic logic [BAR_DATA_W-1:0] apply_bar_strb(
       input logic [BAR_DATA_W-1:0] current_value,
@@ -117,14 +127,14 @@ module pcie_endpoint_dma_shell #(
       input logic [BAR_STRB_W-1:0] byte_en
   );
     logic [BAR_DATA_W-1:0] merged_value;
+    int unsigned lane;
 
     merged_value = current_value;
-    for (int unsigned lane = 0; lane < BAR_STRB_W; lane++) begin
+    for (lane = 0; lane < BAR_STRB_W; lane++) begin
       if (byte_en[lane]) begin
         merged_value[lane*8 +: 8] = new_value[lane*8 +: 8];
       end
     end
-
     return merged_value;
   endfunction
 
@@ -143,7 +153,7 @@ module pcie_endpoint_dma_shell #(
         value[pcie_dma_pkg::PCIE_DMA_STATUS_BUSY_BIT]         = (dma_state_r != DMA_IDLE);
         value[pcie_dma_pkg::PCIE_DMA_STATUS_IRQ_PENDING_BIT]  = irq_pending_r;
         value[pcie_dma_pkg::PCIE_DMA_STATUS_ERROR_BIT]        = dma_error_r;
-        value[pcie_dma_pkg::PCIE_DMA_STATUS_SHADOW_VALID_BIT] = (shadow_len_bytes_r != 0);
+        value[pcie_dma_pkg::PCIE_DMA_STATUS_SHADOW_VALID_BIT] = (shadow_len_bytes_r != 32'd0);
         value[31:16]                                          = completed_count_r;
       end
       pcie_dma_pkg::PCIE_DMA_REG_DESC_ADDR_LO: begin
@@ -165,8 +175,8 @@ module pcie_endpoint_dma_shell #(
       end
       pcie_dma_pkg::PCIE_DMA_REG_COMPLETION: begin
         value[DMA_DESC_ID_W-1:0] = last_completed_desc_id_r;
-        value[15:8] = '0;
-        value[31:16] = completed_count_r;
+        value[15:8]              = 8'd0;
+        value[31:16]             = completed_count_r;
       end
       pcie_dma_pkg::PCIE_DMA_REG_COMPLETION_LEN: begin
         value = last_completed_len_r;
@@ -183,14 +193,13 @@ module pcie_endpoint_dma_shell #(
     if (axi_resp == AXI_RESP_OKAY) begin
       return pcie_dma_pkg::PCIE_MMIO_STATUS_SC;
     end
-
     return pcie_dma_pkg::PCIE_MMIO_STATUS_CA;
   endfunction
 
   function automatic logic [7:0] calc_burst_beats(input logic [31:0] remaining_bytes);
     int unsigned beats_needed;
 
-    if (remaining_bytes == 0) begin
+    if (remaining_bytes == 32'd0) begin
       return 8'd0;
     end
 
@@ -204,21 +213,20 @@ module pcie_endpoint_dma_shell #(
 
   function automatic logic [31:0] calc_burst_bytes(input logic [31:0] remaining_bytes);
     logic [7:0] burst_beats;
-
     burst_beats = calc_burst_beats(remaining_bytes);
     return burst_beats * AXI_BEAT_BYTES;
   endfunction
 
   function automatic logic [AXI_STRB_W-1:0] make_axi_strb(input logic [31:0] valid_bytes);
     logic [AXI_STRB_W-1:0] strobe;
+    int unsigned lane;
 
     strobe = '0;
-    for (int unsigned lane = 0; lane < AXI_STRB_W; lane++) begin
+    for (lane = 0; lane < AXI_STRB_W; lane++) begin
       if (lane < valid_bytes) begin
         strobe[lane] = 1'b1;
       end
     end
-
     return strobe;
   endfunction
 
@@ -228,13 +236,13 @@ module pcie_endpoint_dma_shell #(
   );
     logic [AXI_DATA_W-1:0] result;
     logic [7:0] seed_byte;
+    int unsigned lane;
 
     result = '0;
-    for (int unsigned lane = 0; lane < AXI_STRB_W; lane++) begin
+    for (lane = 0; lane < AXI_STRB_W; lane++) begin
       seed_byte = pattern_seed[(lane % 4) * 8 +: 8];
       result[lane*8 +: 8] = seed_byte + byte_offset[7:0] + 8'(lane);
     end
-
     return result;
   endfunction
 
@@ -248,37 +256,56 @@ module pcie_endpoint_dma_shell #(
   assign dma_aw_fire   = m_axi_dma.awvalid && m_axi_dma.awready;
   assign dma_w_fire    = m_axi_dma.wvalid && m_axi_dma.wready;
   assign dma_b_fire    = m_axi_dma.bvalid && m_axi_dma.bready;
+
+  assign host_req_write_data_masked_c =
+      apply_bar_strb({BAR_DATA_W{1'b0}}, host_rc.req_data, host_rc.req_strb);
+
+  assign req_bar0_c          = (host_rc.req_bar == {BAR_W{1'b0}});
+  assign req_status_write_c  = host_rc.req_write &&
+                               (host_rc.req_addr == pcie_dma_pkg::PCIE_DMA_REG_STATUS);
+  assign req_doorbell_write_c = host_rc.req_write &&
+                                (host_rc.req_addr == pcie_dma_pkg::PCIE_DMA_REG_DOORBELL);
+
+  assign status_irq_bit_set_c =
+      host_req_write_data_masked_c[pcie_dma_pkg::PCIE_DMA_STATUS_IRQ_PENDING_BIT];
+
+  assign status_error_bit_set_c =
+      host_req_write_data_masked_c[pcie_dma_pkg::PCIE_DMA_STATUS_ERROR_BIT];
+
+  assign doorbell_bit_set_c = host_req_write_data_masked_c[0];
+
   assign status_clear_irq_c = host_req_fire &&
-                              (host_rc.req_bar == '0) &&
-                              host_rc.req_write &&
-                              (host_rc.req_addr == pcie_dma_pkg::PCIE_DMA_REG_STATUS) &&
-                              apply_bar_strb('0, host_rc.req_data, host_rc.req_strb)[pcie_dma_pkg::PCIE_DMA_STATUS_IRQ_PENDING_BIT];
+                              req_bar0_c &&
+                              req_status_write_c &&
+                              status_irq_bit_set_c;
+
   assign status_clear_error_c = host_req_fire &&
-                                (host_rc.req_bar == '0) &&
-                                host_rc.req_write &&
-                                (host_rc.req_addr == pcie_dma_pkg::PCIE_DMA_REG_STATUS) &&
-                                apply_bar_strb('0, host_rc.req_data, host_rc.req_strb)[pcie_dma_pkg::PCIE_DMA_STATUS_ERROR_BIT];
+                                req_bar0_c &&
+                                req_status_write_c &&
+                                status_error_bit_set_c;
+
   assign doorbell_fire_c = host_req_fire &&
-                           (host_rc.req_bar == '0) &&
-                           host_rc.req_write &&
-                           (host_rc.req_addr == pcie_dma_pkg::PCIE_DMA_REG_DOORBELL) &&
-                           apply_bar_strb('0, host_rc.req_data, host_rc.req_strb)[0];
+                           req_bar0_c &&
+                           req_doorbell_write_c &&
+                           doorbell_bit_set_c;
+
   assign doorbell_start_ok_c = control_enable_r &&
                                (dma_state_r == DMA_IDLE) &&
-                               (shadow_len_bytes_r != 0) &&
+                               (shadow_len_bytes_r != 32'd0) &&
                                !((|shadow_axi_addr_r[63:AXI_ADDR_W]));
+
   assign doorbell_error_c = doorbell_fire_c && !doorbell_start_ok_c;
 
-  assign host_rc.req_ready = rst_ni && (mmio_state_r == MMIO_IDLE) && !host_rsp_valid_r;
-  assign host_rc.rsp_valid = host_rsp_valid_r;
-  assign host_rc.rsp_data  = host_rsp_data_r;
+  assign host_rc.req_ready  = rst_ni && (mmio_state_r == MMIO_IDLE) && !host_rsp_valid_r;
+  assign host_rc.rsp_valid  = host_rsp_valid_r;
+  assign host_rc.rsp_data   = host_rsp_data_r;
   assign host_rc.rsp_status = host_rsp_status_r;
-  assign host_rc.rsp_tag   = host_rsp_tag_r;
+  assign host_rc.rsp_tag    = host_rsp_tag_r;
 
-  assign irq_o = irq_pending_r;
-  assign dma_busy_o = (dma_state_r != DMA_IDLE);
-  assign dma_done_pulse_o = dma_done_pulse_r;
-  assign dma_done_desc_id_o = dma_done_desc_id_r;
+  assign irq_o               = irq_pending_r;
+  assign dma_busy_o          = (dma_state_r != DMA_IDLE);
+  assign dma_done_pulse_o    = dma_done_pulse_r;
+  assign dma_done_desc_id_o  = dma_done_desc_id_r;
 
   always_comb begin
     m_axil_bar0.awaddr  = mmio_axil_addr_r;
@@ -299,13 +326,13 @@ module pcie_endpoint_dma_shell #(
         m_axil_bar0.wvalid  = !mmio_w_sent_r;
       end
       MMIO_AXIL_WRITE_RESP: begin
-        m_axil_bar0.bready  = !host_rsp_valid_r;
+        m_axil_bar0.bready = !host_rsp_valid_r;
       end
       MMIO_AXIL_READ: begin
         m_axil_bar0.arvalid = 1'b1;
       end
       MMIO_AXIL_READ_RESP: begin
-        m_axil_bar0.rready  = !host_rsp_valid_r;
+        m_axil_bar0.rready = !host_rsp_valid_r;
       end
       default: begin
       end
@@ -317,14 +344,14 @@ module pcie_endpoint_dma_shell #(
     logic [31:0] beat_valid_bytes;
 
     m_axi_dma.awaddr  = dma_base_addr_r + AXI_ADDR_W'(dma_bytes_sent_r);
-    m_axi_dma.awlen   = (dma_burst_beats_r != 0) ? (dma_burst_beats_r - 1'b1) : '0;
+    m_axi_dma.awlen   = (dma_burst_beats_r != 8'd0) ? (dma_burst_beats_r - 1'b1) : '0;
     m_axi_dma.awsize  = 3'(AXI_BURST_SIZE);
     m_axi_dma.awburst = 2'b01;
     m_axi_dma.awvalid = 1'b0;
 
     beat_offset = dma_bytes_sent_r;
     if (beat_offset >= dma_total_len_r) begin
-      beat_valid_bytes = '0;
+      beat_valid_bytes = 32'd0;
     end else if ((dma_total_len_r - beat_offset) > AXI_BEAT_BYTES) begin
       beat_valid_bytes = AXI_BEAT_BYTES;
     end else begin
@@ -388,7 +415,7 @@ module pcie_endpoint_dma_shell #(
       end
 
       if (host_req_fire) begin
-        if (host_rc.req_bar != '0) begin
+        if (!req_bar0_c) begin
           host_rsp_valid_r  <= 1'b1;
           host_rsp_data_r   <= '0;
           host_rsp_status_r <= pcie_dma_pkg::PCIE_MMIO_STATUS_UR;
@@ -397,26 +424,34 @@ module pcie_endpoint_dma_shell #(
           if (host_rc.req_write) begin
             unique case (host_rc.req_addr)
               pcie_dma_pkg::PCIE_DMA_REG_CONTROL: begin
-                write_value = apply_bar_strb(read_internal_reg(host_rc.req_addr), host_rc.req_data, host_rc.req_strb);
+                write_value = apply_bar_strb(read_internal_reg(host_rc.req_addr),
+                                             host_rc.req_data,
+                                             host_rc.req_strb);
                 control_enable_r     <= write_value[pcie_dma_pkg::PCIE_DMA_CTRL_ENABLE_BIT];
                 control_irq_enable_r <= write_value[pcie_dma_pkg::PCIE_DMA_CTRL_IRQ_ENABLE_BIT];
               end
               pcie_dma_pkg::PCIE_DMA_REG_STATUS: begin
               end
               pcie_dma_pkg::PCIE_DMA_REG_DESC_ADDR_LO: begin
-                shadow_axi_addr_r[31:0] <= apply_bar_strb(shadow_axi_addr_r[31:0], host_rc.req_data, host_rc.req_strb);
+                shadow_axi_addr_r[31:0] <= apply_bar_strb(
+                    shadow_axi_addr_r[31:0], host_rc.req_data, host_rc.req_strb);
               end
               pcie_dma_pkg::PCIE_DMA_REG_DESC_ADDR_HI: begin
-                shadow_axi_addr_r[63:32] <= apply_bar_strb(shadow_axi_addr_r[63:32], host_rc.req_data, host_rc.req_strb);
+                shadow_axi_addr_r[63:32] <= apply_bar_strb(
+                    shadow_axi_addr_r[63:32], host_rc.req_data, host_rc.req_strb);
               end
               pcie_dma_pkg::PCIE_DMA_REG_DESC_LEN: begin
-                shadow_len_bytes_r <= apply_bar_strb(shadow_len_bytes_r, host_rc.req_data, host_rc.req_strb);
+                shadow_len_bytes_r <= apply_bar_strb(
+                    shadow_len_bytes_r, host_rc.req_data, host_rc.req_strb);
               end
               pcie_dma_pkg::PCIE_DMA_REG_DESC_PATTERN: begin
-                shadow_pattern_seed_r <= apply_bar_strb(shadow_pattern_seed_r, host_rc.req_data, host_rc.req_strb);
+                shadow_pattern_seed_r <= apply_bar_strb(
+                    shadow_pattern_seed_r, host_rc.req_data, host_rc.req_strb);
               end
               pcie_dma_pkg::PCIE_DMA_REG_DESC_META: begin
-                write_value = apply_bar_strb(read_internal_reg(host_rc.req_addr), host_rc.req_data, host_rc.req_strb);
+                write_value = apply_bar_strb(read_internal_reg(host_rc.req_addr),
+                                             host_rc.req_data,
+                                             host_rc.req_strb);
                 shadow_desc_id_r     <= write_value[DMA_DESC_ID_W-1:0];
                 shadow_irq_on_done_r <= write_value[pcie_dma_pkg::PCIE_DMA_DESC_META_IRQ_BIT];
               end
@@ -428,7 +463,8 @@ module pcie_endpoint_dma_shell #(
           end
 
           host_rsp_valid_r  <= 1'b1;
-          host_rsp_data_r   <= host_rc.req_write ? '0 : read_internal_reg(host_rc.req_addr);
+          host_rsp_data_r   <= host_rc.req_write ? {BAR_DATA_W{1'b0}} :
+                                                   read_internal_reg(host_rc.req_addr);
           host_rsp_status_r <= pcie_dma_pkg::PCIE_MMIO_STATUS_SC;
           host_rsp_tag_r    <= host_rc.req_tag;
         end else if (host_rc.req_addr >= BAR0_FORWARD_BASE_C) begin
@@ -439,6 +475,7 @@ module pcie_endpoint_dma_shell #(
           mmio_axil_addr_r <= AXIL_ADDR_W'(host_rc.req_addr - BAR0_FORWARD_BASE_C);
           mmio_aw_sent_r   <= 1'b0;
           mmio_w_sent_r    <= 1'b0;
+
           if (host_rc.req_write) begin
             mmio_state_r <= MMIO_AXIL_WRITE;
           end else begin
@@ -460,10 +497,12 @@ module pcie_endpoint_dma_shell #(
           if (axil_w_fire) begin
             mmio_w_sent_r <= 1'b1;
           end
-          if ((mmio_aw_sent_r || axil_aw_fire) && (mmio_w_sent_r || axil_w_fire)) begin
+          if ((mmio_aw_sent_r || axil_aw_fire) &&
+              (mmio_w_sent_r  || axil_w_fire)) begin
             mmio_state_r <= MMIO_AXIL_WRITE_RESP;
           end
         end
+
         MMIO_AXIL_WRITE_RESP: begin
           if (axil_b_fire) begin
             host_rsp_valid_r  <= 1'b1;
@@ -473,11 +512,13 @@ module pcie_endpoint_dma_shell #(
             mmio_state_r      <= MMIO_IDLE;
           end
         end
+
         MMIO_AXIL_READ: begin
           if (axil_ar_fire) begin
             mmio_state_r <= MMIO_AXIL_READ_RESP;
           end
         end
+
         MMIO_AXIL_READ_RESP: begin
           if (axil_r_fire) begin
             host_rsp_valid_r  <= 1'b1;
@@ -487,6 +528,7 @@ module pcie_endpoint_dma_shell #(
             mmio_state_r      <= MMIO_IDLE;
           end
         end
+
         default: begin
         end
       endcase
@@ -529,35 +571,35 @@ module pcie_endpoint_dma_shell #(
     logic [31:0] bytes_remaining_after_resp;
 
     if (!rst_ni) begin
-      dma_state_r             <= DMA_IDLE;
-      dma_base_addr_r         <= '0;
-      dma_total_len_r         <= '0;
-      dma_pattern_seed_r      <= '0;
-      dma_desc_id_r           <= '0;
-      dma_irq_on_done_r       <= 1'b0;
-      dma_bytes_sent_r        <= '0;
-      dma_burst_beats_r       <= '0;
-      dma_burst_bytes_r       <= '0;
-      dma_beat_index_r        <= '0;
+      dma_state_r              <= DMA_IDLE;
+      dma_base_addr_r          <= '0;
+      dma_total_len_r          <= '0;
+      dma_pattern_seed_r       <= '0;
+      dma_desc_id_r            <= '0;
+      dma_irq_on_done_r        <= 1'b0;
+      dma_bytes_sent_r         <= '0;
+      dma_burst_beats_r        <= '0;
+      dma_burst_bytes_r        <= '0;
+      dma_beat_index_r         <= '0;
       last_completed_desc_id_r <= '0;
-      last_completed_len_r    <= '0;
-      completed_count_r       <= '0;
-      dma_done_pulse_r        <= 1'b0;
-      dma_done_desc_id_r      <= '0;
+      last_completed_len_r     <= '0;
+      completed_count_r        <= '0;
+      dma_done_pulse_r         <= 1'b0;
+      dma_done_desc_id_r       <= '0;
     end else begin
       dma_done_pulse_r <= 1'b0;
 
       if (doorbell_fire_c && doorbell_start_ok_c) begin
-        dma_base_addr_r      <= shadow_axi_addr_r[AXI_ADDR_W-1:0];
-        dma_total_len_r      <= shadow_len_bytes_r;
-        dma_pattern_seed_r   <= shadow_pattern_seed_r;
-        dma_desc_id_r        <= shadow_desc_id_r;
-        dma_irq_on_done_r    <= shadow_irq_on_done_r;
-        dma_bytes_sent_r     <= '0;
-        dma_burst_beats_r    <= calc_burst_beats(shadow_len_bytes_r);
-        dma_burst_bytes_r    <= calc_burst_bytes(shadow_len_bytes_r);
-        dma_beat_index_r     <= '0;
-        dma_state_r          <= DMA_AW;
+        dma_base_addr_r       <= shadow_axi_addr_r[AXI_ADDR_W-1:0];
+        dma_total_len_r       <= shadow_len_bytes_r;
+        dma_pattern_seed_r    <= shadow_pattern_seed_r;
+        dma_desc_id_r         <= shadow_desc_id_r;
+        dma_irq_on_done_r     <= shadow_irq_on_done_r;
+        dma_bytes_sent_r      <= '0;
+        dma_burst_beats_r     <= calc_burst_beats(shadow_len_bytes_r);
+        dma_burst_bytes_r     <= calc_burst_bytes(shadow_len_bytes_r);
+        dma_beat_index_r      <= '0;
+        dma_state_r           <= DMA_AW;
       end else begin
         unique case (dma_state_r)
           DMA_AW: begin
@@ -566,10 +608,11 @@ module pcie_endpoint_dma_shell #(
               dma_state_r      <= DMA_W;
             end
           end
+
           DMA_W: begin
             beat_offset = dma_bytes_sent_r;
             if (beat_offset >= dma_total_len_r) begin
-              beat_bytes = '0;
+              beat_bytes = 32'd0;
             end else if ((dma_total_len_r - beat_offset) > AXI_BEAT_BYTES) begin
               beat_bytes = AXI_BEAT_BYTES;
             end else begin
@@ -585,6 +628,7 @@ module pcie_endpoint_dma_shell #(
               end
             end
           end
+
           DMA_B: begin
             if (dma_b_fire) begin
               bytes_remaining_after_resp = dma_total_len_r - dma_bytes_sent_r;
@@ -603,6 +647,7 @@ module pcie_endpoint_dma_shell #(
               end
             end
           end
+
           default: begin
           end
         endcase

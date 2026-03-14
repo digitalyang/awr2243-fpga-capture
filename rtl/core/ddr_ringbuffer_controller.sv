@@ -1,7 +1,9 @@
 `include "ddr_ringbuffer_macros.svh"
 
-// Buffers fixed-format slots into a DDR-backed ring, tracks committed
-// descriptors, and exposes a read path that replays stored slots over AXIS.
+// XPM-based rewrite:
+// 1) slot buffer uses xpm_memory_sdpram instead of inferred RAM
+// 2) data+keep merged into one memory word
+// 3) added WR_ST_BUF_RD state so AXI W channel consumes registered RAM output
 module ddr_ringbuffer_controller #(
     parameter int unsigned CFG_AXI_ADDR_W = `DDR_RING_AXI_ADDR_W_DFLT,
     parameter int unsigned AXIS_DATA_W = `DDR_RING_AXIS_DATA_W_DFLT,
@@ -31,7 +33,9 @@ module ddr_ringbuffer_controller #(
         ddr_ringbuffer_pkg::max_u(
             RING_SIZE_BYTES_MAX,
             ddr_ringbuffer_pkg::max_u(
-                SLOT_BUFFER_BYTES, SLOT_STRIDE_BYTES)) + 1
+                SLOT_BUFFER_BYTES, SLOT_STRIDE_BYTES
+            )
+        ) + 1
     )
 ) (
     input  logic                                        clk_i,
@@ -91,22 +95,23 @@ module ddr_ringbuffer_controller #(
 
   import ddr_ringbuffer_pkg::*;
 
-  localparam int unsigned AXIS_KEEP_W = AXIS_DATA_W / 8;
-  localparam int unsigned AXIS_BEAT_BYTES = AXIS_DATA_W / 8;
-  localparam int unsigned AXI_ADDR_W = CFG_AXI_ADDR_W;
-  localparam int unsigned AXI_STRB_W = AXI_DATA_W / 8;
-  localparam int unsigned AXI_BEAT_BYTES = AXI_DATA_W / 8;
-  localparam int unsigned RD_AXIS_DATA_W = AXI_DATA_W;
-  localparam int unsigned RD_AXIS_KEEP_W = RD_AXIS_DATA_W / 8;
-  localparam int unsigned RING_BYTES_W = CFG_RING_BYTES_W;
-  localparam int unsigned SLOT_BUF_BEATS = ceil_div_u(SLOT_BUFFER_BYTES, AXIS_BEAT_BYTES);
-  localparam int unsigned SLOT_BUF_IDX_W = clog2_safe(SLOT_BUF_BEATS);
-  localparam int unsigned SLOT_BUF_AW = clog2_safe(SLOT_BUF_BEATS + 1);
-  localparam int unsigned DESC_FIFO_AW = clog2_safe(DESC_FIFO_DEPTH);
-  localparam int unsigned KEEP_CNT_W = clog2_safe(AXIS_KEEP_W + 1);
-  localparam int unsigned MAX_BURST_BYTES = MAX_BURST_LEN * AXI_BEAT_BYTES;
-  localparam int unsigned BURST_LEN_W = clog2_safe(MAX_BURST_LEN + 1);
-  localparam int unsigned AXI_SIZE_C = clog2_safe(AXI_BEAT_BYTES);
+  localparam int unsigned AXIS_KEEP_W       = AXIS_DATA_W / 8;
+  localparam int unsigned AXIS_BEAT_BYTES   = AXIS_DATA_W / 8;
+  localparam int unsigned AXI_ADDR_W        = CFG_AXI_ADDR_W;
+  localparam int unsigned AXI_STRB_W        = AXI_DATA_W / 8;
+  localparam int unsigned AXI_BEAT_BYTES    = AXI_DATA_W / 8;
+  localparam int unsigned RD_AXIS_DATA_W    = AXI_DATA_W;
+  localparam int unsigned RD_AXIS_KEEP_W    = RD_AXIS_DATA_W / 8;
+  localparam int unsigned RING_BYTES_W      = CFG_RING_BYTES_W;
+  localparam int unsigned SLOT_BUF_BEATS    = ceil_div_u(SLOT_BUFFER_BYTES, AXIS_BEAT_BYTES);
+  localparam int unsigned SLOT_BUF_IDX_W    = clog2_safe(SLOT_BUF_BEATS);
+  localparam int unsigned SLOT_BUF_AW       = clog2_safe(SLOT_BUF_BEATS + 1);
+  localparam int unsigned DESC_FIFO_AW      = clog2_safe(DESC_FIFO_DEPTH);
+  localparam int unsigned KEEP_CNT_W        = clog2_safe(AXIS_KEEP_W + 1);
+  localparam int unsigned MAX_BURST_BYTES   = MAX_BURST_LEN * AXI_BEAT_BYTES;
+  localparam int unsigned BURST_LEN_W       = clog2_safe(MAX_BURST_LEN + 1);
+  localparam int unsigned AXI_SIZE_C        = clog2_safe(AXI_BEAT_BYTES);
+  localparam int unsigned SLOT_BUF_WORD_W   = AXIS_DATA_W + AXIS_KEEP_W;
 
   typedef enum logic [3:0] {
     WR_ST_IDLE,
@@ -114,6 +119,7 @@ module ddr_ringbuffer_controller #(
     WR_ST_CHECK_SPACE,
     WR_ST_MAKE_SPACE,
     WR_ST_AW,
+    WR_ST_BUF_RD,
     WR_ST_W,
     WR_ST_WAIT_B,
     WR_ST_COMMIT,
@@ -127,205 +133,147 @@ module ddr_ringbuffer_controller #(
     RD_ST_DONE
   } rd_state_e;
 
-  // The write path always captures a full slot locally before reserving DDR space.
-  logic      [   AXIS_DATA_W-1:0] slot_buf_data_r           [ 0:SLOT_BUF_BEATS-1];
-  logic      [   AXIS_KEEP_W-1:0] slot_buf_keep_r           [ 0:SLOT_BUF_BEATS-1];
+  logic [SLOT_BUF_WORD_W-1:0] slot_buf_rd_word_r;
+  logic [AXIS_DATA_W-1:0]     slot_buf_rd_data_r;
+  logic [AXIS_KEEP_W-1:0]     slot_buf_rd_keep_r;
 
-  // Committed slots are tracked in a compact descriptor FIFO; rd_ptr advances only on consume/overwrite.
-  logic      [    AXI_ADDR_W-1:0] desc_addr_r               [0:DESC_FIFO_DEPTH-1];
-  logic      [  SLOT_BYTES_W-1:0] desc_bytes_r              [0:DESC_FIFO_DEPTH-1];
-  logic      [  SLOT_BYTES_W-1:0] desc_alloc_bytes_r        [0:DESC_FIFO_DEPTH-1];
-  logic      [    SLOT_SEQ_W-1:0] desc_seq_r                [0:DESC_FIFO_DEPTH-1];
-  logic                           desc_valid_good_r         [0:DESC_FIFO_DEPTH-1];
-  logic                           desc_overflow_err_r       [0:DESC_FIFO_DEPTH-1];
+  logic [SLOT_BUF_IDX_W-1:0] slot_buf_rd_addr_r;
+  logic [SLOT_BUF_IDX_W-1:0] slot_buf_rd_addr_n;
+  logic                      slot_buf_rd_pending_r;
+  logic                      slot_buf_rd_pending_n;
+  logic                      slot_buf_rd_valid_r;
 
-  wr_state_e                      wr_state_r;
-  wr_state_e                      wr_state_n;
-  rd_state_e                      rd_state_r;
-  rd_state_e                      rd_state_n;
+  logic      [AXI_ADDR_W-1:0]   desc_addr_r          [0:DESC_FIFO_DEPTH-1];
+  logic      [SLOT_BYTES_W-1:0] desc_bytes_r         [0:DESC_FIFO_DEPTH-1];
+  logic      [SLOT_BYTES_W-1:0] desc_alloc_bytes_r   [0:DESC_FIFO_DEPTH-1];
+  logic      [SLOT_SEQ_W-1:0]   desc_seq_r           [0:DESC_FIFO_DEPTH-1];
+  logic                         desc_valid_good_r    [0:DESC_FIFO_DEPTH-1];
+  logic                         desc_overflow_err_r  [0:DESC_FIFO_DEPTH-1];
 
-  logic      [    AXI_ADDR_W-1:0] wr_ptr_r;
-  logic      [    AXI_ADDR_W-1:0] wr_ptr_n;
-  logic      [    AXI_ADDR_W-1:0] rd_ptr_r;
-  logic      [    AXI_ADDR_W-1:0] rd_ptr_n;
-  logic      [    AXI_ADDR_W-1:0] commit_ptr_r;
-  logic      [    AXI_ADDR_W-1:0] commit_ptr_n;
-  logic      [  RING_BYTES_W-1:0] used_alloc_bytes_r;
-  logic      [  RING_BYTES_W-1:0] used_alloc_bytes_n;
-  logic      [  RING_BYTES_W-1:0] committed_alloc_bytes_r;
-  logic      [  RING_BYTES_W-1:0] committed_alloc_bytes_n;
-  logic      [     COUNTER_W-1:0] wrap_count_r;
-  logic      [     COUNTER_W-1:0] wrap_count_n;
-  logic      [     COUNTER_W-1:0] overflow_count_r;
-  logic      [     COUNTER_W-1:0] overflow_count_n;
-  logic      [     COUNTER_W-1:0] drop_count_r;
-  logic      [     COUNTER_W-1:0] drop_count_n;
+  wr_state_e                    wr_state_r, wr_state_n;
+  rd_state_e                    rd_state_r, rd_state_n;
 
-  logic      [  DESC_FIFO_AW-1:0] desc_head_ptr_r;
-  logic      [  DESC_FIFO_AW-1:0] desc_head_ptr_n;
-  logic      [  DESC_FIFO_AW-1:0] desc_tail_ptr_r;
-  logic      [  DESC_FIFO_AW-1:0] desc_tail_ptr_n;
-  logic      [    DESC_FIFO_AW:0] desc_count_r;
-  logic      [    DESC_FIFO_AW:0] desc_count_n;
+  logic      [AXI_ADDR_W-1:0]   wr_ptr_r, wr_ptr_n;
+  logic      [AXI_ADDR_W-1:0]   rd_ptr_r, rd_ptr_n;
+  logic      [AXI_ADDR_W-1:0]   commit_ptr_r, commit_ptr_n;
+  logic      [RING_BYTES_W-1:0] used_alloc_bytes_r, used_alloc_bytes_n;
+  logic      [RING_BYTES_W-1:0] committed_alloc_bytes_r, committed_alloc_bytes_n;
+  logic      [COUNTER_W-1:0]    wrap_count_r, wrap_count_n;
+  logic      [COUNTER_W-1:0]    overflow_count_r, overflow_count_n;
+  logic      [COUNTER_W-1:0]    drop_count_r, drop_count_n;
 
-  logic      [   SLOT_BUF_AW-1:0] cap_beat_count_r;
-  logic      [   SLOT_BUF_AW-1:0] cap_beat_count_n;
-  logic      [  SLOT_BYTES_W-1:0] cap_actual_bytes_r;
-  logic      [  SLOT_BYTES_W-1:0] cap_actual_bytes_n;
-  logic      [  SLOT_BYTES_W-1:0] cap_effective_bytes_r;
-  logic      [  SLOT_BYTES_W-1:0] cap_effective_bytes_n;
-  logic      [  SLOT_BYTES_W-1:0] cap_alloc_bytes_r;
-  logic      [  SLOT_BYTES_W-1:0] cap_alloc_bytes_n;
-  logic      [    SLOT_SEQ_W-1:0] cap_slot_seq_r;
-  logic      [    SLOT_SEQ_W-1:0] cap_slot_seq_n;
-  logic                           cap_slot_valid_good_r;
-  logic                           cap_slot_valid_good_n;
-  logic                           cap_slot_overflow_err_r;
-  logic                           cap_slot_overflow_err_n;
-  logic                           cap_proto_err_r;
-  logic                           cap_proto_err_n;
-  logic                           cap_too_large_r;
-  logic                           cap_too_large_n;
-  logic                           cap_size_mismatch_r;
-  logic                           cap_size_mismatch_n;
-  logic      [    AXI_ADDR_W-1:0] cap_slot_addr_r;
-  logic      [    AXI_ADDR_W-1:0] cap_slot_addr_n;
-  logic      [    AXI_ADDR_W-1:0] cap_next_wr_ptr_r;
-  logic      [    AXI_ADDR_W-1:0] cap_next_wr_ptr_n;
-  logic      [  SLOT_BYTES_W-1:0] cap_first_seg_bytes_r;
-  logic      [  SLOT_BYTES_W-1:0] cap_first_seg_bytes_n;
-  logic      [  SLOT_BYTES_W-1:0] cap_second_seg_bytes_r;
-  logic      [  SLOT_BYTES_W-1:0] cap_second_seg_bytes_n;
-  logic                           cap_wrap_r;
-  logic                           cap_wrap_n;
+  logic      [DESC_FIFO_AW-1:0] desc_head_ptr_r, desc_head_ptr_n;
+  logic      [DESC_FIFO_AW-1:0] desc_tail_ptr_r, desc_tail_ptr_n;
+  logic      [DESC_FIFO_AW:0]   desc_count_r, desc_count_n;
 
-  logic      [               1:0] wr_seg_idx_r;
-  logic      [               1:0] wr_seg_idx_n;
-  logic      [    AXI_ADDR_W-1:0] wr_seg_addr_r;
-  logic      [    AXI_ADDR_W-1:0] wr_seg_addr_n;
-  logic      [  SLOT_BYTES_W-1:0] wr_seg_bytes_rem_r;
-  logic      [  SLOT_BYTES_W-1:0] wr_seg_bytes_rem_n;
-  logic      [SLOT_BUF_IDX_W-1:0] wr_buf_beat_idx_r;
-  logic      [SLOT_BUF_IDX_W-1:0] wr_buf_beat_idx_n;
-  logic      [   BURST_LEN_W-1:0] wr_burst_beats_r;
-  logic      [   BURST_LEN_W-1:0] wr_burst_beats_n;
-  logic      [  SLOT_BYTES_W-1:0] wr_burst_bytes_r;
-  logic      [  SLOT_BYTES_W-1:0] wr_burst_bytes_n;
-  logic      [   BURST_LEN_W-1:0] wr_burst_beat_sent_r;
-  logic      [   BURST_LEN_W-1:0] wr_burst_beat_sent_n;
+  logic      [SLOT_BUF_AW-1:0]  cap_beat_count_r, cap_beat_count_n;
+  logic      [SLOT_BYTES_W-1:0] cap_actual_bytes_r, cap_actual_bytes_n;
+  logic      [SLOT_BYTES_W-1:0] cap_effective_bytes_r, cap_effective_bytes_n;
+  logic      [SLOT_BYTES_W-1:0] cap_alloc_bytes_r, cap_alloc_bytes_n;
+  logic      [SLOT_SEQ_W-1:0]   cap_slot_seq_r, cap_slot_seq_n;
+  logic                         cap_slot_valid_good_r, cap_slot_valid_good_n;
+  logic                         cap_slot_overflow_err_r, cap_slot_overflow_err_n;
+  logic                         cap_proto_err_r, cap_proto_err_n;
+  logic                         cap_too_large_r, cap_too_large_n;
+  logic                         cap_size_mismatch_r, cap_size_mismatch_n;
+  logic      [AXI_ADDR_W-1:0]   cap_slot_addr_r, cap_slot_addr_n;
+  logic      [AXI_ADDR_W-1:0]   cap_next_wr_ptr_r, cap_next_wr_ptr_n;
+  logic      [SLOT_BYTES_W-1:0] cap_first_seg_bytes_r, cap_first_seg_bytes_n;
+  logic      [SLOT_BYTES_W-1:0] cap_second_seg_bytes_r, cap_second_seg_bytes_n;
+  logic                         cap_wrap_r, cap_wrap_n;
 
-  logic      [    AXI_ADDR_W-1:0] rd_slot_addr_r;
-  logic      [    AXI_ADDR_W-1:0] rd_slot_addr_n;
-  logic      [  SLOT_BYTES_W-1:0] rd_slot_bytes_r;
-  logic      [  SLOT_BYTES_W-1:0] rd_slot_bytes_n;
-  logic      [  SLOT_BYTES_W-1:0] rd_slot_alloc_bytes_r;
-  logic      [  SLOT_BYTES_W-1:0] rd_slot_alloc_bytes_n;
-  logic      [    SLOT_SEQ_W-1:0] rd_slot_seq_r;
-  logic      [    SLOT_SEQ_W-1:0] rd_slot_seq_n;
-  logic                           rd_slot_valid_good_meta_r;
-  logic                           rd_slot_valid_good_meta_n;
-  logic                           rd_slot_overflow_meta_r;
-  logic                           rd_slot_overflow_meta_n;
-  logic      [  SLOT_BYTES_W-1:0] rd_first_seg_bytes_r;
-  logic      [  SLOT_BYTES_W-1:0] rd_first_seg_bytes_n;
-  logic      [  SLOT_BYTES_W-1:0] rd_second_seg_bytes_r;
-  logic      [  SLOT_BYTES_W-1:0] rd_second_seg_bytes_n;
-  logic      [               1:0] rd_seg_idx_r;
-  logic      [               1:0] rd_seg_idx_n;
-  logic      [    AXI_ADDR_W-1:0] rd_seg_addr_r;
-  logic      [    AXI_ADDR_W-1:0] rd_seg_addr_n;
-  logic      [  SLOT_BYTES_W-1:0] rd_seg_bytes_rem_r;
-  logic      [  SLOT_BYTES_W-1:0] rd_seg_bytes_rem_n;
-  logic      [  SLOT_BYTES_W-1:0] rd_total_bytes_rem_r;
-  logic      [  SLOT_BYTES_W-1:0] rd_total_bytes_rem_n;
-  logic      [   BURST_LEN_W-1:0] rd_burst_beats_r;
-  logic      [   BURST_LEN_W-1:0] rd_burst_beats_n;
-  logic      [  SLOT_BYTES_W-1:0] rd_burst_bytes_r;
-  logic      [  SLOT_BYTES_W-1:0] rd_burst_bytes_n;
-  logic      [   BURST_LEN_W-1:0] rd_burst_beats_rcvd_r;
-  logic      [   BURST_LEN_W-1:0] rd_burst_beats_rcvd_n;
-  logic                           rd_first_beat_pending_r;
-  logic                           rd_first_beat_pending_n;
+  logic      [1:0]              wr_seg_idx_r, wr_seg_idx_n;
+  logic      [AXI_ADDR_W-1:0]   wr_seg_addr_r, wr_seg_addr_n;
+  logic      [SLOT_BYTES_W-1:0] wr_seg_bytes_rem_r, wr_seg_bytes_rem_n;
+  logic      [SLOT_BUF_IDX_W-1:0] wr_buf_beat_idx_r, wr_buf_beat_idx_n;
+  logic      [BURST_LEN_W-1:0]  wr_burst_beats_r, wr_burst_beats_n;
+  logic      [SLOT_BYTES_W-1:0] wr_burst_bytes_r, wr_burst_bytes_n;
+  logic      [BURST_LEN_W-1:0]  wr_burst_beat_sent_r, wr_burst_beat_sent_n;
 
-  logic      [RD_AXIS_DATA_W-1:0] rd_axis_data_r;
-  logic      [RD_AXIS_DATA_W-1:0] rd_axis_data_n;
-  logic      [RD_AXIS_KEEP_W-1:0] rd_axis_keep_r;
-  logic      [RD_AXIS_KEEP_W-1:0] rd_axis_keep_n;
-  logic      [RD_AXIS_USER_W-1:0] rd_axis_user_r;
-  logic      [RD_AXIS_USER_W-1:0] rd_axis_user_n;
-  logic                           rd_axis_last_r;
-  logic                           rd_axis_last_n;
-  logic                           rd_axis_valid_r;
-  logic                           rd_axis_valid_n;
+  logic      [AXI_ADDR_W-1:0]   rd_slot_addr_r, rd_slot_addr_n;
+  logic      [SLOT_BYTES_W-1:0] rd_slot_bytes_r, rd_slot_bytes_n;
+  logic      [SLOT_BYTES_W-1:0] rd_slot_alloc_bytes_r, rd_slot_alloc_bytes_n;
+  logic      [SLOT_SEQ_W-1:0]   rd_slot_seq_r, rd_slot_seq_n;
+  logic                         rd_slot_valid_good_meta_r, rd_slot_valid_good_meta_n;
+  logic                         rd_slot_overflow_meta_r, rd_slot_overflow_meta_n;
+  logic      [SLOT_BYTES_W-1:0] rd_first_seg_bytes_r, rd_first_seg_bytes_n;
+  logic      [SLOT_BYTES_W-1:0] rd_second_seg_bytes_r, rd_second_seg_bytes_n;
+  logic      [1:0]              rd_seg_idx_r, rd_seg_idx_n;
+  logic      [AXI_ADDR_W-1:0]   rd_seg_addr_r, rd_seg_addr_n;
+  logic      [SLOT_BYTES_W-1:0] rd_seg_bytes_rem_r, rd_seg_bytes_rem_n;
+  logic      [SLOT_BYTES_W-1:0] rd_total_bytes_rem_r, rd_total_bytes_rem_n;
+  logic      [BURST_LEN_W-1:0]  rd_burst_beats_r, rd_burst_beats_n;
+  logic      [SLOT_BYTES_W-1:0] rd_burst_bytes_r, rd_burst_bytes_n;
+  logic      [BURST_LEN_W-1:0]  rd_burst_beats_rcvd_r, rd_burst_beats_rcvd_n;
+  logic                         rd_first_beat_pending_r, rd_first_beat_pending_n;
 
-  logic                           err_cfg_align_r;
-  logic                           err_cfg_align_n;
-  logic                           err_no_space_r;
-  logic                           err_no_space_n;
-  logic                           err_slot_proto_r;
-  logic                           err_slot_proto_n;
-  logic                           err_slot_too_large_r;
-  logic                           err_slot_too_large_n;
-  logic                           err_axi_wr_resp_r;
-  logic                           err_axi_wr_resp_n;
-  logic                           err_axi_rd_resp_r;
-  logic                           err_axi_rd_resp_n;
-  logic                           err_illegal_read_r;
-  logic                           err_illegal_read_n;
+  logic      [RD_AXIS_DATA_W-1:0] rd_axis_data_r, rd_axis_data_n;
+  logic      [RD_AXIS_KEEP_W-1:0] rd_axis_keep_r, rd_axis_keep_n;
+  logic      [RD_AXIS_USER_W-1:0] rd_axis_user_r, rd_axis_user_n;
+  logic                           rd_axis_last_r, rd_axis_last_n;
+  logic                           rd_axis_valid_r, rd_axis_valid_n;
 
-  logic      [  RING_BYTES_W-1:0] free_bytes_c;
-  logic                           cfg_ring_ok_c;
-  logic                           desc_fifo_full_c;
-  logic                           desc_fifo_empty_c;
-  logic                           slot_invalid_c;
-  logic                           slot_can_fit_c;
-  logic                           slot_drop_now_c;
-  logic      [  SLOT_BYTES_W-1:0] bytes_to_end_c;
-  logic      [  SLOT_BYTES_W-1:0] first_seg_bytes_c;
-  logic      [  SLOT_BYTES_W-1:0] second_seg_bytes_c;
-  logic      [    AXI_ADDR_W-1:0] next_wr_ptr_c;
-  logic                           next_wr_wrap_c;
+  logic                           err_cfg_align_r, err_cfg_align_n;
+  logic                           err_no_space_r, err_no_space_n;
+  logic                           err_slot_proto_r, err_slot_proto_n;
+  logic                           err_slot_too_large_r, err_slot_too_large_n;
+  logic                           err_axi_wr_resp_r, err_axi_wr_resp_n;
+  logic                           err_axi_rd_resp_r, err_axi_rd_resp_n;
+  logic                           err_illegal_read_r, err_illegal_read_n;
 
-  logic      [    KEEP_CNT_W-1:0] s_axis_keep_bytes_c;
-  logic                           s_axis_ready_c;
-  logic                           rd_axis_fire_c;
-  logic                           axi_rready_c;
+  logic      [RING_BYTES_W-1:0] free_bytes_c;
+  logic                         cfg_ring_ok_c;
+  logic                         desc_fifo_full_c;
+  logic                         desc_fifo_empty_c;
+  logic                         slot_invalid_c;
+  logic                         slot_can_fit_c;
+  logic                         slot_drop_now_c;
+  logic      [SLOT_BYTES_W-1:0] bytes_to_end_c;
+  logic      [SLOT_BYTES_W-1:0] first_seg_bytes_c;
+  logic      [SLOT_BYTES_W-1:0] second_seg_bytes_c;
+  logic      [AXI_ADDR_W-1:0]   next_wr_ptr_c;
+  logic                         next_wr_wrap_c;
 
-  logic                           slot_buf_wr_en_c;
+  logic      [KEEP_CNT_W-1:0]   s_axis_keep_bytes_c;
+  logic                         s_axis_ready_c;
+  logic                         rd_axis_fire_c;
+  logic                         axi_rready_c;
+
+  logic                         slot_buf_wr_en_c;
   logic      [SLOT_BUF_IDX_W-1:0] slot_buf_wr_idx_c;
-  logic      [   AXIS_DATA_W-1:0] slot_buf_wr_data_c;
-  logic      [   AXIS_KEEP_W-1:0] slot_buf_wr_keep_c;
+  logic      [AXIS_DATA_W-1:0]  slot_buf_wr_data_c;
+  logic      [AXIS_KEEP_W-1:0]  slot_buf_wr_keep_c;
 
-  logic                           desc_push_c;
-  logic      [  DESC_FIFO_AW-1:0] desc_push_idx_c;
+  logic                         desc_push_c;
+  logic      [DESC_FIFO_AW-1:0] desc_push_idx_c;
 
-  logic      [    AXI_ADDR_W-1:0] desc_head_addr_c;
-  logic      [  SLOT_BYTES_W-1:0] desc_head_bytes_c;
-  logic      [  SLOT_BYTES_W-1:0] desc_head_alloc_bytes_c;
-  logic      [    SLOT_SEQ_W-1:0] desc_head_seq_c;
-  logic                           desc_head_valid_good_c;
-  logic                           desc_head_overflow_err_c;
+  logic      [AXI_ADDR_W-1:0]   desc_head_addr_c;
+  logic      [SLOT_BYTES_W-1:0] desc_head_bytes_c;
+  logic      [SLOT_BYTES_W-1:0] desc_head_alloc_bytes_c;
+  logic      [SLOT_SEQ_W-1:0]   desc_head_seq_c;
+  logic                         desc_head_valid_good_c;
+  logic                         desc_head_overflow_err_c;
 
-  logic      [  SLOT_BYTES_W-1:0] wr_cur_burst_bytes_c;
-  logic      [   BURST_LEN_W-1:0] wr_cur_burst_beats_c;
-  logic      [    AXI_DATA_W-1:0] wr_wdata_c;
-  logic      [    AXI_STRB_W-1:0] wr_wstrb_c;
-  logic                           wr_wlast_c;
+  logic      [SLOT_BYTES_W-1:0] wr_cur_burst_bytes_c;
+  logic      [BURST_LEN_W-1:0]  wr_cur_burst_beats_c;
+  logic      [AXI_DATA_W-1:0]   wr_wdata_c;
+  logic      [AXI_STRB_W-1:0]   wr_wstrb_c;
+  logic                         wr_wlast_c;
 
-  logic      [  SLOT_BYTES_W-1:0] rd_cur_burst_bytes_c;
-  logic      [   BURST_LEN_W-1:0] rd_cur_burst_beats_c;
-  logic      [  SLOT_BYTES_W-1:0] slot_effective_bytes_in_c;
-  logic      [  SLOT_BYTES_W-1:0] slot_alloc_bytes_in_c;
+  logic      [SLOT_BYTES_W-1:0] rd_cur_burst_bytes_c;
+  logic      [BURST_LEN_W-1:0]  rd_cur_burst_beats_c;
+  logic      [SLOT_BYTES_W-1:0] slot_effective_bytes_in_c;
+  logic      [SLOT_BYTES_W-1:0] slot_alloc_bytes_in_c;
 
-  logic                           wr_commit_pulse_c;
-  logic                           rd_done_pulse_c;
-  logic                           rd_error_pulse_c;
+  logic                         wr_commit_pulse_c;
+  logic                         rd_done_pulse_c;
+  logic                         rd_error_pulse_c;
 
-  integer                         wr_lane_idx;
+  integer                       wr_lane_idx;
 
   function automatic logic [KEEP_CNT_W-1:0] count_keep_bytes(input logic [AXIS_KEEP_W-1:0] keep);
-    logic        [KEEP_CNT_W-1:0] sum_c;
-    int unsigned                  idx;
+    logic [KEEP_CNT_W-1:0] sum_c;
+    int unsigned idx;
     begin
       sum_c = '0;
       for (idx = 0; idx < AXIS_KEEP_W; idx++) begin
@@ -336,9 +284,10 @@ module ddr_ringbuffer_controller #(
   endfunction
 
   function automatic logic [AXI_STRB_W-1:0] keep_mask_from_bytes(
-      input logic [SLOT_BYTES_W-1:0] byte_count);
-    logic        [AXI_STRB_W-1:0] mask_c;
-    int unsigned                  idx;
+      input logic [SLOT_BYTES_W-1:0] byte_count
+  );
+    logic [AXI_STRB_W-1:0] mask_c;
+    int unsigned idx;
     begin
       mask_c = '0;
       for (idx = 0; idx < AXI_STRB_W; idx++) begin
@@ -354,13 +303,14 @@ module ddr_ringbuffer_controller #(
     if (ptr == DESC_FIFO_AW'(DESC_FIFO_DEPTH - 1)) begin
       return '0;
     end
-
     return ptr + DESC_FIFO_AW'(1);
   endfunction
 
   function automatic logic [SLOT_BYTES_W-1:0] bytes_to_ring_end(
-      input logic [AXI_ADDR_W-1:0] base_addr, input logic [RING_BYTES_W-1:0] ring_size_bytes,
-      input logic [AXI_ADDR_W-1:0] curr_addr);
+      input logic [AXI_ADDR_W-1:0]   base_addr,
+      input logic [RING_BYTES_W-1:0] ring_size_bytes,
+      input logic [AXI_ADDR_W-1:0]   curr_addr
+  );
     logic [AXI_ADDR_W-1:0] ring_end_addr;
     begin
       ring_end_addr = base_addr + AXI_ADDR_W'(ring_size_bytes);
@@ -369,9 +319,12 @@ module ddr_ringbuffer_controller #(
   endfunction
 
   function automatic logic [AXI_ADDR_W-1:0] ring_addr_add(
-      input logic [AXI_ADDR_W-1:0] base_addr, input logic [RING_BYTES_W-1:0] ring_size_bytes,
-      input logic [AXI_ADDR_W-1:0] curr_addr, input logic [SLOT_BYTES_W-1:0] advance_bytes);
-    logic [  AXI_ADDR_W-1:0] ring_end_addr;
+      input logic [AXI_ADDR_W-1:0]   base_addr,
+      input logic [RING_BYTES_W-1:0] ring_size_bytes,
+      input logic [AXI_ADDR_W-1:0]   curr_addr,
+      input logic [SLOT_BYTES_W-1:0] advance_bytes
+  );
+    logic [AXI_ADDR_W-1:0]   ring_end_addr;
     logic [SLOT_BYTES_W-1:0] to_end_bytes;
     begin
       ring_end_addr = base_addr + AXI_ADDR_W'(ring_size_bytes);
@@ -382,107 +335,147 @@ module ddr_ringbuffer_controller #(
       end else if (advance_bytes == to_end_bytes) begin
         return base_addr;
       end
-
       return base_addr + AXI_ADDR_W'(advance_bytes - to_end_bytes);
     end
   endfunction
 
-  assign s_axis_keep_bytes_c = count_keep_bytes(s_axis_slot.tkeep);
+  assign s_axis_keep_bytes_c       = count_keep_bytes(s_axis_slot.tkeep);
   assign slot_effective_bytes_in_c = SLOT_FIXED_EN ? SLOT_BYTES_W'(SLOT_STRIDE_BYTES) : slot_bytes_i;
-  assign slot_alloc_bytes_in_c = SLOT_BYTES_W'(align_up_u(
-      slot_effective_bytes_in_c, ADDR_ALIGN_BYTES
-  ));
-  assign free_bytes_c = RING_BYTES_W'(cfg_ring_size_bytes_i - used_alloc_bytes_r);
-  assign desc_fifo_full_c = (desc_count_r == (DESC_FIFO_AW + 1)'(DESC_FIFO_DEPTH));
-  assign desc_fifo_empty_c = (desc_count_r == '0);
+  assign slot_alloc_bytes_in_c     = SLOT_BYTES_W'(align_up_u(slot_effective_bytes_in_c, ADDR_ALIGN_BYTES));
+  assign free_bytes_c              = RING_BYTES_W'(cfg_ring_size_bytes_i - used_alloc_bytes_r);
+  assign desc_fifo_full_c          = (desc_count_r == (DESC_FIFO_AW + 1)'(DESC_FIFO_DEPTH));
+  assign desc_fifo_empty_c         = (desc_count_r == '0);
 
-  assign desc_head_addr_c = desc_fifo_empty_c ? '0 : desc_addr_r[desc_head_ptr_r];
-  assign desc_head_bytes_c = desc_fifo_empty_c ? '0 : desc_bytes_r[desc_head_ptr_r];
-  assign desc_head_alloc_bytes_c = desc_fifo_empty_c ? '0 : desc_alloc_bytes_r[desc_head_ptr_r];
-  assign desc_head_seq_c = desc_fifo_empty_c ? '0 : desc_seq_r[desc_head_ptr_r];
-  assign desc_head_valid_good_c = desc_fifo_empty_c ? 1'b0 : desc_valid_good_r[desc_head_ptr_r];
-  assign desc_head_overflow_err_c = desc_fifo_empty_c ? 1'b0 : desc_overflow_err_r[desc_head_ptr_r];
+  assign desc_head_addr_c          = desc_fifo_empty_c ? '0 : desc_addr_r[desc_head_ptr_r];
+  assign desc_head_bytes_c         = desc_fifo_empty_c ? '0 : desc_bytes_r[desc_head_ptr_r];
+  assign desc_head_alloc_bytes_c   = desc_fifo_empty_c ? '0 : desc_alloc_bytes_r[desc_head_ptr_r];
+  assign desc_head_seq_c           = desc_fifo_empty_c ? '0 : desc_seq_r[desc_head_ptr_r];
+  assign desc_head_valid_good_c    = desc_fifo_empty_c ? 1'b0 : desc_valid_good_r[desc_head_ptr_r];
+  assign desc_head_overflow_err_c  = desc_fifo_empty_c ? 1'b0 : desc_overflow_err_r[desc_head_ptr_r];
 
   assign slot_invalid_c = !cap_slot_valid_good_r ||
-                            cap_slot_overflow_err_r ||
-                            cap_proto_err_r ||
-                            cap_too_large_r ||
-                            cap_size_mismatch_r;
+                          cap_slot_overflow_err_r ||
+                          cap_proto_err_r ||
+                          cap_too_large_r ||
+                          cap_size_mismatch_r;
 
-  // first/second segment calculations are based on the effective slot bytes,
-  // while pointer reservation uses aligned alloc bytes for beat-aligned ring starts.
-  assign bytes_to_end_c = bytes_to_ring_end(cfg_ring_base_addr_i, cfg_ring_size_bytes_i, wr_ptr_r);
-  assign first_seg_bytes_c = (cap_effective_bytes_r <= bytes_to_end_c) ? cap_effective_bytes_r : bytes_to_end_c;
+  assign bytes_to_end_c     = bytes_to_ring_end(cfg_ring_base_addr_i, cfg_ring_size_bytes_i, wr_ptr_r);
+  assign first_seg_bytes_c  = (cap_effective_bytes_r <= bytes_to_end_c) ? cap_effective_bytes_r : bytes_to_end_c;
   assign second_seg_bytes_c = cap_effective_bytes_r - first_seg_bytes_c;
-  assign next_wr_ptr_c = ring_addr_add(
+  assign next_wr_ptr_c      = ring_addr_add(
       cfg_ring_base_addr_i, cfg_ring_size_bytes_i, wr_ptr_r, cap_alloc_bytes_r
   );
-  assign next_wr_wrap_c = (cap_alloc_bytes_r >= bytes_to_end_c);
-  assign slot_can_fit_c = (cap_alloc_bytes_r <= free_bytes_c) && !desc_fifo_full_c;
-  assign slot_drop_now_c = slot_invalid_c && cfg_drop_invalid_slot_i;
+  assign next_wr_wrap_c     = (cap_alloc_bytes_r >= bytes_to_end_c);
+  assign slot_can_fit_c     = (cap_alloc_bytes_r <= free_bytes_c) && !desc_fifo_full_c;
+  assign slot_drop_now_c    = slot_invalid_c && cfg_drop_invalid_slot_i;
 
-  assign rd_slot_valid_o = !desc_fifo_empty_c;
-  assign rd_slot_addr_o = desc_head_addr_c;
-  assign rd_slot_bytes_o = desc_head_bytes_c;
-  assign rd_slot_seq_o = desc_head_seq_c;
-  assign rd_slot_valid_good_o = desc_head_valid_good_c;
+  assign rd_slot_valid_o        = !desc_fifo_empty_c;
+  assign rd_slot_addr_o         = desc_head_addr_c;
+  assign rd_slot_bytes_o        = desc_head_bytes_c;
+  assign rd_slot_seq_o          = desc_head_seq_c;
+  assign rd_slot_valid_good_o   = desc_head_valid_good_c;
   assign rd_slot_overflow_err_o = desc_head_overflow_err_c;
-  assign rd_busy_o = (rd_state_r != RD_ST_IDLE) || rd_axis_valid_r;
+  assign rd_busy_o              = (rd_state_r != RD_ST_IDLE) || rd_axis_valid_r;
 
-  assign wr_ptr_o = wr_ptr_r;
-  assign rd_ptr_o = rd_ptr_r;
-  assign commit_ptr_o = commit_ptr_r;
-  assign used_bytes_o = used_alloc_bytes_r;
-  assign free_bytes_o = free_bytes_c;
+  assign wr_ptr_o          = wr_ptr_r;
+  assign rd_ptr_o          = rd_ptr_r;
+  assign commit_ptr_o      = commit_ptr_r;
+  assign used_bytes_o      = used_alloc_bytes_r;
+  assign free_bytes_o      = free_bytes_c;
   assign committed_bytes_o = committed_alloc_bytes_r;
-  assign full_o = (free_bytes_c == '0) || desc_fifo_full_c;
+  assign full_o            = (free_bytes_c == '0) || desc_fifo_full_c;
   assign almost_full_o     = (free_bytes_c <= RING_BYTES_W'(ALMOST_FULL_MARGIN_BYTES)) || desc_fifo_full_c;
-  assign empty_o = (committed_alloc_bytes_r == '0);
-  assign wrap_count_o = wrap_count_r;
-  assign overflow_count_o = overflow_count_r;
-  assign drop_count_o = drop_count_r;
+  assign empty_o           = (committed_alloc_bytes_r == '0);
+  assign wrap_count_o      = wrap_count_r;
+  assign overflow_count_o  = overflow_count_r;
+  assign drop_count_o      = drop_count_r;
 
-  assign err_cfg_align_o = err_cfg_align_r;
-  assign err_no_space_o = err_no_space_r;
-  assign err_slot_proto_o = err_slot_proto_r;
+  assign err_cfg_align_o      = err_cfg_align_r;
+  assign err_no_space_o       = err_no_space_r;
+  assign err_slot_proto_o     = err_slot_proto_r;
   assign err_slot_too_large_o = err_slot_too_large_r;
-  assign err_axi_wr_resp_o = err_axi_wr_resp_r;
-  assign err_axi_rd_resp_o = err_axi_rd_resp_r;
-  assign err_illegal_read_o = err_illegal_read_r;
+  assign err_axi_wr_resp_o    = err_axi_wr_resp_r;
+  assign err_axi_rd_resp_o    = err_axi_rd_resp_r;
+  assign err_illegal_read_o   = err_illegal_read_r;
 
-  assign m_axis_rd.tdata = rd_axis_data_r;
-  assign m_axis_rd.tkeep = rd_axis_keep_r;
+  assign m_axis_rd.tdata  = rd_axis_data_r;
+  assign m_axis_rd.tkeep  = rd_axis_keep_r;
   assign m_axis_rd.tvalid = rd_axis_valid_r;
-  assign m_axis_rd.tlast = rd_axis_last_r;
-  assign m_axis_rd.tuser = rd_axis_user_r;
+  assign m_axis_rd.tlast  = rd_axis_last_r;
+  assign m_axis_rd.tuser  = rd_axis_user_r;
 
   assign s_axis_slot.tready = s_axis_ready_c;
-  assign rd_axis_fire_c = rd_axis_valid_r && m_axis_rd.tready;
+  assign rd_axis_fire_c     = rd_axis_valid_r && m_axis_rd.tready;
 
-  // Ring configuration is only considered valid when both base and size obey
-  // the controller's address-alignment rules.
+  assign slot_buf_rd_keep_r = slot_buf_rd_word_r[SLOT_BUF_WORD_W-1 -: AXIS_KEEP_W];
+  assign slot_buf_rd_data_r = slot_buf_rd_word_r[AXIS_DATA_W-1:0];
+
+  // XPM SDP RAM for slot capture buffer
+  xpm_memory_sdpram #(
+      .ADDR_WIDTH_A             (SLOT_BUF_IDX_W),
+      .ADDR_WIDTH_B             (SLOT_BUF_IDX_W),
+      .AUTO_SLEEP_TIME          (0),
+      .BYTE_WRITE_WIDTH_A       (SLOT_BUF_WORD_W),
+      .CASCADE_HEIGHT           (0),
+      .CLOCKING_MODE            ("common_clock"),
+      .ECC_MODE                 ("no_ecc"),
+      .MEMORY_INIT_FILE         ("none"),
+      .MEMORY_INIT_PARAM        ("0"),
+      .MEMORY_OPTIMIZATION      ("true"),
+      .MEMORY_PRIMITIVE         ("block"),
+      .MEMORY_SIZE              (SLOT_BUF_BEATS * SLOT_BUF_WORD_W),
+      .MESSAGE_CONTROL          (0),
+      .READ_DATA_WIDTH_B        (SLOT_BUF_WORD_W),
+      .READ_LATENCY_B           (1),
+      .READ_RESET_VALUE_B       ("0"),
+      .RST_MODE_A               ("SYNC"),
+      .RST_MODE_B               ("SYNC"),
+      .SIM_ASSERT_CHK           (0),
+      .USE_EMBEDDED_CONSTRAINT  (0),
+      .USE_MEM_INIT             (0),
+      .WAKEUP_TIME              ("disable_sleep"),
+      .WRITE_DATA_WIDTH_A       (SLOT_BUF_WORD_W),
+      .WRITE_MODE_B             ("read_first")
+  ) u_slot_buf_mem (
+      .sleep          (1'b0),
+
+      .clka           (clk_i),
+      .ena            (slot_buf_wr_en_c),
+      .wea            (slot_buf_wr_en_c),
+      .addra          (slot_buf_wr_idx_c),
+      .dina           ({slot_buf_wr_keep_c, slot_buf_wr_data_c}),
+      .injectsbiterra (1'b0),
+      .injectdbiterra (1'b0),
+
+      .clkb           (clk_i),
+      .enb            (slot_buf_rd_pending_r),
+      .addrb          (slot_buf_rd_addr_r),
+      .rstb           (1'b0),
+      .regceb         (1'b1),
+      .doutb          (slot_buf_rd_word_r),
+      .dbiterrb       (),
+      .sbiterrb       ()
+  );
+
   always_comb begin
-    logic [  AXI_ADDR_W-1:0] align_mask_addr_c;
+    logic [AXI_ADDR_W-1:0]   align_mask_addr_c;
     logic [RING_BYTES_W-1:0] align_mask_size_c;
 
     align_mask_addr_c = AXI_ADDR_W'(ADDR_ALIGN_BYTES - 1);
     align_mask_size_c = RING_BYTES_W'(ADDR_ALIGN_BYTES - 1);
 
     cfg_ring_ok_c = (cfg_ring_size_bytes_i != '0) &&
-                        (cfg_ring_size_bytes_i <= RING_BYTES_W'(RING_SIZE_BYTES_MAX)) &&
-                        ((cfg_ring_base_addr_i & align_mask_addr_c) == '0) &&
-                        ((cfg_ring_size_bytes_i & align_mask_size_c) == '0);
+                    (cfg_ring_size_bytes_i <= RING_BYTES_W'(RING_SIZE_BYTES_MAX)) &&
+                    ((cfg_ring_base_addr_i & align_mask_addr_c) == '0) &&
+                    ((cfg_ring_size_bytes_i & align_mask_size_c) == '0);
   end
 
-  // Combined write/read control block:
-  // - capture one complete slot before reserving DDR space
-  // - write the slot in one or two ring segments
-  // - expose committed descriptors to the read side
-  // - replay committed payload back over AXIS on demand
   always_comb begin
-    logic [  SLOT_BYTES_W-1:0] beat_valid_bytes_c;
+    logic [SLOT_BYTES_W-1:0] beat_valid_bytes_c;
     logic [RD_AXIS_USER_W-1:0] axis_user_c;
-    logic                      last_beat_c;
+    logic last_beat_c;
+    logic [SLOT_BYTES_W-1:0] lane_offset_c;
+    logic [SLOT_BYTES_W-1:0] slot_byte_index_c;
 
     wr_state_n                = wr_state_r;
     rd_state_n                = rd_state_r;
@@ -547,6 +540,8 @@ module ddr_ringbuffer_controller #(
     err_axi_wr_resp_n         = err_axi_wr_resp_r;
     err_axi_rd_resp_n         = err_axi_rd_resp_r;
     err_illegal_read_n        = err_illegal_read_r;
+    slot_buf_rd_addr_n        = slot_buf_rd_addr_r;
+    slot_buf_rd_pending_n     = 1'b0;
 
     s_axis_ready_c            = 1'b0;
 
@@ -560,7 +555,6 @@ module ddr_ringbuffer_controller #(
     m_axi.wstrb               = '0;
     m_axi.wlast               = 1'b0;
     m_axi.wvalid              = 1'b0;
-
     m_axi.bready              = 1'b0;
 
     m_axi.araddr              = '0;
@@ -591,29 +585,22 @@ module ddr_ringbuffer_controller #(
     wr_wstrb_c                = '0;
     wr_wlast_c                = (wr_burst_beat_sent_r == (wr_burst_beats_r - BURST_LEN_W'(1)));
 
-    // Zero-fill any bytes beyond the captured payload but inside slot_effective_bytes.
-    for (wr_lane_idx = 0; wr_lane_idx < AXI_STRB_W; wr_lane_idx++) begin
-      logic [  SLOT_BYTES_W-1:0] lane_offset_c;
-      logic [  SLOT_BYTES_W-1:0] slot_byte_index_c;
-      logic [SLOT_BUF_IDX_W-1:0] beat_index_c;
-      logic                      beat_present_c;
-      lane_offset_c = SLOT_BYTES_W'(wr_lane_idx);
-      slot_byte_index_c = (SLOT_BYTES_W'(wr_buf_beat_idx_r) + SLOT_BYTES_W'(wr_burst_beat_sent_r))
-                                * SLOT_BYTES_W'(AXI_BEAT_BYTES);
-      beat_index_c = wr_buf_beat_idx_r + SLOT_BUF_IDX_W'(wr_burst_beat_sent_r);
-      beat_present_c = (SLOT_BUF_AW'(beat_index_c) < cap_beat_count_r);
+    slot_byte_index_c         = (SLOT_BYTES_W'(wr_buf_beat_idx_r) + SLOT_BYTES_W'(wr_burst_beat_sent_r)) *
+                                SLOT_BYTES_W'(AXI_BEAT_BYTES);
 
+    for (wr_lane_idx = 0; wr_lane_idx < AXI_STRB_W; wr_lane_idx++) begin
+      lane_offset_c = SLOT_BYTES_W'(wr_lane_idx);
       if ((slot_byte_index_c + lane_offset_c) < cap_effective_bytes_r) begin
         wr_wstrb_c[wr_lane_idx] = 1'b1;
-        if (beat_present_c && slot_buf_keep_r[beat_index_c][wr_lane_idx]) begin
-          wr_wdata_c[wr_lane_idx*8+:8] = slot_buf_data_r[beat_index_c][wr_lane_idx*8+:8];
+        if (slot_buf_rd_keep_r[wr_lane_idx]) begin
+          wr_wdata_c[wr_lane_idx*8 +: 8] = slot_buf_rd_data_r[wr_lane_idx*8 +: 8];
         end
       end
     end
 
-    wr_commit_pulse_c = 1'b0;
-    rd_done_pulse_c   = 1'b0;
-    rd_error_pulse_c  = 1'b0;
+    wr_commit_pulse_c         = 1'b0;
+    rd_done_pulse_c           = 1'b0;
+    rd_error_pulse_c          = 1'b0;
 
     if (cfg_enable_i && !cfg_ring_ok_c) begin
       err_cfg_align_n = 1'b1;
@@ -631,17 +618,15 @@ module ddr_ringbuffer_controller #(
       rd_error_pulse_c   = 1'b1;
     end
 
-    // Descriptor retirement is separate from issuing a readback: software can
-    // consume the oldest committed slot after it has been observed.
     if (rd_consume_i && !rd_slot_req_i) begin
       if (!rd_busy_o && !desc_fifo_empty_c) begin
-        desc_head_ptr_n = fifo_ptr_next(desc_head_ptr_r);
-        desc_count_n = desc_count_n - 1'b1;
-        rd_ptr_n = ring_addr_add(cfg_ring_base_addr_i, cfg_ring_size_bytes_i, rd_ptr_r,
-                                 desc_head_alloc_bytes_c);
-        used_alloc_bytes_n = used_alloc_bytes_n - RING_BYTES_W'(desc_head_alloc_bytes_c);
+        desc_head_ptr_n         = fifo_ptr_next(desc_head_ptr_r);
+        desc_count_n            = desc_count_n - 1'b1;
+        rd_ptr_n                = ring_addr_add(cfg_ring_base_addr_i, cfg_ring_size_bytes_i, rd_ptr_r,
+                                                desc_head_alloc_bytes_c);
+        used_alloc_bytes_n      = used_alloc_bytes_n - RING_BYTES_W'(desc_head_alloc_bytes_c);
         committed_alloc_bytes_n = committed_alloc_bytes_n - RING_BYTES_W'(desc_head_alloc_bytes_c);
-      end else if (rd_busy_o || desc_fifo_empty_c) begin
+      end else begin
         err_illegal_read_n = 1'b1;
         rd_error_pulse_c   = 1'b1;
       end
@@ -651,33 +636,30 @@ module ddr_ringbuffer_controller #(
       WR_ST_IDLE: begin
         if (cfg_enable_i && cfg_ring_ok_c) begin
           s_axis_ready_c = 1'b1;
-
           if (s_axis_slot.tvalid) begin
-            slot_buf_wr_en_c = (SLOT_BUF_BEATS > 0);
-            slot_buf_wr_idx_c = '0;
-            slot_buf_wr_data_c = s_axis_slot.tdata;
-            slot_buf_wr_keep_c = s_axis_slot.tkeep;
-
-            cap_beat_count_n = SLOT_BUF_AW'(1);
-            cap_actual_bytes_n = SLOT_BYTES_W'(s_axis_keep_bytes_c);
-            cap_effective_bytes_n = slot_effective_bytes_in_c;
-            cap_alloc_bytes_n = slot_alloc_bytes_in_c;
-            cap_slot_seq_n = slot_seq_i;
-            cap_slot_valid_good_n = slot_valid_good_i;
-            cap_slot_overflow_err_n = slot_overflow_err_i;
-            cap_proto_err_n = !slot_start_i || (slot_done_i && !s_axis_slot.tlast);
-            cap_too_large_n = (slot_effective_bytes_in_c > SLOT_BYTES_W'(SLOT_BUFFER_BYTES));
-            cap_size_mismatch_n = 1'b0;
-            cap_slot_addr_n = '0;
-            cap_next_wr_ptr_n = '0;
-            cap_first_seg_bytes_n = '0;
-            cap_second_seg_bytes_n = '0;
-            cap_wrap_n = 1'b0;
+            slot_buf_wr_en_c          = (SLOT_BUF_BEATS > 0);
+            slot_buf_wr_idx_c         = '0;
+            slot_buf_wr_data_c        = s_axis_slot.tdata;
+            slot_buf_wr_keep_c        = s_axis_slot.tkeep;
+            cap_beat_count_n          = SLOT_BUF_AW'(1);
+            cap_actual_bytes_n        = SLOT_BYTES_W'(s_axis_keep_bytes_c);
+            cap_effective_bytes_n     = slot_effective_bytes_in_c;
+            cap_alloc_bytes_n         = slot_alloc_bytes_in_c;
+            cap_slot_seq_n            = slot_seq_i;
+            cap_slot_valid_good_n     = slot_valid_good_i;
+            cap_slot_overflow_err_n   = slot_overflow_err_i;
+            cap_proto_err_n           = !slot_start_i || (slot_done_i && !s_axis_slot.tlast);
+            cap_too_large_n           = (slot_effective_bytes_in_c > SLOT_BYTES_W'(SLOT_BUFFER_BYTES));
+            cap_size_mismatch_n       = 1'b0;
+            cap_slot_addr_n           = '0;
+            cap_next_wr_ptr_n         = '0;
+            cap_first_seg_bytes_n     = '0;
+            cap_second_seg_bytes_n    = '0;
+            cap_wrap_n                = 1'b0;
 
             if (slot_overflow_err_i) begin
               overflow_count_n = overflow_count_n + COUNTER_W'(1);
             end
-
             if (slot_effective_bytes_in_c > SLOT_BYTES_W'(SLOT_BUFFER_BYTES)) begin
               err_slot_too_large_n = 1'b1;
             end
@@ -687,7 +669,6 @@ module ddr_ringbuffer_controller #(
                 cap_size_mismatch_n = 1'b1;
                 err_slot_proto_n    = 1'b1;
               end
-
               wr_state_n = WR_ST_CHECK_SPACE;
             end else begin
               wr_state_n = WR_ST_ACCEPT_SLOT;
@@ -699,7 +680,6 @@ module ddr_ringbuffer_controller #(
       WR_ST_ACCEPT_SLOT: begin
         if (cfg_enable_i && cfg_ring_ok_c) begin
           s_axis_ready_c = 1'b1;
-
           if (s_axis_slot.tvalid) begin
             if (cap_beat_count_r < SLOT_BUF_AW'(SLOT_BUF_BEATS)) begin
               slot_buf_wr_en_c   = 1'b1;
@@ -721,11 +701,10 @@ module ddr_ringbuffer_controller #(
 
             if (s_axis_slot.tlast) begin
               if (!slot_done_i ||
-                                ((cap_actual_bytes_r + SLOT_BYTES_W'(s_axis_keep_bytes_c)) != cap_effective_bytes_r)) begin
+                  ((cap_actual_bytes_r + SLOT_BYTES_W'(s_axis_keep_bytes_c)) != cap_effective_bytes_r)) begin
                 cap_size_mismatch_n = 1'b1;
                 err_slot_proto_n    = 1'b1;
               end
-
               wr_state_n = WR_ST_CHECK_SPACE;
             end
           end
@@ -733,14 +712,12 @@ module ddr_ringbuffer_controller #(
       end
 
       WR_ST_CHECK_SPACE: begin
-        // At this point the full slot is buffered locally, so only capacity,
-        // policy, and wrap calculations remain before launching AXI writes.
         if (!cfg_ring_ok_c) begin
           err_cfg_align_n = 1'b1;
         end else if ((cap_effective_bytes_r == '0) ||
-                             (cap_alloc_bytes_r == '0) ||
-                             (cap_alloc_bytes_r > cfg_ring_size_bytes_i) ||
-                             cap_too_large_r) begin
+                      (cap_alloc_bytes_r == '0) ||
+                      (cap_alloc_bytes_r > cfg_ring_size_bytes_i) ||
+                      cap_too_large_r) begin
           err_slot_too_large_n = 1'b1;
           wr_state_n           = WR_ST_DROP_SLOT;
         end else if (slot_drop_now_c) begin
@@ -779,13 +756,13 @@ module ddr_ringbuffer_controller #(
 
       WR_ST_MAKE_SPACE: begin
         if (!rd_busy_o && !desc_fifo_empty_c && !rd_consume_i) begin
-          desc_head_ptr_n = fifo_ptr_next(desc_head_ptr_r);
-          desc_count_n = desc_count_n - 1'b1;
-          rd_ptr_n = ring_addr_add(cfg_ring_base_addr_i, cfg_ring_size_bytes_i, rd_ptr_r,
-                                   desc_head_alloc_bytes_c);
-          used_alloc_bytes_n = used_alloc_bytes_n - RING_BYTES_W'(desc_head_alloc_bytes_c);
+          desc_head_ptr_n         = fifo_ptr_next(desc_head_ptr_r);
+          desc_count_n            = desc_count_n - 1'b1;
+          rd_ptr_n                = ring_addr_add(cfg_ring_base_addr_i, cfg_ring_size_bytes_i, rd_ptr_r,
+                                                  desc_head_alloc_bytes_c);
+          used_alloc_bytes_n      = used_alloc_bytes_n - RING_BYTES_W'(desc_head_alloc_bytes_c);
           committed_alloc_bytes_n = committed_alloc_bytes_n - RING_BYTES_W'(desc_head_alloc_bytes_c);
-          drop_count_n = drop_count_n + COUNTER_W'(1);
+          drop_count_n            = drop_count_n + COUNTER_W'(1);
         end
         wr_state_n = WR_ST_CHECK_SPACE;
       end
@@ -796,10 +773,18 @@ module ddr_ringbuffer_controller #(
         m_axi.awvalid = 1'b1;
 
         if (m_axi.awready) begin
-          wr_burst_bytes_n     = wr_cur_burst_bytes_c;
-          wr_burst_beats_n     = wr_cur_burst_beats_c;
-          wr_burst_beat_sent_n = '0;
-          wr_state_n           = WR_ST_W;
+          wr_burst_bytes_n      = wr_cur_burst_bytes_c;
+          wr_burst_beats_n      = wr_cur_burst_beats_c;
+          wr_burst_beat_sent_n  = '0;
+          slot_buf_rd_addr_n    = wr_buf_beat_idx_r;
+          slot_buf_rd_pending_n = 1'b1;
+          wr_state_n            = WR_ST_BUF_RD;
+        end
+      end
+
+      WR_ST_BUF_RD: begin
+        if (slot_buf_rd_valid_r) begin
+          wr_state_n = WR_ST_W;
         end
       end
 
@@ -813,14 +798,15 @@ module ddr_ringbuffer_controller #(
           if (wr_wlast_c) begin
             wr_state_n = WR_ST_WAIT_B;
           end else begin
-            wr_burst_beat_sent_n = wr_burst_beat_sent_r + BURST_LEN_W'(1);
+            wr_burst_beat_sent_n  = wr_burst_beat_sent_r + BURST_LEN_W'(1);
+            slot_buf_rd_addr_n    = wr_buf_beat_idx_r + SLOT_BUF_IDX_W'(wr_burst_beat_sent_r + BURST_LEN_W'(1));
+            slot_buf_rd_pending_n = 1'b1;
+            wr_state_n            = WR_ST_BUF_RD;
           end
         end
       end
 
       WR_ST_WAIT_B: begin
-        // Commit happens only after the final AXI write response returns OK,
-        // otherwise the temporary reservation is rolled back.
         m_axi.bready = 1'b1;
 
         if (m_axi.bvalid) begin
@@ -864,8 +850,6 @@ module ddr_ringbuffer_controller #(
       end
 
       WR_ST_COMMIT: begin
-        // Publish the completed slot atomically by advancing commit_ptr and
-        // pushing a descriptor into the FIFO seen by software/readback logic.
         commit_ptr_n            = cap_next_wr_ptr_r;
         committed_alloc_bytes_n = committed_alloc_bytes_n + RING_BYTES_W'(cap_alloc_bytes_r);
         desc_push_c             = 1'b1;
@@ -923,33 +907,32 @@ module ddr_ringbuffer_controller #(
             err_illegal_read_n = 1'b1;
             rd_error_pulse_c   = 1'b1;
           end else begin
-            // Read-side legality is descriptor based: only the oldest committed slot can be issued.
-            rd_slot_addr_n = desc_head_addr_c;
-            rd_slot_bytes_n = desc_head_bytes_c;
-            rd_slot_alloc_bytes_n = desc_head_alloc_bytes_c;
-            rd_slot_seq_n = desc_head_seq_c;
+            rd_slot_addr_n            = desc_head_addr_c;
+            rd_slot_bytes_n           = desc_head_bytes_c;
+            rd_slot_alloc_bytes_n     = desc_head_alloc_bytes_c;
+            rd_slot_seq_n             = desc_head_seq_c;
             rd_slot_valid_good_meta_n = desc_head_valid_good_c;
-            rd_slot_overflow_meta_n = desc_head_overflow_err_c;
-            rd_first_seg_bytes_n =
+            rd_slot_overflow_meta_n   = desc_head_overflow_err_c;
+            rd_first_seg_bytes_n      =
                 (desc_head_bytes_c <= bytes_to_ring_end(cfg_ring_base_addr_i, cfg_ring_size_bytes_i,
                                                         desc_head_addr_c)) ? desc_head_bytes_c :
                 bytes_to_ring_end(cfg_ring_base_addr_i, cfg_ring_size_bytes_i, desc_head_addr_c);
-            rd_second_seg_bytes_n = desc_head_bytes_c -
-                ((desc_head_bytes_c <= bytes_to_ring_end(cfg_ring_base_addr_i, cfg_ring_size_bytes_i
-                                                         , desc_head_addr_c)) ? desc_head_bytes_c :
+            rd_second_seg_bytes_n     = desc_head_bytes_c -
+                ((desc_head_bytes_c <= bytes_to_ring_end(cfg_ring_base_addr_i, cfg_ring_size_bytes_i,
+                                                         desc_head_addr_c)) ? desc_head_bytes_c :
                  bytes_to_ring_end(cfg_ring_base_addr_i, cfg_ring_size_bytes_i, desc_head_addr_c));
-            rd_seg_idx_n = '0;
-            rd_seg_addr_n = desc_head_addr_c;
-            rd_seg_bytes_rem_n = (desc_head_bytes_c <= bytes_to_ring_end(
-                                  cfg_ring_base_addr_i, cfg_ring_size_bytes_i, desc_head_addr_c)) ?
-                desc_head_bytes_c :
+            rd_seg_idx_n              = '0;
+            rd_seg_addr_n             = desc_head_addr_c;
+            rd_seg_bytes_rem_n        =
+                (desc_head_bytes_c <= bytes_to_ring_end(cfg_ring_base_addr_i, cfg_ring_size_bytes_i,
+                                                        desc_head_addr_c)) ? desc_head_bytes_c :
                 bytes_to_ring_end(cfg_ring_base_addr_i, cfg_ring_size_bytes_i, desc_head_addr_c);
-            rd_total_bytes_rem_n = desc_head_bytes_c;
-            rd_burst_beats_n = '0;
-            rd_burst_bytes_n = '0;
-            rd_burst_beats_rcvd_n = '0;
-            rd_first_beat_pending_n = 1'b1;
-            rd_state_n = RD_ST_AR;
+            rd_total_bytes_rem_n      = desc_head_bytes_c;
+            rd_burst_beats_n          = '0;
+            rd_burst_bytes_n          = '0;
+            rd_burst_beats_rcvd_n     = '0;
+            rd_first_beat_pending_n   = 1'b1;
+            rd_state_n                = RD_ST_AR;
           end
         end
       end
@@ -968,21 +951,19 @@ module ddr_ringbuffer_controller #(
       end
 
       RD_ST_R: begin
-        // Read data is packetized back into AXIS beats while reconstructing the
-        // slot-level metadata bits expected by downstream consumers.
         axi_rready_c = !rd_axis_valid_r || m_axis_rd.tready;
         m_axi.rready = axi_rready_c;
 
         if (m_axi.rvalid && axi_rready_c) begin
           beat_valid_bytes_c = (rd_total_bytes_rem_r >= SLOT_BYTES_W'(AXI_BEAT_BYTES)) ?
-                                         SLOT_BYTES_W'(AXI_BEAT_BYTES) : rd_total_bytes_rem_r;
+                               SLOT_BYTES_W'(AXI_BEAT_BYTES) : rd_total_bytes_rem_r;
           last_beat_c = (rd_total_bytes_rem_r <= SLOT_BYTES_W'(AXI_BEAT_BYTES));
           axis_user_c = '0;
-          axis_user_c[RD_TUSER_VALID_GOOD_BIT] = rd_slot_valid_good_meta_r;
-          axis_user_c[RD_TUSER_OVERFLOW_ERR_BIT] = rd_slot_overflow_meta_r;
-          axis_user_c[RD_TUSER_SLOT_LAST_BIT] = last_beat_c;
-          axis_user_c[RD_TUSER_SEQ_LSB+:SLOT_SEQ_W] = rd_slot_seq_r;
-          axis_user_c[RD_TUSER_BYTES_LSB+:SLOT_BYTES_W] = rd_slot_bytes_r;
+          axis_user_c[RD_TUSER_VALID_GOOD_BIT]          = rd_slot_valid_good_meta_r;
+          axis_user_c[RD_TUSER_OVERFLOW_ERR_BIT]        = rd_slot_overflow_meta_r;
+          axis_user_c[RD_TUSER_SLOT_LAST_BIT]           = last_beat_c;
+          axis_user_c[RD_TUSER_SEQ_LSB +: SLOT_SEQ_W]   = rd_slot_seq_r;
+          axis_user_c[RD_TUSER_BYTES_LSB +: SLOT_BYTES_W] = rd_slot_bytes_r;
 
           if (rd_first_beat_pending_r) begin
             axis_user_c[RD_TUSER_SLOT_FIRST_BIT] = 1'b1;
@@ -1015,7 +996,7 @@ module ddr_ringbuffer_controller #(
                 rd_seg_bytes_rem_n = rd_second_seg_bytes_r;
                 rd_state_n         = RD_ST_AR;
               end else begin
-                rd_state_n = RD_ST_DONE;
+                rd_state_n         = RD_ST_DONE;
               end
             end
 
@@ -1057,8 +1038,6 @@ module ddr_ringbuffer_controller #(
   assign rd_done_o              = rd_done_pulse_c;
   assign rd_error_o             = rd_error_pulse_c;
 
-  // Single sequential block for controller state, slot buffer writes, and
-  // descriptor FIFO updates so write/read bookkeeping advances coherently.
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
       wr_state_r                <= WR_ST_IDLE;
@@ -1124,6 +1103,9 @@ module ddr_ringbuffer_controller #(
       err_axi_wr_resp_r         <= 1'b0;
       err_axi_rd_resp_r         <= 1'b0;
       err_illegal_read_r        <= 1'b0;
+      slot_buf_rd_addr_r        <= '0;
+      slot_buf_rd_pending_r     <= 1'b0;
+      slot_buf_rd_valid_r       <= 1'b0;
     end else if (!cfg_enable_i && (wr_state_r == WR_ST_IDLE) && (rd_state_r == RD_ST_IDLE)) begin
       wr_ptr_r                  <= cfg_ring_base_addr_i;
       rd_ptr_r                  <= cfg_ring_base_addr_i;
@@ -1178,6 +1160,9 @@ module ddr_ringbuffer_controller #(
       rd_axis_valid_r           <= 1'b0;
       wr_state_r                <= WR_ST_IDLE;
       rd_state_r                <= RD_ST_IDLE;
+      slot_buf_rd_addr_r        <= '0;
+      slot_buf_rd_pending_r     <= 1'b0;
+      slot_buf_rd_valid_r       <= 1'b0;
     end else begin
       wr_state_r                <= wr_state_n;
       rd_state_r                <= rd_state_n;
@@ -1242,11 +1227,9 @@ module ddr_ringbuffer_controller #(
       err_axi_wr_resp_r         <= err_axi_wr_resp_n;
       err_axi_rd_resp_r         <= err_axi_rd_resp_n;
       err_illegal_read_r        <= err_illegal_read_n;
-
-      if (slot_buf_wr_en_c) begin
-        slot_buf_data_r[slot_buf_wr_idx_c] <= slot_buf_wr_data_c;
-        slot_buf_keep_r[slot_buf_wr_idx_c] <= slot_buf_wr_keep_c;
-      end
+      slot_buf_rd_addr_r        <= slot_buf_rd_addr_n;
+      slot_buf_rd_pending_r     <= slot_buf_rd_pending_n;
+      slot_buf_rd_valid_r       <= slot_buf_rd_pending_r;
 
       if (desc_push_c) begin
         desc_addr_r[desc_push_idx_c]         <= cap_slot_addr_r;
