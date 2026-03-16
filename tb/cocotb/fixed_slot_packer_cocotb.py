@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+import sys
 from dataclasses import dataclass
 from typing import List
 
@@ -27,6 +28,11 @@ AXIS_DATA_W = 256
 AXIS_BEAT_BYTES = AXIS_DATA_W // 8  # 32
 SLOT_TOTAL_BEATS = SLOT_TOTAL_ALIGNED // AXIS_BEAT_BYTES
 
+# Waveform (run with --waves): sim_build/fixed_slot_packer_cocotb/test/dump.fst
+# For 64-byte / beat1 debug, inspect under dut:
+#   state_r, wr_shadow_valid_r, wr_shadow_idx_r, wr_shadow_data_r (beat1 write),
+#   zero_fill_idx_r (ST_ZERO_MID start), mem_wr_en_c, mem_wr_addr_c.
+# For no-partial (e.g. 32-byte): ST_CAP_FLUSH should set zero_fill_idx_n = 1 (from wr_shadow_idx_r+1 when partial, else wr_abs_pos_r/32).
 
 # ────────────────────────────────────────────────────────────────
 #  Helpers
@@ -233,7 +239,27 @@ def verify_slot(
     )
 
     assert exp_sample_cnt <= (SAMPLE_AREA_BYTES // SAMPLE_UNIT_BYTES)
-    assert d == expected_slot, "slot payload layout mismatch"
+    if d != expected_slot:
+        # Diagnostic: first differing byte index and that beat's hex (to distinguish
+        # same-beat byte order vs whole-beat misalignment)
+        n = min(len(d), len(expected_slot))
+        first_diff = n
+        for i in range(n):
+            if d[i] != expected_slot[i]:
+                first_diff = i
+                break
+        beat_idx = first_diff // AXIS_BEAT_BYTES
+        start = beat_idx * AXIS_BEAT_BYTES
+        end = min(start + AXIS_BEAT_BYTES, max(len(d), len(expected_slot)))
+        exp_beat = (expected_slot[start:end] if start < len(expected_slot) else b"").ljust(end - start, b"\x00")
+        act_beat = (d[start:end] if start < len(d) else b"").ljust(end - start, b"\x00")
+        msg = (
+            f"[slot mismatch] first_diff_byte={first_diff} beat_idx={beat_idx} "
+            f"len(actual)={len(d)} len(expected)={len(expected_slot)} "
+            f"expected_beat_hex={exp_beat.hex()} actual_beat_hex={act_beat.hex()}"
+        )
+        print(msg, file=sys.stderr)
+        assert d == expected_slot, "slot payload layout mismatch"
 
 
 # ────────────────────────────────────────────────────────────────

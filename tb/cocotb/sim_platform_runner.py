@@ -20,6 +20,7 @@ def build_sources() -> list[Path]:
         REPO_ROOT / "rtl/if/axi4_mm_if.sv",
         REPO_ROOT / "rtl/core/csi_packet_extractor.sv",
         REPO_ROOT / "rtl/core/fixed_slot_packer.sv",
+        REPO_ROOT / "tb/models/xpm_memory_sdpram_stub.sv",  # Verilator: no Xilinx XPM
         REPO_ROOT / "rtl/core/ddr_ringbuffer_controller.sv",
         REPO_ROOT / "tb/models/csi_rx_behavioral_mock.sv",
         REPO_ROOT / "tb/models/axis_async_fifo.sv",

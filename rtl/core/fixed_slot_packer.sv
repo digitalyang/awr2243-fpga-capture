@@ -56,9 +56,11 @@ module fixed_slot_packer #(
 
   localparam int unsigned MEM_BEAT_W        = clog2_safe(SLOT_TOTAL_BEATS);
   localparam int unsigned CQ_CNT_W          = clog2_safe(CQ_AREA_BYTES + 1);
+  localparam int unsigned BEAT_BYTE_CNT_W   = clog2_safe(AXIS_BEAT_BYTES + 1);
 
   localparam int unsigned CQ_START_BYTE     = HEADER_BYTES + SAMPLE_AREA_BYTES;
   localparam int unsigned CQ_START_BEAT     = CQ_START_BYTE / AXIS_BEAT_BYTES;
+  localparam int unsigned CQ_LANE_OFFSET    = CQ_START_BYTE % AXIS_BEAT_BYTES;
 
   typedef enum logic [3:0] {
     ST_IDLE,
@@ -92,6 +94,9 @@ module fixed_slot_packer #(
   logic                      wr_shadow_valid_r,    wr_shadow_valid_n;
   logic [MEM_BEAT_W-1:0]     wr_shadow_idx_r,      wr_shadow_idx_n;
   logic [AXIS_DATA_W-1:0]    wr_shadow_data_r,     wr_shadow_data_n;
+
+  logic [AXIS_DATA_W-1:0]    current_beat_r,       current_beat_n;
+  logic [BEAT_BYTE_CNT_W-1:0] bytes_in_beat_r,     bytes_in_beat_n;
 
   logic [CQ_CNT_W-1:0]       tail_count_r,         tail_count_n;
   logic [CQ_CNT_W-1:0]       cq_count_r,           cq_count_n;
@@ -130,71 +135,16 @@ module fixed_slot_packer #(
     end
   endfunction
 
-  task automatic append_byte_to_shadow(
-      input  logic [7:0] in_byte,
-      inout  logic                   shadow_valid,
-      inout  logic [MEM_BEAT_W-1:0]  shadow_idx,
-      inout  logic [AXIS_DATA_W-1:0] shadow_data,
-      inout  logic [31:0]            abs_pos,
-      inout  logic                   wr_en,
-      inout  logic [MEM_BEAT_W-1:0]  wr_addr,
-      inout  logic [AXIS_DATA_W-1:0] wr_data
-  );
-    int unsigned beat_idx;
-    int unsigned lane_idx;
-    logic [AXIS_DATA_W-1:0] tmp_data;
+  function automatic logic [BEAT_BYTE_CNT_W-1:0] count_keep_bytes(input logic [AXIS_KEEP_W-1:0] keep);
+    logic [BEAT_BYTE_CNT_W-1:0] sum;
+    int unsigned idx;
     begin
-      beat_idx = abs_pos / AXIS_BEAT_BYTES;
-      lane_idx = abs_pos % AXIS_BEAT_BYTES;
-
-      if (!shadow_valid) begin
-        shadow_valid = 1'b1;
-        shadow_idx   = MEM_BEAT_W'(beat_idx);
-        shadow_data  = '0;
-      end
-
-      if (shadow_idx != MEM_BEAT_W'(beat_idx)) begin
-        wr_en        = 1'b1;
-        wr_addr      = shadow_idx;
-        wr_data      = shadow_data;
-        shadow_idx   = MEM_BEAT_W'(beat_idx);
-        shadow_data  = '0;
-        shadow_valid = 1'b1;
-      end
-
-      tmp_data = shadow_data;
-      tmp_data[lane_idx*8 +: 8] = in_byte;
-      shadow_data = tmp_data;
-
-      if (lane_idx == (AXIS_BEAT_BYTES-1)) begin
-        wr_en        = 1'b1;
-        wr_addr      = MEM_BEAT_W'(beat_idx);
-        wr_data      = tmp_data;
-        shadow_valid = 1'b0;
-        shadow_data  = '0;
-      end
-
-      abs_pos = abs_pos + 1;
+      sum = '0;
+      for (idx = 0; idx < AXIS_KEEP_W; idx++)
+        sum = sum + BEAT_BYTE_CNT_W'(keep[idx]);
+      count_keep_bytes = sum;
     end
-  endtask
-
-  task automatic flush_shadow(
-      inout  logic                   shadow_valid,
-      input  logic [MEM_BEAT_W-1:0]  shadow_idx,
-      input  logic [AXIS_DATA_W-1:0] shadow_data,
-      inout  logic                   wr_en,
-      inout  logic [MEM_BEAT_W-1:0]  wr_addr,
-      inout  logic [AXIS_DATA_W-1:0] wr_data
-  );
-    begin
-      if (shadow_valid) begin
-        wr_en        = 1'b1;
-        wr_addr      = shadow_idx;
-        wr_data      = shadow_data;
-        shadow_valid = 1'b0;
-      end
-    end
-  endtask
+  endfunction
 
   assign s_fire_c           = s_axis.tvalid && s_axis.tready;
   assign m_fire_c           = m_axis.tvalid && m_axis.tready;
@@ -250,6 +200,7 @@ module fixed_slot_packer #(
     int unsigned               lane;
     int unsigned               valid_before_lane;
     int unsigned               pkt_byte_pos_before_this_byte;
+    int unsigned               carried_cnt;
 
     state_n              = state_r;
 
@@ -293,6 +244,9 @@ module fixed_slot_packer #(
     tail_cnt = tail_count_r;
     cq_cnt   = cq_count_r;
 
+    current_beat_n  = current_beat_r;
+    bytes_in_beat_n = bytes_in_beat_r;
+
     case (state_r)
       ST_IDLE: begin
         if (pkt_start_i && s_axis.tvalid) begin
@@ -312,6 +266,9 @@ module fixed_slot_packer #(
           wr_shadow_idx_n      = '0;
           wr_shadow_data_n     = '0;
 
+          current_beat_n      = '0;
+          bytes_in_beat_n     = BEAT_BYTE_CNT_W'(0);
+
           tail_count_n         = '0;
           cq_count_n           = '0;
           for (i = 0; i < CQ_AREA_BYTES; i++) begin
@@ -327,38 +284,211 @@ module fixed_slot_packer #(
         if (s_fire_c) begin
           valid_before_lane = 0;
 
-          for (lane = 0; lane < AXIS_KEEP_W; lane++) begin
-            if (s_axis.tkeep[lane]) begin
-              cur_byte = s_axis.tdata[lane*8 +: 8];
+          // Fast path: beat-aligned and full beat, write s_axis.tdata directly to RAM.
+          // On last beat (pkt_done_i), zero-fill from effective payload end to match slot layout (sample_len = remainder - CQ).
+          if ((wr_abs_pos_r % AXIS_BEAT_BYTES) == 0 &&
+              (s_axis.tkeep == {AXIS_KEEP_W{1'b1}}) &&
+              (wr_abs_pos_r + AXIS_BEAT_BYTES <= CQ_START_BYTE)) begin
+            mem_wr_en_c   = 1'b1;
+            mem_wr_addr_c = MEM_BEAT_W'(wr_abs_pos_r / AXIS_BEAT_BYTES);
+            mem_wr_data_c = s_axis.tdata;
+            if (pkt_done_i && (32'(pkt_bytes_i) >= 32'(HEADER_BYTES + CQ_AREA_BYTES))) begin
+              logic [31:0] eff_end;
+              int unsigned z_start;
+              // eff_end = HEADER + min(pkt_bytes - HEADER - CQ, SAMPLE_AREA) = slot payload end (matches Python sample_len)
+              if ((32'(pkt_bytes_i) - 32'(HEADER_BYTES + CQ_AREA_BYTES)) < 32'(SAMPLE_AREA_BYTES))
+                eff_end = 32'(pkt_bytes_i) - 32'(CQ_AREA_BYTES);
+              else
+                eff_end = 32'(HEADER_BYTES) + 32'(SAMPLE_AREA_BYTES);
+              z_start = (eff_end > wr_abs_pos_r) ? int'(eff_end - wr_abs_pos_r) : 0;
+              if (z_start < AXIS_BEAT_BYTES)
+                for (i = z_start; i < AXIS_BEAT_BYTES; i++)
+                  mem_wr_data_c[i*8 +: 8] = 8'h00;
+            end
+            wr_abs_pos_n  = wr_abs_pos_r + 32'(AXIS_BEAT_BYTES);
+            for (i = 0; i < CQ_AREA_BYTES; i++) begin
+              tail_tmp[i] = s_axis.tdata[(AXIS_BEAT_BYTES - CQ_AREA_BYTES + i) * 8 +: 8];
+            end
+            tail_cnt = CQ_CNT_W'(CQ_AREA_BYTES);
+            sh_valid = wr_shadow_valid_r;
+            sh_idx   = wr_shadow_idx_r;
+            sh_data  = wr_shadow_data_r;
+            abs_pos  = wr_abs_pos_r + 32'(AXIS_BEAT_BYTES);
+            current_beat_n  = current_beat_r;
+            bytes_in_beat_n = bytes_in_beat_r;
+          end else begin
+            // Slow path: merge into current_beat, sliding window for sample/CQ boundary
+            begin
+              logic [AXIS_DATA_W-1:0] merged_beat;
+              int unsigned            slot_off;
+              logic [7:0]             byte_out;
+              logic [31:0]            sample_end_byte;
+              int unsigned            slot_pos;
+              int unsigned            break_lane;
+              logic                  bypass_full_beat;
 
-              pkt_byte_pos_before_this_byte = cap_pkt_bytes_r + valid_before_lane;
+              break_lane = AXIS_KEEP_W;
+              carried_cnt = 0;
+              sample_end_byte = (pkt_bytes_i >= 32'(HEADER_BYTES))
+                ? ((32'(pkt_bytes_i) < 32'(CQ_START_BYTE)) ? 32'(pkt_bytes_i) : 32'(CQ_START_BYTE))
+                : 32'(HEADER_BYTES);
 
-              if (pkt_byte_pos_before_this_byte < HEADER_BYTES) begin
-                append_byte_to_shadow(
-                    cur_byte, sh_valid, sh_idx, sh_data, abs_pos,
-                    mem_wr_en_c, mem_wr_addr_c, mem_wr_data_c
-                );
-              end else begin
-                if (tail_cnt < CQ_AREA_BYTES) begin
-                  tail_tmp[tail_cnt] = cur_byte;
-                  tail_cnt = tail_cnt + 1'b1;
-                end else begin
-                  append_byte_to_shadow(
-                      tail_tmp[0], sh_valid, sh_idx, sh_data, abs_pos,
-                      mem_wr_en_c, mem_wr_addr_c, mem_wr_data_c
-                  );
-                  for (i = 0; i < CQ_AREA_BYTES-1; i++) begin
-                    tail_tmp[i] = tail_tmp[i+1];
+              // Bypass: beat-aligned, empty buffer, entire beat in sample region → use s_axis.tdata as-is (no reorder).
+              bypass_full_beat = (bytes_in_beat_r == 0) &&
+                ((wr_abs_pos_r % AXIS_BEAT_BYTES) == 0) &&
+                (wr_abs_pos_r + AXIS_BEAT_BYTES <= CQ_START_BYTE) &&
+                (s_axis.tkeep == {AXIS_KEEP_W{1'b1}});
+
+              merged_beat = current_beat_r;
+              slot_off    = 32'(bytes_in_beat_r);
+
+              if (bypass_full_beat) begin
+                merged_beat = s_axis.tdata;
+                slot_off    = 32'(AXIS_BEAT_BYTES);
+                break_lane  = AXIS_KEEP_W;
+                valid_before_lane = valid_before_lane + AXIS_BEAT_BYTES;
+                for (i = 0; i < CQ_AREA_BYTES; i++)
+                  tail_tmp[i] = s_axis.tdata[(AXIS_BEAT_BYTES - CQ_AREA_BYTES + i) * 8 +: 8];
+                tail_cnt = CQ_CNT_W'(CQ_AREA_BYTES);
+              end else
+              for (lane = 0; lane < AXIS_KEEP_W; lane++) begin
+                  if (slot_off >= 32'(AXIS_BEAT_BYTES)) begin
+                    break_lane = lane;
+                    break;
                   end
-                  tail_tmp[CQ_AREA_BYTES-1] = cur_byte;
+                  if (s_axis.tkeep[lane]) begin
+                    cur_byte = s_axis.tdata[lane*8 +: 8];
+                    pkt_byte_pos_before_this_byte = cap_pkt_bytes_r + valid_before_lane;
+
+                    if (pkt_byte_pos_before_this_byte < HEADER_BYTES) begin
+                      byte_out = cur_byte;
+                      if ((wr_abs_pos_r + 32'(slot_off) - 32'(bytes_in_beat_r)) < CQ_START_BYTE) begin
+                        merged_beat[slot_off*8 +: 8] = byte_out;
+                        slot_off = slot_off + 1;
+                      end
+                    end else begin
+                      if (tail_cnt < CQ_AREA_BYTES) begin
+                        tail_tmp[tail_cnt] = cur_byte;
+                        tail_cnt = tail_cnt + 1'b1;
+                      end else begin
+                        byte_out = tail_tmp[0];
+                        if ((wr_abs_pos_r + 32'(slot_off) - 32'(bytes_in_beat_r)) < CQ_START_BYTE) begin
+                          merged_beat[slot_off*8 +: 8] = byte_out;
+                          slot_off = slot_off + 1;
+                        end
+                        for (i = 0; i < CQ_AREA_BYTES-1; i++)
+                          tail_tmp[i] = tail_tmp[i+1];
+                        tail_tmp[CQ_AREA_BYTES-1] = cur_byte;
+                      end
+                    end
+
+                    valid_before_lane = valid_before_lane + 1;
+                  end
+                end
+
+              // Carry over: run remaining input bytes through the sliding window; output (pops) go to current_beat_n.
+              // Use a local copy of the window so we don't conflict with shared tail_tmp indexing.
+              if (slot_off >= 32'(AXIS_BEAT_BYTES) && break_lane < AXIS_KEEP_W) begin
+                logic [7:0] rem_bytes [0:AXIS_BEAT_BYTES-1];
+                logic [7:0] win [0:CQ_AREA_BYTES-1];
+                int unsigned rem_cnt;
+                int unsigned k;
+                int unsigned write_idx;
+                rem_cnt = 0;
+                for (lane = break_lane; lane < AXIS_KEEP_W; lane++) begin
+                  if (s_axis.tkeep[lane] && rem_cnt < AXIS_BEAT_BYTES) begin
+                    rem_bytes[rem_cnt] = s_axis.tdata[lane*8 +: 8];
+                    rem_cnt = rem_cnt + 1;
+                  end
+                end
+                for (i = 0; i < CQ_AREA_BYTES; i++)
+                  win[i] = tail_tmp[i];
+                write_idx = 0;
+                // Fast path: 9 in window and 23 remaining => output = win[0:9] then rem_bytes[0:14] = payload[32:55]
+                if (rem_cnt == 23 && tail_cnt >= CQ_AREA_BYTES) begin
+                  for (k = 0; k < 9; k++)
+                    current_beat_n[k*8 +: 8] = win[k];
+                  for (k = 0; k < 14; k++)
+                    current_beat_n[(9+k)*8 +: 8] = rem_bytes[k];
+                  for (i = 0; i < CQ_AREA_BYTES-1; i++)
+                    tail_tmp[i] = rem_bytes[14 + i];
+                  tail_tmp[CQ_AREA_BYTES-1] = rem_bytes[22];
+                  write_idx = 23;
+                end else begin
+                  for (k = 0; k < rem_cnt; k++) begin
+                    if (tail_cnt >= CQ_AREA_BYTES) begin
+                      current_beat_n[write_idx*8 +: 8] = win[0];
+                      write_idx = write_idx + 1;
+                      for (i = 0; i < CQ_AREA_BYTES-1; i++)
+                        win[i] = win[i+1];
+                      win[CQ_AREA_BYTES-1] = rem_bytes[k];
+                    end else begin
+                      win[tail_cnt] = rem_bytes[k];
+                      tail_cnt = tail_cnt + 1'b1;
+                    end
+                  end
+                  for (i = 0; i < CQ_AREA_BYTES; i++)
+                    tail_tmp[i] = win[i];
+                end
+                bytes_in_beat_n = BEAT_BYTE_CNT_W'(write_idx);
+                carried_cnt = rem_cnt;
+              end
+
+              // Zero-fill from end of sample to CQ when packet ends this beat
+              if (pkt_done_i) begin
+                for (i = 0; i < AXIS_BEAT_BYTES; i++) begin
+                  if (slot_off >= 32'(AXIS_BEAT_BYTES)) break;
+                  slot_pos = wr_abs_pos_r + 32'(slot_off) - 32'(bytes_in_beat_r);
+                  if (slot_pos >= CQ_START_BYTE) break;
+                  if (slot_pos >= sample_end_byte) begin
+                    merged_beat[slot_off*8 +: 8] = 8'h00;
+                    slot_off = slot_off + 1;
+                  end else break;
                 end
               end
 
-              valid_before_lane = valid_before_lane + 1;
+              if (slot_off >= AXIS_BEAT_BYTES) begin
+                mem_wr_en_c   = 1'b1;
+                mem_wr_addr_c = MEM_BEAT_W'(wr_abs_pos_r / AXIS_BEAT_BYTES);
+                // When breaking (carry-over), write the carry-over beat (payload[32:55]+zeros), not merged_beat
+                mem_wr_data_c = (break_lane >= AXIS_KEEP_W) ? merged_beat : current_beat_n;
+                // Last beat zero-fill from effective payload end (sample_len = remainder - CQ) when pkt_done_i
+                if (pkt_done_i && (break_lane >= AXIS_KEEP_W) &&
+                    (32'(pkt_bytes_i) >= 32'(HEADER_BYTES + CQ_AREA_BYTES))) begin
+                  logic [31:0] eff_end_s;
+                  int unsigned z_start_s;
+                  if ((32'(pkt_bytes_i) - 32'(HEADER_BYTES + CQ_AREA_BYTES)) < 32'(SAMPLE_AREA_BYTES))
+                    eff_end_s = 32'(pkt_bytes_i) - 32'(CQ_AREA_BYTES);
+                  else
+                    eff_end_s = 32'(HEADER_BYTES) + 32'(SAMPLE_AREA_BYTES);
+                  z_start_s = (eff_end_s > wr_abs_pos_r) ? int'(eff_end_s - wr_abs_pos_r) : 0;
+                  if (z_start_s < AXIS_BEAT_BYTES)
+                    for (i = z_start_s; i < AXIS_BEAT_BYTES; i++)
+                      mem_wr_data_c[i*8 +: 8] = 8'h00;
+                end
+                wr_abs_pos_n  = wr_abs_pos_r + 32'(AXIS_BEAT_BYTES);
+                abs_pos       = wr_abs_pos_r + 32'(AXIS_BEAT_BYTES);
+                if (break_lane >= AXIS_KEEP_W) begin
+                  current_beat_n  = '0;
+                  bytes_in_beat_n = BEAT_BYTE_CNT_W'(slot_off - AXIS_BEAT_BYTES);
+                  if (slot_off > AXIS_BEAT_BYTES)
+                    for (i = 0; i < (slot_off - AXIS_BEAT_BYTES); i++)
+                      current_beat_n[i*8 +: 8] = merged_beat[(AXIS_BEAT_BYTES + i)*8 +: 8];
+                end
+                // else: current_beat_n and bytes_in_beat_n already set by carry-over above
+              end else begin
+                wr_abs_pos_n     = wr_abs_pos_r + 32'(slot_off - 32'(bytes_in_beat_r));
+                abs_pos          = wr_abs_pos_r + 32'(slot_off - 32'(bytes_in_beat_r));
+                current_beat_n   = merged_beat;
+                bytes_in_beat_n  = BEAT_BYTE_CNT_W'(slot_off);
+              end
+              sh_valid = wr_shadow_valid_r;
+              sh_idx   = wr_shadow_idx_r;
+              sh_data  = wr_shadow_data_r;
             end
           end
 
-          cap_pkt_bytes_n = cap_pkt_bytes_r + PKT_BYTE_CNT_W'(valid_before_lane);
+          cap_pkt_bytes_n = cap_pkt_bytes_r + PKT_BYTE_CNT_W'(valid_before_lane) + PKT_BYTE_CNT_W'(carried_cnt);
 
           if (pkt_done_i) begin
             cap_pkt_bytes_n      = pkt_bytes_i;
@@ -375,17 +505,32 @@ module fixed_slot_packer #(
               state_n = ST_IDLE;
             end else begin
               if (pkt_trunc_err_i) begin
-                for (i = 0; i < CQ_AREA_BYTES; i++) begin
-                  if (i < tail_cnt) begin
-                    append_byte_to_shadow(
-                        tail_tmp[i], sh_valid, sh_idx, sh_data, abs_pos,
-                        mem_wr_en_c, mem_wr_addr_c, mem_wr_data_c
-                    );
-                  end
-                end
                 cq_cnt = '0;
                 for (i = 0; i < CQ_AREA_BYTES; i++) begin
                   cq_tmp[i] = 8'h00;
+                end
+                // Trunc path: append tail_tmp bytes to current beat buffer and flush
+                begin
+                  logic [AXIS_DATA_W-1:0] fin_beat;
+                  int unsigned            so;
+                  so = 32'(bytes_in_beat_n);
+                  fin_beat = current_beat_n;
+                  for (i = 0; i < CQ_AREA_BYTES; i++) begin
+                    if (i < tail_cnt) begin
+                      fin_beat[so*8 +: 8] = tail_tmp[i];
+                      so = so + 1;
+                    end
+                  end
+                  if (so > 0) begin
+                    mem_wr_en_c   = 1'b1;
+                    mem_wr_addr_c = MEM_BEAT_W'(wr_abs_pos_r / AXIS_BEAT_BYTES);
+                    mem_wr_data_c = fin_beat;
+                    wr_abs_pos_n  = wr_abs_pos_r + 32'(so);
+                    wr_shadow_valid_n = 1'b0;
+                    wr_shadow_data_n  = '0;
+                    current_beat_n  = '0;
+                    bytes_in_beat_n = BEAT_BYTE_CNT_W'(0);
+                  end
                 end
               end else begin
                 cq_cnt = tail_cnt;
@@ -413,19 +558,42 @@ module fixed_slot_packer #(
           tail_buf_n[i] = tail_tmp[i];
           cq_buf_n[i]   = cq_tmp[i];
         end
+        if (!s_fire_c) begin
+          current_beat_n  = current_beat_r;
+          bytes_in_beat_n = bytes_in_beat_r;
+        end
+        if (state_n == ST_CAP_FLUSH && bytes_in_beat_n != BEAT_BYTE_CNT_W'(0)) begin
+          wr_shadow_valid_n = 1'b1;
+          // Partial beat holds bytes for slot [wr_abs_pos_n, wr_abs_pos_n+bytes_in_beat_n), so write to beat wr_abs_pos_n/32
+          wr_shadow_idx_n   = MEM_BEAT_W'(wr_abs_pos_n / AXIS_BEAT_BYTES);
+          wr_shadow_data_n  = current_beat_n;
+          for (i = 0; i < AXIS_BEAT_BYTES; i++)
+            if (i >= bytes_in_beat_n) wr_shadow_data_n[i*8 +: 8] = 8'h00;
+        end
       end
 
       ST_CAP_FLUSH: begin
-        sh_valid = wr_shadow_valid_r;
-        flush_shadow(
-            sh_valid, wr_shadow_idx_r, wr_shadow_data_r,
-            mem_wr_en_c, mem_wr_addr_c, mem_wr_data_c
-        );
-        wr_shadow_valid_n = 1'b0;
-        wr_shadow_data_n  = '0;
+        if (wr_shadow_valid_r && (wr_shadow_idx_r == MEM_BEAT_W'(CQ_START_BEAT))) begin
+          wr_shadow_valid_n = 1'b1;
+          wr_shadow_idx_n   = wr_shadow_idx_r;
+          wr_shadow_data_n  = wr_shadow_data_r;
+        end else begin
+          if (wr_shadow_valid_r) begin
+            mem_wr_en_c   = 1'b1;
+            mem_wr_addr_c = wr_shadow_idx_r;
+            mem_wr_data_c = wr_shadow_data_r;
+          end
+          wr_shadow_valid_n = 1'b0;
+          wr_shadow_data_n  = '0;
+        end
 
-        zero_fill_idx_n = MEM_BEAT_W'(ceil_div_int(wr_abs_pos_r, AXIS_BEAT_BYTES));
-        state_n         = ST_ZERO_MID;
+        // Start zero-fill after last written beat: if we wrote a partial to wr_shadow_idx_r, zero from next beat;
+        // else we wrote only full beats, so zero from wr_abs_pos_r/32.
+        if (wr_shadow_valid_r)
+          zero_fill_idx_n = wr_shadow_idx_r + 1'b1;
+        else
+          zero_fill_idx_n = MEM_BEAT_W'(wr_abs_pos_r / AXIS_BEAT_BYTES);
+        state_n          = ST_ZERO_MID;
       end
 
       ST_ZERO_MID: begin
@@ -435,45 +603,36 @@ module fixed_slot_packer #(
           mem_wr_data_c   = '0;
           zero_fill_idx_n = zero_fill_idx_r + 1'b1;
         end else begin
-          wr_shadow_valid_n = 1'b1;
-          wr_shadow_idx_n   = MEM_BEAT_W'(CQ_START_BEAT);
-          wr_shadow_data_n  = '0;
+          if (!(wr_shadow_valid_r && (wr_shadow_idx_r == MEM_BEAT_W'(CQ_START_BEAT)))) begin
+            wr_shadow_valid_n = 1'b1;
+            wr_shadow_idx_n   = MEM_BEAT_W'(CQ_START_BEAT);
+            wr_shadow_data_n  = '0;
+          end
           wr_abs_pos_n      = CQ_START_BYTE;
           state_n           = ST_CQ_WRITE;
         end
       end
 
       ST_CQ_WRITE: begin
-        sh_valid = 1'b1;
-        sh_idx   = MEM_BEAT_W'(CQ_START_BEAT);
-        sh_data  = '0;
-        abs_pos  = CQ_START_BYTE;
-
-        for (i = 0; i < CQ_AREA_BYTES; i++) begin
-          if (i < cq_count_r) begin
-            append_byte_to_shadow(
-                cq_buf_r[i], sh_valid, sh_idx, sh_data, abs_pos,
-                mem_wr_en_c, mem_wr_addr_c, mem_wr_data_c
-            );
-          end
+        begin
+          logic [AXIS_DATA_W-1:0] cq_beat;
+          cq_beat = (wr_shadow_valid_r && (wr_shadow_idx_r == MEM_BEAT_W'(CQ_START_BEAT)))
+              ? wr_shadow_data_r
+              : '0;
+          for (i = 0; i < CQ_AREA_BYTES; i++)
+            if (i < cq_count_r)
+              cq_beat[(CQ_LANE_OFFSET + i) * 8 +: 8] = cq_buf_r[i];
+          mem_wr_en_c   = 1'b1;
+          mem_wr_addr_c = MEM_BEAT_W'(CQ_START_BEAT);
+          mem_wr_data_c = cq_beat;
         end
-
-        wr_shadow_valid_n = sh_valid;
-        wr_shadow_idx_n   = sh_idx;
-        wr_shadow_data_n  = sh_data;
-        wr_abs_pos_n      = abs_pos;
+        wr_shadow_valid_n = 1'b0;
+        wr_shadow_data_n  = '0;
+        wr_abs_pos_n      = CQ_START_BYTE + 32'(CQ_AREA_BYTES);
         state_n           = ST_CQ_FLUSH;
       end
 
       ST_CQ_FLUSH: begin
-        sh_valid = wr_shadow_valid_r;
-        flush_shadow(
-            sh_valid, wr_shadow_idx_r, wr_shadow_data_r,
-            mem_wr_en_c, mem_wr_addr_c, mem_wr_data_c
-        );
-        wr_shadow_valid_n = 1'b0;
-        wr_shadow_data_n  = '0;
-
         zero_fill_idx_n = MEM_BEAT_W'(ceil_div_int(wr_abs_pos_r, AXIS_BEAT_BYTES));
         state_n         = ST_ZERO_TAIL;
       end
@@ -537,6 +696,9 @@ module fixed_slot_packer #(
       wr_shadow_idx_r      <= '0;
       wr_shadow_data_r     <= '0;
 
+      current_beat_r      <= '0;
+      bytes_in_beat_r     <= '0;
+
       tail_count_r         <= '0;
       cq_count_r           <= '0;
 
@@ -562,6 +724,9 @@ module fixed_slot_packer #(
       wr_shadow_valid_r    <= wr_shadow_valid_n;
       wr_shadow_idx_r      <= wr_shadow_idx_n;
       wr_shadow_data_r     <= wr_shadow_data_n;
+
+      current_beat_r      <= current_beat_n;
+      bytes_in_beat_r     <= bytes_in_beat_n;
 
       tail_count_r         <= tail_count_n;
       cq_count_r           <= cq_count_n;

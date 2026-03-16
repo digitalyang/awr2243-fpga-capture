@@ -67,6 +67,7 @@ def run_regression(testcases: list[str], waves: bool, clean: bool) -> None:
             "-Wno-MULTIDRIVEN",  # PeakRDL singlepulse field_combo
             "-Wno-PINCONNECTEMPTY",
             "-Wno-IMPLICIT",
+            "-Wno-EOFNEWLINE",
             "--trace-fst",
         ],
     )

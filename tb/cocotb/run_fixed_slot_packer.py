@@ -56,6 +56,10 @@ def run_regression(testcases: list[str], waves: bool, clean: bool) -> None:
             "-Wno-UNDRIVEN",
             "-Wno-UNUSEDPARAM",
             "-Wno-WIDTHTRUNC",
+            "-Wno-WIDTHEXPAND",
+            "-Wno-MULTIDRIVEN",
+            "-Wno-LATCH",
+            "-Wno-EOFNEWLINE",
             "--trace-fst",
         ],
     )
