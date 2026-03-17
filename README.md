@@ -173,6 +173,36 @@ rd_ptr <= commit_ptr <= wr_ptr
 | 描述符 | HEAD_DESC_*（队首）、LAST_COMMIT_*（最近提交） |
 | 命令 | READ_CMD（issue_head_read / consume_head） |
 
+### 消费逻辑（Host 与 Ring Buffer Controller 的协调）
+
+Ring Buffer Controller（M0）和 XDMA（M1）在 SmartConnect 上是两个独立的 AXI master，彼此没有直接信号连接。Controller **无法感知 XDMA 是否已经从 DDR 读走了某个 slot 的数据**。因此，ring 空间的回收完全依赖 Host 软件通过 CSR 显式通知：
+
+```text
+Ring Buffer Controller                    Host Software
+        |                                       |
+  [write slot to DDR]                           |
+  [commit -> push desc FIFO]                    |
+  [HEAD_DESC CSR updated]                       |
+        |                              [read HEAD_DESC_ADDR from CSR]
+        |                              [program XDMA C2H descriptor]
+        |                              [XDMA reads DDR via SmartConnect]
+        |                              [wait C2H done]
+        |                              [write READ_CMD.consume_head = 1]
+        |                                       |
+  [receive consume_head pulse]  <--- AXI-Lite --|
+  [pop desc FIFO head]                          |
+  [advance rd_ptr]                              |
+  [free ring space]                             |
+        |                              [next slot...]
+```
+
+关键点：
+
+* **rd_ptr 仍然必要**：它标记了 Host 已确认消费的边界。只有 `consume_head` 推进 `rd_ptr` 后，对应的 ring 空间才被释放，Controller 才能写入新 slot
+* **Controller 不感知 XDMA 读取**：XDMA 通过 SmartConnect 直接读 DDR，Controller 无从得知。消费确认完全靠 Host 写 `consume_head`
+* **Host 软件是协调者**：Host 负责保证 "先让 XDMA 读完数据，再写 `consume_head`"。如果 Host 提前 consume 了还没读完的 slot，XDMA 可能读到被新数据覆盖的内容
+* **单步 consume**：每次 `consume_head` 只释放 FIFO 队首一个 slot。批量消费需要连续写多次
+
 ### 溢出策略
 
 由 CTRL 位域控制：`drop_on_no_space`（无空间时丢弃）、`allow_overwrite`（覆盖未读）、`drop_invalid_slot`（丢弃无效 slot）。

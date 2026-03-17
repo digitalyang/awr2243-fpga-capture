@@ -89,12 +89,12 @@ ST_IDLE --> ST_CHECK --+-- ST_ACCEPT (VC/DT match -> forward payload beats)
 
 ```text
 +----------------------------------+  offset 0
-| RX Headers (4 x 24bit = 12B)    |
+| RX Headers (4 x 24bit = 12B)     |
 +----------------------------------+  offset 12
-| Sample Area (1024 x 12B)        |
-| = 12288B, zero-padded           |
+| Sample Area (1024 x 12B)         |
+| = 12288B, zero-padded            |
 +----------------------------------+  offset 12300
-| CQ Area (6 x 12bit = 9B)        |
+| CQ Area (6 x 12bit = 9B)         |
 +----------------------------------+  offset 12309
 | Padding (43B zeros)              |
 +----------------------------------+  offset 12352 (64B aligned)
