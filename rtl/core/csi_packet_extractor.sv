@@ -258,40 +258,52 @@ module csi_packet_extractor #(
     pkt_trunc_err_view_c = pkt_trunc_err_r;
     pkt_done_view_c      = 1'b0;
 
+    if ((state_r == ST_CHECK) && pkt_match_c) begin
+      pkt_seq_view_c = pkt_seq_ctr_r;
+      pkt_bytes_view_c = PKT_BYTE_CNT_W'(first_payload_len_c);
+    end
+
     if ((state_r == ST_CHECK) && pkt_match_c && m_fire_c) begin
       pkt_seq_view_c       = pkt_seq_ctr_r;
-      pkt_bytes_view_c     = PKT_BYTE_CNT_W'(first_beat_bytes_c);
       pkt_crc_err_view_c   = first_crc_err_c;
       pkt_ecc_err_view_c   = first_ecc_err_c;
       pkt_trunc_err_view_c = first_trunc_err_c;
 
       if (first_beat_r.last) begin
+        pkt_bytes_view_c = PKT_BYTE_CNT_W'(first_beat_bytes_c);
         pkt_trunc_err_view_c = first_trunc_err_c ||
                                        (PKT_BYTE_CNT_W'(first_beat_bytes_c) != PKT_BYTE_CNT_W'(first_payload_len_c));
         pkt_done_view_c = 1'b1;
       end else begin
+        pkt_bytes_view_c = PKT_BYTE_CNT_W'(first_payload_len_c);
         pkt_trunc_err_view_c = first_trunc_err_c ||
                                        (PKT_BYTE_CNT_W'(first_beat_bytes_c) > PKT_BYTE_CNT_W'(first_payload_len_c));
       end
-    end else if ((state_r == ST_ACCEPT) && s_fire_c) begin
+    end else if (state_r == ST_ACCEPT) begin
       pkt_seq_view_c = pkt_seq_r;
-      pkt_bytes_view_c = pkt_bytes_r + PKT_BYTE_CNT_W'(stream_beat_bytes_c);
+      pkt_bytes_view_c = exp_pkt_bytes_r;
       pkt_crc_err_view_c = pkt_crc_err_r | stream_crc_err_c;
       pkt_ecc_err_view_c = pkt_ecc_err_r | stream_ecc_err_c;
       pkt_trunc_err_view_c = pkt_trunc_err_r |
                                    stream_trunc_err_c |
                                    ((pkt_bytes_r + PKT_BYTE_CNT_W'(stream_beat_bytes_c)) > PKT_BYTE_CNT_W'(exp_pkt_bytes_r));
 
-      if (s_axis.tlast) begin
-        pkt_trunc_err_view_c = pkt_trunc_err_r |
-                                       stream_trunc_err_c |
-                                       ((pkt_bytes_r + PKT_BYTE_CNT_W'(stream_beat_bytes_c)) != PKT_BYTE_CNT_W'(exp_pkt_bytes_r));
-        pkt_done_view_c = 1'b1;
+      if (s_fire_c) begin
+        if (s_axis.tlast) begin
+          pkt_bytes_view_c = pkt_bytes_r + PKT_BYTE_CNT_W'(stream_beat_bytes_c);
+          pkt_trunc_err_view_c = pkt_trunc_err_r |
+                                         stream_trunc_err_c |
+                                         ((pkt_bytes_r + PKT_BYTE_CNT_W'(stream_beat_bytes_c)) != PKT_BYTE_CNT_W'(exp_pkt_bytes_r));
+          pkt_done_view_c = 1'b1;
+        end
       end
     end
   end
 
-  assign pkt_start_o = (state_r == ST_CHECK) && pkt_match_c && m_fire_c;
+  // Advertise the first forwarded beat as soon as it is presented on m_axis.
+  // This lets downstream packet consumers arm their tready before the first
+  // beat handshakes, avoiding a first-beat deadlock.
+  assign pkt_start_o = (state_r == ST_CHECK) && pkt_match_c && m_axis.tvalid;
   assign pkt_done_o = pkt_done_view_c;
   assign pkt_seq_o = pkt_seq_view_c;
   assign pkt_bytes_o = pkt_bytes_view_c;

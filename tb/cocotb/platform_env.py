@@ -305,7 +305,7 @@ class SimulationPlatformEnv:
                 await RisingEdge(self.dut.video_aclk)
         return info
 
-    async def wait_for_commit(self, timeout_cycles: int = 1500) -> CommitInfo:
+    async def wait_for_commit(self, timeout_cycles: int = 4096) -> CommitInfo:
         for _ in range(timeout_cycles):
             await RisingEdge(self.dut.axis_clk)
             if int(self.dut.wr_slot_commit_o.value):

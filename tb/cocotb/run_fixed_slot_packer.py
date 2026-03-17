@@ -17,6 +17,7 @@ ALL_TESTS = [
     "test_smoke",
     "test_short_pkt",
     "test_single_beat",
+    "test_cq_crosses_before_last_beat",
     "test_full_slot",
     "test_overflow",
     "test_mark_invalid",

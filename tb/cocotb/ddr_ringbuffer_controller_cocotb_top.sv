@@ -9,7 +9,7 @@ module ddr_ringbuffer_controller_cocotb_top #(
     parameter int unsigned RD_AXIS_USER_W = `DDR_RING_AXIS_USER_W_DFLT,
     parameter bit SLOT_FIXED_EN = 1'b0,
     parameter int unsigned SLOT_STRIDE_BYTES = `DDR_RING_SLOT_STRIDE_BYTES_DFLT,
-    parameter int unsigned SLOT_BUFFER_BYTES = 512,
+    parameter int unsigned SLOT_BUFFER_BYTES = `DDR_RING_SLOT_BUFFER_BYTES_DFLT,
     parameter int unsigned DESC_FIFO_DEPTH = 8,
     parameter int unsigned MAX_BURST_LEN = 8,
     parameter int unsigned ADDR_ALIGN_BYTES = `DDR_RING_ALIGN_BYTES_DFLT,

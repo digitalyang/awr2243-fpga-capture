@@ -146,6 +146,31 @@ module fixed_slot_packer #(
     end
   endfunction
 
+  function automatic logic [31:0] sample_end_byte_for_pkt(
+      input logic [PKT_BYTE_CNT_W-1:0] pkt_bytes,
+      input logic                      pkt_trunc_err
+  );
+    logic [31:0] pkt_bytes_u32;
+    begin
+      pkt_bytes_u32 = 32'(pkt_bytes);
+      sample_end_byte_for_pkt = 32'(HEADER_BYTES);
+
+      if (pkt_trunc_err) begin
+        if (pkt_bytes_u32 >= 32'(HEADER_BYTES)) begin
+          if ((pkt_bytes_u32 - 32'(HEADER_BYTES)) < 32'(SAMPLE_AREA_BYTES))
+            sample_end_byte_for_pkt = pkt_bytes_u32;
+          else
+            sample_end_byte_for_pkt = 32'(HEADER_BYTES) + 32'(SAMPLE_AREA_BYTES);
+        end
+      end else if (pkt_bytes_u32 >= 32'(HEADER_BYTES + CQ_AREA_BYTES)) begin
+        if ((pkt_bytes_u32 - 32'(HEADER_BYTES + CQ_AREA_BYTES)) < 32'(SAMPLE_AREA_BYTES))
+          sample_end_byte_for_pkt = pkt_bytes_u32 - 32'(CQ_AREA_BYTES);
+        else
+          sample_end_byte_for_pkt = 32'(HEADER_BYTES) + 32'(SAMPLE_AREA_BYTES);
+      end
+    end
+  endfunction
+
   assign s_fire_c           = s_axis.tvalid && s_axis.tready;
   assign m_fire_c           = m_axis.tvalid && m_axis.tready;
   assign should_drop_c      = !pkt_valid_good_i && cfg_drop_invalid_pkt_i;
@@ -282,17 +307,23 @@ module fixed_slot_packer #(
 
       ST_CAPTURE: begin
         if (s_fire_c) begin
+          logic [31:0] pkt_sample_end_byte;
+
+          pkt_sample_end_byte = sample_end_byte_for_pkt(pkt_bytes_i, pkt_trunc_err_i);
           valid_before_lane = 0;
 
           // Fast path: beat-aligned and full beat, write s_axis.tdata directly to RAM.
           // On last beat (pkt_done_i), zero-fill from effective payload end to match slot layout (sample_len = remainder - CQ).
           if ((wr_abs_pos_r % AXIS_BEAT_BYTES) == 0 &&
               (s_axis.tkeep == {AXIS_KEEP_W{1'b1}}) &&
-              (wr_abs_pos_r + AXIS_BEAT_BYTES <= CQ_START_BYTE)) begin
+              (wr_abs_pos_r + AXIS_BEAT_BYTES <= CQ_START_BYTE) &&
+              ((32'(cap_pkt_bytes_r) + 32'(AXIS_BEAT_BYTES)) <= pkt_sample_end_byte)) begin
             mem_wr_en_c   = 1'b1;
             mem_wr_addr_c = MEM_BEAT_W'(wr_abs_pos_r / AXIS_BEAT_BYTES);
             mem_wr_data_c = s_axis.tdata;
-            if (pkt_done_i && (32'(pkt_bytes_i) >= 32'(HEADER_BYTES + CQ_AREA_BYTES))) begin
+            valid_before_lane = AXIS_BEAT_BYTES;
+            if (pkt_done_i && !pkt_trunc_err_i &&
+                (32'(pkt_bytes_i) >= 32'(HEADER_BYTES + CQ_AREA_BYTES))) begin
               logic [31:0] eff_end;
               int unsigned z_start;
               // eff_end = HEADER + min(pkt_bytes - HEADER - CQ, SAMPLE_AREA) = slot payload end (matches Python sample_len)
@@ -325,113 +356,165 @@ module fixed_slot_packer #(
               logic [31:0]            sample_end_byte;
               int unsigned            slot_pos;
               int unsigned            break_lane;
+              int unsigned            valid_bytes_cur;
+              int unsigned            sample_bytes_this_beat;
               logic                  bypass_full_beat;
 
               break_lane = AXIS_KEEP_W;
               carried_cnt = 0;
-              sample_end_byte = (pkt_bytes_i >= 32'(HEADER_BYTES))
-                ? ((32'(pkt_bytes_i) < 32'(CQ_START_BYTE)) ? 32'(pkt_bytes_i) : 32'(CQ_START_BYTE))
-                : 32'(HEADER_BYTES);
+              sample_end_byte = pkt_sample_end_byte;
 
               // Bypass: beat-aligned, empty buffer, entire beat in sample region → use s_axis.tdata as-is (no reorder).
               bypass_full_beat = (bytes_in_beat_r == 0) &&
                 ((wr_abs_pos_r % AXIS_BEAT_BYTES) == 0) &&
                 (wr_abs_pos_r + AXIS_BEAT_BYTES <= CQ_START_BYTE) &&
+                ((32'(cap_pkt_bytes_r) + 32'(AXIS_BEAT_BYTES)) <= sample_end_byte) &&
                 (s_axis.tkeep == {AXIS_KEEP_W{1'b1}});
 
               merged_beat = current_beat_r;
               slot_off    = 32'(bytes_in_beat_r);
+              valid_bytes_cur = int'(count_keep_bytes(s_axis.tkeep));
 
-              if (bypass_full_beat) begin
-                merged_beat = s_axis.tdata;
-                slot_off    = 32'(AXIS_BEAT_BYTES);
-                break_lane  = AXIS_KEEP_W;
-                valid_before_lane = valid_before_lane + AXIS_BEAT_BYTES;
-                for (i = 0; i < CQ_AREA_BYTES; i++)
-                  tail_tmp[i] = s_axis.tdata[(AXIS_BEAT_BYTES - CQ_AREA_BYTES + i) * 8 +: 8];
-                tail_cnt = CQ_CNT_W'(CQ_AREA_BYTES);
-              end else
-              for (lane = 0; lane < AXIS_KEEP_W; lane++) begin
-                  if (slot_off >= 32'(AXIS_BEAT_BYTES)) begin
-                    break_lane = lane;
-                    break;
-                  end
-                  if (s_axis.tkeep[lane]) begin
-                    cur_byte = s_axis.tdata[lane*8 +: 8];
-                    pkt_byte_pos_before_this_byte = cap_pkt_bytes_r + valid_before_lane;
-
-                    if (pkt_byte_pos_before_this_byte < HEADER_BYTES) begin
-                      byte_out = cur_byte;
-                      if ((wr_abs_pos_r + 32'(slot_off) - 32'(bytes_in_beat_r)) < CQ_START_BYTE) begin
-                        merged_beat[slot_off*8 +: 8] = byte_out;
-                        slot_off = slot_off + 1;
-                      end
-                    end else begin
-                      if (tail_cnt < CQ_AREA_BYTES) begin
-                        tail_tmp[tail_cnt] = cur_byte;
-                        tail_cnt = tail_cnt + 1'b1;
-                      end else begin
-                        byte_out = tail_tmp[0];
-                        if ((wr_abs_pos_r + 32'(slot_off) - 32'(bytes_in_beat_r)) < CQ_START_BYTE) begin
-                          merged_beat[slot_off*8 +: 8] = byte_out;
-                          slot_off = slot_off + 1;
-                        end
-                        for (i = 0; i < CQ_AREA_BYTES-1; i++)
-                          tail_tmp[i] = tail_tmp[i+1];
-                        tail_tmp[CQ_AREA_BYTES-1] = cur_byte;
-                      end
-                    end
-
-                    valid_before_lane = valid_before_lane + 1;
-                  end
-                end
-
-              // Carry over: run remaining input bytes through the sliding window; output (pops) go to current_beat_n.
-              // Use a local copy of the window so we don't conflict with shared tail_tmp indexing.
-              if (slot_off >= 32'(AXIS_BEAT_BYTES) && break_lane < AXIS_KEEP_W) begin
-                logic [7:0] rem_bytes [0:AXIS_BEAT_BYTES-1];
-                logic [7:0] win [0:CQ_AREA_BYTES-1];
-                int unsigned rem_cnt;
-                int unsigned k;
-                int unsigned write_idx;
-                rem_cnt = 0;
-                for (lane = break_lane; lane < AXIS_KEEP_W; lane++) begin
-                  if (s_axis.tkeep[lane] && rem_cnt < AXIS_BEAT_BYTES) begin
-                    rem_bytes[rem_cnt] = s_axis.tdata[lane*8 +: 8];
-                    rem_cnt = rem_cnt + 1;
-                  end
-                end
-                for (i = 0; i < CQ_AREA_BYTES; i++)
-                  win[i] = tail_tmp[i];
-                write_idx = 0;
-                // Fast path: 9 in window and 23 remaining => output = win[0:9] then rem_bytes[0:14] = payload[32:55]
-                if (rem_cnt == 23 && tail_cnt >= CQ_AREA_BYTES) begin
-                  for (k = 0; k < 9; k++)
-                    current_beat_n[k*8 +: 8] = win[k];
-                  for (k = 0; k < 14; k++)
-                    current_beat_n[(9+k)*8 +: 8] = rem_bytes[k];
-                  for (i = 0; i < CQ_AREA_BYTES-1; i++)
-                    tail_tmp[i] = rem_bytes[14 + i];
-                  tail_tmp[CQ_AREA_BYTES-1] = rem_bytes[22];
-                  write_idx = 23;
+              if ((bytes_in_beat_r == BEAT_BYTE_CNT_W'(0)) &&
+                  (tail_cnt == CQ_CNT_W'(CQ_AREA_BYTES)) &&
+                  (32'(cap_pkt_bytes_r) < 32'(SLOT_TOTAL_RAW)) &&
+                  (sample_end_byte <= (32'(cap_pkt_bytes_r) + 32'(valid_bytes_cur))) &&
+                  !pkt_trunc_err_i) begin
+                if (32'(pkt_bytes_i) >= 32'(HEADER_BYTES + CQ_AREA_BYTES)) begin
+                  if ((32'(pkt_bytes_i) - 32'(HEADER_BYTES + CQ_AREA_BYTES)) < 32'(SAMPLE_AREA_BYTES))
+                    sample_end_byte = 32'(pkt_bytes_i) - 32'(CQ_AREA_BYTES);
+                  else
+                    sample_end_byte = 32'(HEADER_BYTES) + 32'(SAMPLE_AREA_BYTES);
                 end else begin
-                  for (k = 0; k < rem_cnt; k++) begin
-                    if (tail_cnt >= CQ_AREA_BYTES) begin
-                      current_beat_n[write_idx*8 +: 8] = win[0];
-                      write_idx = write_idx + 1;
-                      for (i = 0; i < CQ_AREA_BYTES-1; i++)
-                        win[i] = win[i+1];
-                      win[CQ_AREA_BYTES-1] = rem_bytes[k];
-                    end else begin
-                      win[tail_cnt] = rem_bytes[k];
-                      tail_cnt = tail_cnt + 1'b1;
+                  sample_end_byte = 32'(HEADER_BYTES);
+                end
+
+                if (sample_end_byte > 32'(cap_pkt_bytes_r))
+                  sample_bytes_this_beat = int'(sample_end_byte - 32'(cap_pkt_bytes_r));
+                else
+                  sample_bytes_this_beat = 0;
+
+                if (sample_bytes_this_beat > valid_bytes_cur)
+                  sample_bytes_this_beat = valid_bytes_cur;
+
+                merged_beat = '0;
+                if (MEM_BEAT_W'(wr_abs_pos_r / AXIS_BEAT_BYTES) == MEM_BEAT_W'(CQ_START_BEAT)) begin
+                  slot_off = sample_bytes_this_beat;
+                end else begin
+                  slot_off   = 32'(AXIS_BEAT_BYTES);
+                  break_lane = AXIS_KEEP_W;
+                end
+                valid_before_lane = valid_bytes_cur;
+
+                for (i = 0; i < sample_bytes_this_beat; i++)
+                  merged_beat[i*8 +: 8] = s_axis.tdata[i*8 +: 8];
+
+                if ((valid_bytes_cur - sample_bytes_this_beat) >= CQ_AREA_BYTES)
+                  tail_cnt = CQ_CNT_W'(CQ_AREA_BYTES);
+                else
+                  tail_cnt = CQ_CNT_W'(valid_bytes_cur - sample_bytes_this_beat);
+
+                for (i = 0; i < CQ_AREA_BYTES; i++) begin
+                  if (i < (valid_bytes_cur - sample_bytes_this_beat))
+                    tail_tmp[i] = s_axis.tdata[(sample_bytes_this_beat + i) * 8 +: 8];
+                  else
+                    tail_tmp[i] = 8'h00;
+                end
+              end else begin
+                if (bypass_full_beat) begin
+                  merged_beat = s_axis.tdata;
+                  slot_off    = 32'(AXIS_BEAT_BYTES);
+                  break_lane  = AXIS_KEEP_W;
+                  valid_before_lane = valid_before_lane + AXIS_BEAT_BYTES;
+                  for (i = 0; i < CQ_AREA_BYTES; i++)
+                    tail_tmp[i] = s_axis.tdata[(AXIS_BEAT_BYTES - CQ_AREA_BYTES + i) * 8 +: 8];
+                  tail_cnt = CQ_CNT_W'(CQ_AREA_BYTES);
+                end else
+                for (lane = 0; lane < AXIS_KEEP_W; lane++) begin
+                    if (slot_off >= 32'(AXIS_BEAT_BYTES)) begin
+                      break_lane = lane;
+                      break;
+                    end
+                    if (s_axis.tkeep[lane]) begin
+                      cur_byte = s_axis.tdata[lane*8 +: 8];
+                      pkt_byte_pos_before_this_byte = cap_pkt_bytes_r + valid_before_lane;
+
+                      if (pkt_byte_pos_before_this_byte < SLOT_TOTAL_RAW) begin
+                        if (pkt_byte_pos_before_this_byte < HEADER_BYTES) begin
+                          byte_out = cur_byte;
+                          if ((wr_abs_pos_r + 32'(slot_off) - 32'(bytes_in_beat_r)) < CQ_START_BYTE) begin
+                            merged_beat[slot_off*8 +: 8] = byte_out;
+                            slot_off = slot_off + 1;
+                          end
+                        end else begin
+                          if (tail_cnt < CQ_AREA_BYTES) begin
+                            tail_tmp[tail_cnt] = cur_byte;
+                            tail_cnt = tail_cnt + 1'b1;
+                          end else begin
+                            byte_out = tail_tmp[0];
+                            if ((wr_abs_pos_r + 32'(slot_off) - 32'(bytes_in_beat_r)) < CQ_START_BYTE) begin
+                              merged_beat[slot_off*8 +: 8] = byte_out;
+                              slot_off = slot_off + 1;
+                            end
+                            for (i = 0; i < CQ_AREA_BYTES-1; i++)
+                              tail_tmp[i] = tail_tmp[i+1];
+                            tail_tmp[CQ_AREA_BYTES-1] = cur_byte;
+                          end
+                        end
+                      end
+
+                      valid_before_lane = valid_before_lane + 1;
+                    end
+                  end
+
+                // Carry over: run remaining input bytes through the sliding window; output (pops) go to current_beat_n.
+                // Use a local copy of the window so we don't conflict with shared tail_tmp indexing.
+                if (slot_off >= 32'(AXIS_BEAT_BYTES) && break_lane < AXIS_KEEP_W) begin
+                  logic [7:0] rem_bytes [0:AXIS_BEAT_BYTES-1];
+                  logic [7:0] win [0:CQ_AREA_BYTES-1];
+                  int unsigned rem_cnt;
+                  int unsigned k;
+                  int unsigned write_idx;
+                  rem_cnt = 0;
+                  for (lane = break_lane; lane < AXIS_KEEP_W; lane++) begin
+                    if (s_axis.tkeep[lane] && rem_cnt < AXIS_BEAT_BYTES &&
+                        (32'(cap_pkt_bytes_r) + 32'(valid_before_lane) + 32'(rem_cnt) < 32'(SLOT_TOTAL_RAW))) begin
+                      rem_bytes[rem_cnt] = s_axis.tdata[lane*8 +: 8];
+                      rem_cnt = rem_cnt + 1;
                     end
                   end
                   for (i = 0; i < CQ_AREA_BYTES; i++)
-                    tail_tmp[i] = win[i];
+                    win[i] = tail_tmp[i];
+                  write_idx = 0;
+                  // Fast path: 9 in window and 23 remaining => output = win[0:9] then rem_bytes[0:14] = payload[32:55]
+                  if (rem_cnt == 23 && tail_cnt >= CQ_AREA_BYTES) begin
+                    for (k = 0; k < 9; k++)
+                      current_beat_n[k*8 +: 8] = win[k];
+                    for (k = 0; k < 14; k++)
+                      current_beat_n[(9+k)*8 +: 8] = rem_bytes[k];
+                    for (i = 0; i < CQ_AREA_BYTES-1; i++)
+                      tail_tmp[i] = rem_bytes[14 + i];
+                    tail_tmp[CQ_AREA_BYTES-1] = rem_bytes[22];
+                    write_idx = 23;
+                  end else begin
+                    for (k = 0; k < rem_cnt; k++) begin
+                      if (tail_cnt >= CQ_AREA_BYTES) begin
+                        current_beat_n[write_idx*8 +: 8] = win[0];
+                        write_idx = write_idx + 1;
+                        for (i = 0; i < CQ_AREA_BYTES-1; i++)
+                          win[i] = win[i+1];
+                        win[CQ_AREA_BYTES-1] = rem_bytes[k];
+                      end else begin
+                        win[tail_cnt] = rem_bytes[k];
+                        tail_cnt = tail_cnt + 1'b1;
+                      end
+                    end
+                    for (i = 0; i < CQ_AREA_BYTES; i++)
+                      tail_tmp[i] = win[i];
+                  end
+                  bytes_in_beat_n = BEAT_BYTE_CNT_W'(write_idx);
+                  carried_cnt = rem_cnt;
                 end
-                bytes_in_beat_n = BEAT_BYTE_CNT_W'(write_idx);
-                carried_cnt = rem_cnt;
               end
 
               // Zero-fill from end of sample to CQ when packet ends this beat
@@ -450,8 +533,7 @@ module fixed_slot_packer #(
               if (slot_off >= AXIS_BEAT_BYTES) begin
                 mem_wr_en_c   = 1'b1;
                 mem_wr_addr_c = MEM_BEAT_W'(wr_abs_pos_r / AXIS_BEAT_BYTES);
-                // When breaking (carry-over), write the carry-over beat (payload[32:55]+zeros), not merged_beat
-                mem_wr_data_c = (break_lane >= AXIS_KEEP_W) ? merged_beat : current_beat_n;
+                mem_wr_data_c = merged_beat;
                 // Last beat zero-fill from effective payload end (sample_len = remainder - CQ) when pkt_done_i
                 if (pkt_done_i && (break_lane >= AXIS_KEEP_W) &&
                     (32'(pkt_bytes_i) >= 32'(HEADER_BYTES + CQ_AREA_BYTES))) begin
@@ -509,8 +591,10 @@ module fixed_slot_packer #(
                 for (i = 0; i < CQ_AREA_BYTES; i++) begin
                   cq_tmp[i] = 8'h00;
                 end
-                // Trunc path: append tail_tmp bytes to current beat buffer and flush
-                begin
+                // On truncation, tail_tmp bytes belong to the sample region. Only
+                // append/flush when there is an unwritten partial beat buffer; if
+                // the last beat was already committed directly, keep that write.
+                if (bytes_in_beat_n != BEAT_BYTE_CNT_W'(0)) begin
                   logic [AXIS_DATA_W-1:0] fin_beat;
                   int unsigned            so;
                   so = 32'(bytes_in_beat_n);

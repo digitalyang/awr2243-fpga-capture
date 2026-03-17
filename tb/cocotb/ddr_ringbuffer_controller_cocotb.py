@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
@@ -7,6 +9,9 @@ from typing import Dict, List
 import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, FallingEdge, RisingEdge
+from cocotb.utils import get_sim_time
+
+from awr_payload_model import SLOT_TOTAL_ALIGNED
 
 
 AXIS_DATA_W = 256
@@ -44,6 +49,13 @@ def keep_mask(valid_bytes: int, beat_bytes: int) -> int:
 
 def align_up(value: int, align_bytes: int) -> int:
     return ((value + align_bytes - 1) // align_bytes) * align_bytes
+
+
+def getenv_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None or value == "":
+        return default
+    return int(value, 0)
 
 
 @dataclass
@@ -456,3 +468,168 @@ async def wraparound_basic(dut):
     assert commit1.addr == RING_BASE_ADDR + align_up(len(payload0), 32)
     assert int(dut.wrap_count_o.value) != 0, "wrap_count_o did not increment"
     assert int(dut.err_no_space_o.value) == 0
+
+
+@cocotb.test()
+async def perf_dataset_roundtrip(dut):
+    dataset_env = os.getenv("PERF_DATASET")
+    if not dataset_env:
+        raise RuntimeError("PERF_DATASET environment variable is required for perf_dataset_roundtrip")
+
+    dataset_path = Path(dataset_env)
+    if not dataset_path.exists():
+        raise FileNotFoundError(f"PERF_DATASET does not exist: {dataset_path}")
+
+    slot_bytes = getenv_int("PERF_SLOT_BYTES", SLOT_TOTAL_ALIGNED)
+    max_slots = getenv_int("PERF_MAX_SLOTS", 256)
+    verify_every = getenv_int("PERF_VERIFY_EVERY", 32)
+    ring_size_bytes = getenv_int("PERF_RING_SIZE_BYTES", 65536)
+    timeout_cycles = getenv_int("PERF_TIMEOUT_CYCLES", 4000)
+
+    if slot_bytes <= 0:
+        raise ValueError(f"PERF_SLOT_BYTES must be > 0, got {slot_bytes}")
+    if ring_size_bytes <= 0:
+        raise ValueError(f"PERF_RING_SIZE_BYTES must be > 0, got {ring_size_bytes}")
+
+    file_size = dataset_path.stat().st_size
+    total_slots_in_file = file_size // slot_bytes
+    if total_slots_in_file == 0:
+        raise ValueError(f"dataset is smaller than one slot: {dataset_path} size={file_size} slot_bytes={slot_bytes}")
+
+    if file_size % slot_bytes:
+        dut._log.warning(
+            "dataset size is not an integer multiple of slot_bytes; tail bytes will be ignored "
+            "(size=%d slot_bytes=%d remainder=%d)",
+            file_size,
+            slot_bytes,
+            file_size % slot_bytes,
+        )
+
+    if max_slots <= 0:
+        total_slots = total_slots_in_file
+    else:
+        total_slots = min(total_slots_in_file, max_slots)
+
+    seq_mask = (1 << signal_width(dut.slot_seq_i)) - 1
+    beat_timeout_cycles = max(timeout_cycles, (slot_bytes // AXIS_BEAT_BYTES) * 4)
+
+    mem_model = AxiMemoryModel(dut)
+    cocotb.start_soon(mem_model.run())
+    await apply_reset(dut)
+    await configure_ring(dut, ring_size_bytes=ring_size_bytes)
+
+    committed = deque()
+    total_written_bytes = 0
+    total_read_bytes = 0
+    write_commit_count = 0
+    read_slot_count = 0
+    write_start_ns = None
+    write_end_ns = None
+    read_start_ns = None
+    read_end_ns = None
+
+    async def consumer() -> None:
+        nonlocal total_read_bytes, read_slot_count, read_start_ns, read_end_ns
+
+        while read_slot_count < total_slots:
+            while not committed:
+                await RisingEdge(dut.clk_i)
+
+            if read_start_ns is None:
+                read_start_ns = get_sim_time("ns")
+
+            await request_read(dut)
+            readback = await collect_read_slot(dut, timeout_cycles=beat_timeout_cycles)
+            exp_seq, exp_payload = committed.popleft()
+
+            assert readback.seq == exp_seq
+            assert readback.slot_bytes == slot_bytes
+            assert readback.valid_good == 1
+            assert readback.overflow_err == 0
+            if exp_payload is not None:
+                assert readback.payload == exp_payload
+
+            await consume_slot(dut)
+
+            total_read_bytes += readback.slot_bytes
+            read_slot_count += 1
+            read_end_ns = get_sim_time("ns")
+
+    consumer_task = cocotb.start_soon(consumer())
+
+    with dataset_path.open("rb") as fin:
+        for slot_idx in range(total_slots):
+            payload = fin.read(slot_bytes)
+            if len(payload) != slot_bytes:
+                raise AssertionError(
+                    f"unexpected short read at slot {slot_idx}: got {len(payload)} expected {slot_bytes}"
+                )
+
+            if write_start_ns is None:
+                write_start_ns = get_sim_time("ns")
+
+            slot_seq = slot_idx & seq_mask
+            await drive_slot(dut, payload=payload, slot_seq=slot_seq)
+            commit = await wait_commit(dut, timeout_cycles=beat_timeout_cycles)
+
+            assert commit.seq == slot_seq
+            assert commit.slot_bytes == slot_bytes
+            assert commit.valid_good == 1
+            assert commit.overflow_err == 0
+
+            if verify_every > 0 and (slot_idx % verify_every) == 0:
+                stored = mem_model.read_ring_bytes(
+                    ring_base=int(dut.cfg_ring_base_addr_i.value),
+                    ring_size=int(dut.cfg_ring_size_bytes_i.value),
+                    start_addr=commit.addr,
+                    byte_count=slot_bytes,
+                )
+                assert stored == payload, f"DDR memory image mismatch at slot {slot_idx}"
+                committed.append((slot_seq, payload))
+            else:
+                committed.append((slot_seq, None))
+
+            total_written_bytes += slot_bytes
+            write_commit_count += 1
+            write_end_ns = get_sim_time("ns")
+
+    await consumer_task
+
+    assert write_commit_count == total_slots
+    assert read_slot_count == total_slots
+    assert total_written_bytes == total_slots * slot_bytes
+    assert total_read_bytes == total_slots * slot_bytes
+    assert int(dut.err_axi_wr_resp_o.value) == 0
+    assert int(dut.err_axi_rd_resp_o.value) == 0
+    assert int(dut.err_illegal_read_o.value) == 0
+    assert int(dut.err_no_space_o.value) == 0
+    assert int(dut.err_slot_proto_o.value) == 0
+    assert int(dut.err_slot_too_large_o.value) == 0
+
+    total_elapsed_ns = max(1, int(read_end_ns - write_start_ns))
+    write_elapsed_ns = max(1, int(write_end_ns - write_start_ns))
+    read_elapsed_ns = max(1, int(read_end_ns - read_start_ns if read_start_ns is not None else 1))
+
+    total_mib = total_written_bytes / (1024.0 * 1024.0)
+    total_throughput_mib_s = total_mib / (total_elapsed_ns * 1e-9)
+    write_throughput_mib_s = total_mib / (write_elapsed_ns * 1e-9)
+    read_throughput_mib_s = total_mib / (read_elapsed_ns * 1e-9)
+
+    dut._log.info(
+        "perf_dataset_roundtrip dataset=%s slots=%d slot_bytes=%d total_bytes=%d total_mib=%.3f "
+        "total_elapsed_ns=%d write_elapsed_ns=%d read_elapsed_ns=%d "
+        "total_mib_s=%.3f write_mib_s=%.3f read_mib_s=%.3f ring_size=%d verify_every=%d",
+        dataset_path,
+        total_slots,
+        slot_bytes,
+        total_written_bytes,
+        total_mib,
+        total_elapsed_ns,
+        write_elapsed_ns,
+        read_elapsed_ns,
+        total_throughput_mib_s,
+        write_throughput_mib_s,
+        read_throughput_mib_s,
+        ring_size_bytes,
+        verify_every,
+    )

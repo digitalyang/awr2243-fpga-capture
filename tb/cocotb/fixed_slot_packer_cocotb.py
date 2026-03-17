@@ -310,6 +310,14 @@ async def test_single_beat(dut):
 
 
 @cocotb.test()
+async def test_cq_crosses_before_last_beat(dut):
+    """257-byte packet: CQ starts in the penultimate beat and must not leak into sample area."""
+    await apply_reset(dut)
+    payload = gen_payload(257, seed=7)
+    await run_and_verify(dut, payload, pkt_seq=21)
+
+
+@cocotb.test()
 async def test_full_slot(dut):
     """Packet exactly fills the fixed raw payload area (12309 bytes)."""
     await apply_reset(dut)

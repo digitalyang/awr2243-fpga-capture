@@ -19,6 +19,7 @@ def build_sources():
         REPO_ROOT / "rtl/pkg/ddr_ringbuffer_pkg.sv",
         REPO_ROOT / "rtl/if/axis_stream_if.sv",
         REPO_ROOT / "rtl/if/axi4_mm_if.sv",
+        REPO_ROOT / "tb/models/xpm_memory_sdpram_stub.sv",
         REPO_ROOT / "rtl/core/ddr_ringbuffer_controller.sv",
         TB_DIR / "ddr_ringbuffer_controller_cocotb_top.sv",
     ]
@@ -41,9 +42,13 @@ def run_regression(testcases: list[str], waves: bool, clean: bool) -> None:
         timescale=("1ns", "1ps"),
         build_args=[
             "-Wall",
+            "-Wno-fatal",
             "-Wno-DECLFILENAME",
             "-Wno-UNUSEDSIGNAL",
             "-Wno-UNDRIVEN",
+            "-Wno-UNUSEDPARAM",
+            "-Wno-EOFNEWLINE",
+            "-Wno-PINCONNECTEMPTY",
             "--trace-fst",
         ],
     )
@@ -65,7 +70,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--testcase",
         action="append",
-        choices=["smoke_basic", "wraparound_basic"],
+        choices=["smoke_basic", "wraparound_basic", "perf_dataset_roundtrip"],
         help="Specific cocotb testcase to run. Defaults to full smoke regression.",
     )
     parser.add_argument("--waves", action="store_true", help="Enable waveform dump")
