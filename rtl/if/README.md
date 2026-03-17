@@ -18,7 +18,7 @@
 AXI4-Stream 标准接口，参数化数据位宽：
 * `tdata`、`tkeep`、`tlast`、`tvalid`、`tready`、`tuser`
 * `slave` 和 `master` modport
-* 用于：CSI RX → Extractor → Packer → Ring Buffer 全链路
+* 用于：CSI RX -> Extractor -> Packer -> Ring Buffer 全链路
 
 ## axi4_lite_if
 

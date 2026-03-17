@@ -18,9 +18,9 @@
 两主一从的 AXI 互连边界，连接雷达数据通路（写）和 Host DMA（读/写）到 DDR 控制器：
 
 ```text
-s_axi_radar (Ring Buffer 写入)  ──┐
-                                  ├──► m_axi_ddr (DDR Memory Controller)
-s_axi_host  (Host DMA 读写)     ──┘
+s_axi_radar (Ring Buffer write) --+
+                                  +--> m_axi_ddr (DDR Memory Controller)
+s_axi_host  (Host DMA R/W)     --+
 ```
 
 ### 工作原理

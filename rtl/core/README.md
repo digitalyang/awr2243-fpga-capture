@@ -9,8 +9,8 @@
 | 模块 | 文件 | 功能 |
 |------|------|------|
 | [CSI Packet Extractor](#csi-packet-extractor) | `csi_packet_extractor.sv` | CSI-2 long packet 过滤与 payload 提取 |
-| [Fixed Slot Packer](#fixed-slot-packer) | `fixed_slot_packer.sv` | 变长 packet → 固定长度 slot 封装 |
-| [DDR Ring Buffer Controller](#ddr-ring-buffer-controller) | `ddr_ringbuffer_controller.sv` | slot → XPM 缓冲 → AXI-MM DDR 写入 + 环形指针管理 |
+| [Fixed Slot Packer](#fixed-slot-packer) | `fixed_slot_packer.sv` | 变长 packet -> 固定长度 slot 封装 |
+| [DDR Ring Buffer Controller](#ddr-ring-buffer-controller) | `ddr_ringbuffer_controller.sv` | slot -> XPM 缓冲 -> AXI-MM DDR 写入 + 环形指针管理 |
 | [DDR Ring Buffer + AXI-Lite](#ddr-ring-buffer-controller-axil) | `ddr_ringbuffer_controller_axil.sv` | Ring buffer + PeakRDL CSR 包装 |
 | [AWR2243 Control Top](#awr2243-control-top) | `awr2243_ctrl_top.sv` | AWR2243 完整控制子系统 |
 | [AWR2243 Config Sequencer](#awr2243-config-sequencer) | `awr2243_cfg_sequencer.sv` | 多阶段初始化/配置/启停状态机 |
@@ -38,8 +38,8 @@
 ### 状态机
 
 ```text
-ST_IDLE ──► ST_CHECK ──┬── ST_ACCEPT（VC/DT 匹配 → 转发 payload beats）
-                       └── ST_DROP  （不匹配 → 丢弃至 tlast）
+ST_IDLE --> ST_CHECK --+-- ST_ACCEPT (VC/DT match -> forward payload beats)
+                       +-- ST_DROP   (mismatch -> discard until tlast)
 ```
 
 ### 接口
@@ -88,49 +88,49 @@ ST_IDLE ──► ST_CHECK ──┬── ST_ACCEPT（VC/DT 匹配 → 转发 p
 ### Slot 布局（默认 12352B）
 
 ```text
-┌─────────────────────────────────┐  offset 0
-│ RX Headers (4 × 24bit = 12B)   │
-├─────────────────────────────────┤  offset 12
-│ Sample Area (1024 × 12B)        │
-│ = 12288B，不足补零              │
-├─────────────────────────────────┤  offset 12300
-│ CQ Area (6 × 12bit = 9B)       │
-├─────────────────────────────────┤  offset 12309
-│ Padding (43B zeros)             │
-└─────────────────────────────────┘  offset 12352 (64B 对齐)
++----------------------------------+  offset 0
+| RX Headers (4 x 24bit = 12B)    |
++----------------------------------+  offset 12
+| Sample Area (1024 x 12B)        |
+| = 12288B, zero-padded           |
++----------------------------------+  offset 12300
+| CQ Area (6 x 12bit = 9B)        |
++----------------------------------+  offset 12309
+| Padding (43B zeros)              |
++----------------------------------+  offset 12352 (64B aligned)
 ```
 
 ### 状态机
 
 ```text
 ST_IDLE
-  │
-  ▼
-ST_CAPTURE ──── 从上游捕获 payload，写入 beat-wide RAM
-  │
-  ▼
-ST_CAP_FLUSH ── 刷入最后部分 beat
-  │
-  ▼
-ST_ZERO_MID ─── sample 区不足部分补零
-  │
-  ▼
-ST_CQ_WRITE ─── 写入 CQ 数据
-  │
-  ▼
-ST_CQ_FLUSH ─── CQ 尾部刷新
-  │
-  ▼
-ST_ZERO_TAIL ── padding 补零至对齐边界
-  │
-  ▼
-ST_OUT_READ ─── 从 RAM 读出 beat
-  │
-  ▼
-ST_OUT_SEND ─── 通过 m_axis 输出
-  │
-  ▼
-ST_IDLE（slot_done）
+  |
+  v
+ST_CAPTURE ---- capture upstream payload, write to beat-wide RAM
+  |
+  v
+ST_CAP_FLUSH -- flush last partial beat
+  |
+  v
+ST_ZERO_MID --- zero-fill remaining sample area
+  |
+  v
+ST_CQ_WRITE --- write CQ data
+  |
+  v
+ST_CQ_FLUSH --- flush CQ tail
+  |
+  v
+ST_ZERO_TAIL -- zero-pad to alignment boundary
+  |
+  v
+ST_OUT_READ --- read beat from RAM
+  |
+  v
+ST_OUT_SEND --- output via m_axis
+  |
+  v
+ST_IDLE (slot_done)
 ```
 
 ### 工作原理
@@ -169,26 +169,26 @@ ST_IDLE（slot_done）
 
 ```text
 Upstream Slot Stream (AXI-Stream)
-        │
-        ▼
-   ┌──────────────┐
-   │  Slot Buffer  │  XPM SDPRAM (data+keep 合并存储)
-   │  (beat-wide)  │
-   └──────┬───────┘
-          │ AXI-MM Write Burst
-          ▼
-   ┌──────────────┐
-   │  AXI Master   │  地址分配 + burst 生成
-   │  Write Path   │         ┌──────────────────────────┐
-   └──────┬───────┘         │   AXI SmartConnect        │
-          │                  │                            │
-          ├── M0 ───────────►│   Xilinx IP               │──► MIG ──► DDR4
-          │                  │   读写并发仲裁             │      (1-2GB ring)
-          │  M1: XDMA C2H ─►│                            │
-          │                  └──────────────────────────┘
-          ▼
-   Descriptor FIFO ──► HEAD_DESC CSR (组合逻辑直出，Host 随时可读)
-                   ──► consume_head (singlepulse，释放队首)
+        |
+        v
+   +----------------+
+   |  Slot Buffer   |  XPM SDPRAM (data+keep merged)
+   |  (beat-wide)   |
+   +-------+--------+
+           | AXI-MM Write Burst
+           v
+   +----------------+
+   |  AXI Master    |  address alloc + burst gen
+   |  Write Path    |         +--------------------------+
+   +-------+--------+         |   AXI SmartConnect       |
+           |                  |                          |
+           +-- M0 ----------->|   Xilinx IP              |--> MIG --> DDR4
+           |                  |   R/W concurrent arb     |      (1-2GB ring)
+           |  M1: XDMA C2H -->|                          |
+           |                  +--------------------------+
+           v
+   Descriptor FIFO --> HEAD_DESC CSR (combinational, always readable)
+                   --> consume_head  (singlepulse, release head)
 ```
 
 ### 部署数据流（XDMA C2H MM 模式）
@@ -196,23 +196,23 @@ Upstream Slot Stream (AXI-Stream)
 1. **写入**：Ring Buffer Controller 通过 SmartConnect M0 将 slot 写入 DDR
 2. **Host 查询**：读 CSR `HEAD_DESC_ADDR/INFO` 获取队首 slot 的 DDR 地址和大小（组合逻辑直出，无需 `issue_head_read`）
 3. **Host 搬运**：编程 XDMA C2H 描述符，XDMA 通过 SmartConnect M1 直接从 DDR 读数据搬到 Host 内存
-4. **Host 释放**：写 CSR `consume_head` → 描述符 FIFO 推进 → `rd_ptr` 前移 → ring 空间回收
+4. **Host 释放**：写 CSR `consume_head` -> 描述符 FIFO 推进 -> `rd_ptr` 前移 -> ring 空间回收
 
-内置的 AXI 读回路径（`issue_head_read` → `m_axis_rd`）保留用于调试和验证，生产环境中不在关键路径上。
+内置的 AXI 读回路径（`issue_head_read` -> `m_axis_rd`）保留用于调试和验证，生产环境中不在关键路径上。
 
 ### 指针管理
 
 ```text
-Ring Base ──────────────────────────────────── Ring Base + Ring Size
-  │                                                    │
-  ├── rd_ptr ──── commit_ptr ──── wr_ptr ──────────────┤
-  │   (Host 已    (已提交可读)    (下一写入位置)         │
-  │    消费边界)                                        │
-  └────────────────── wrap around ─────────────────────┘
+Ring Base ----------------------------------------- Ring Base + Ring Size
+  |                                                    |
+  +-- rd_ptr ---- commit_ptr ---- wr_ptr --------------+
+  |   (consumed   (committed,     (next write          |
+  |    boundary)   host-readable)  position)           |
+  +------------------- wrap around --------------------+
 ```
 
-* **写入流程**：slot_start → 接收 beats 到 buffer → slot_done → 计算 DDR 地址 → AXI burst → commit → 推入描述符 FIFO
-* **读取流程（C2H MM）**：Host 读 HEAD_DESC CSR → 编程 XDMA C2H → XDMA 直读 DDR → 写 consume_head → rd_ptr 推进
+* **写入流程**：slot_start -> 接收 beats 到 buffer -> slot_done -> 计算 DDR 地址 -> AXI burst -> commit -> 推入描述符 FIFO
+* **读取流程（C2H MM）**：Host 读 HEAD_DESC CSR -> 编程 XDMA C2H -> XDMA 直读 DDR -> 写 consume_head -> rd_ptr 推进
 
 ### 溢出策略
 
@@ -276,51 +276,51 @@ AWR2243 毫米波雷达的完整控制子系统，对外提供 AXI4-Lite slave C
 
 ```text
 AXI4-Lite Slave (CSR)
-        │
-        ▼
-┌─────────────────────────────────────────────┐
-│              awr2243_ctrl_top                │
-│                                             │
-│  ┌──────────────┐   ┌───────────────────┐   │
-│  │  PeakRDL CSR │──►│ cfg_sequencer     │   │
-│  │  regblock    │   │ (init/start/stop  │   │
-│  └──────────────┘   │  状态机)           │   │
-│                     └────────┬──────────┘   │
-│                              │              │
-│                     ┌────────▼──────────┐   │
-│                     │ cmd_fetch         │   │
-│                     │ (PC + script RAM) │   │
-│                     └────────┬──────────┘   │
-│                              │              │
-│                     ┌────────▼──────────┐   │
-│                     │ cmd_decode        │   │  ──► SPI SCLK/CS/MOSI
-│                     │ (SPI/delay/GPIO)  │   │  ◄── SPI MISO
-│                     └───────────────────┘   │
-│                                             │
-│  ┌──────────────┐   ┌───────────────────┐   │
-│  │ reset_ctrl   │──►│ nRESET, SOP[2:0]  │   │
-│  └──────────────┘   └───────────────────┘   │
-│                                             │
-│  ┌──────────────┐   ┌───────────────────┐   │
-│  │ status_mon   │◄──│ HOST_IRQ, nERROR  │   │
-│  └──────────────┘   └───────────────────┘   │
-│                                             │
-│  ┌──────────────┐                           │
-│  │ timer        │  延时/超时计时            │
-│  └──────────────┘                           │
-│                                             │
-│  ┌──────────────┐                           │
-│  │ spi_master   │  16bit SPI 引擎           │
-│  └──────────────┘                           │
-└─────────────────────────────────────────────┘
+        |
+        v
++----------------------------------------------+
+|              awr2243_ctrl_top                |
+|                                              |
+|  +---------------+    +--------------------+ |
+|  |  PeakRDL CSR  |--> | cfg_sequencer      | |
+|  |  regblock     |    | (init/start/stop   | |
+|  +---------------+    |  state machine)    | |
+|                       +---------+----------+ |
+|                                 |            |
+|                       +---------v----------+ |
+|                       | cmd_fetch          | |
+|                       | (PC + script RAM)  | |
+|                       +---------+----------+ |
+|                                 |            |
+|                       +---------v----------+ |
+|                       | cmd_decode         | |  --> SPI SCLK/CS/MOSI
+|                       | (SPI/delay/GPIO)   | |  <-- SPI MISO
+|                       +--------------------+ |
+|                                              |
+|  +---------------+   +--------------------+  |
+|  | reset_ctrl    |-->| nRESET, SOP[2:0]   |  |
+|  +---------------+   +--------------------+  |
+|                                              |
+|  +---------------+   +--------------------+  |
+|  | status_mon    |<--| HOST_IRQ, nERROR   |  |
+|  +---------------+   +--------------------+  |
+|                                              |
+|  +---------------+                           |
+|  | timer         |  delay / timeout          |
+|  +---------------+                           |
+|                                              |
+|  +---------------+                           |
+|  | spi_master    |  16bit SPI engine         |
+|  +---------------+                           |
++----------------------------------------------+
 ```
 
 ### AWR2243 配置流程
 
-1. Host 写 CONTROL.start_init → sequencer 进入 INIT 阶段
-2. 依次执行 init_script → rf_script → profile_script → frame_script → monitor_script
-3. Host 写 CONTROL.start_sensor → 执行 start_script → 雷达开始出数据
-4. Host 写 CONTROL.stop_sensor → 执行 stop_script → 雷达停止
+1. Host 写 CONTROL.start_init -> sequencer 进入 INIT 阶段
+2. 依次执行 init_script -> rf_script -> profile_script -> frame_script -> monitor_script
+3. Host 写 CONTROL.start_sensor -> 执行 start_script -> 雷达开始出数据
+4. Host 写 CONTROL.stop_sensor -> 执行 stop_script -> 雷达停止
 5. 错误恢复：CONTROL.hard_reset 或 clear_error
 
 ---
@@ -332,9 +332,9 @@ AXI4-Lite Slave (CSR)
 多阶段初始化配置状态机，编排 AWR2243 从硬复位到数据采集的完整流程：
 
 ```text
-SEQ_IDLE → SEQ_RESET → SEQ_ENTER_SPI → SEQ_INIT → SEQ_RF →
-SEQ_PROFILE → SEQ_FRAME → SEQ_MONITOR → SEQ_WAIT_START_IRQ →
-SEQ_START → SEQ_RUNNING → SEQ_STOP → SEQ_DONE / SEQ_ERROR
+SEQ_IDLE -> SEQ_RESET -> SEQ_ENTER_SPI -> SEQ_INIT -> SEQ_RF ->
+SEQ_PROFILE -> SEQ_FRAME -> SEQ_MONITOR -> SEQ_WAIT_START_IRQ ->
+SEQ_START -> SEQ_RUNNING -> SEQ_STOP -> SEQ_DONE / SEQ_ERROR
 ```
 
 支持 NULL script 跳过、超时检测、错误自动恢复（`AUTO_RECOVERY_EN`）。
@@ -389,8 +389,8 @@ PC（Program Counter）驱动的指令提取单元：
 管理 AWR2243 的硬复位序列：
 
 ```text
-RST_IDLE → RST_DRIVE_SOP → RST_ASSERT_NRESET → RST_HOLD →
-RST_WAIT_RELEASE → RST_POST_WAIT → RST_DONE
+RST_IDLE -> RST_DRIVE_SOP -> RST_ASSERT_NRESET -> RST_HOLD ->
+RST_WAIT_RELEASE -> RST_POST_WAIT -> RST_DONE
 ```
 
 * 先驱动 SOP[2:0] 选择启动模式（SPI mode = 3'b001）
@@ -432,8 +432,8 @@ RST_WAIT_RELEASE → RST_POST_WAIT → RST_DONE
 16bit 全双工 SPI 主机，CPOL=0 / CPHA=0：
 
 ```text
-ST_IDLE → ST_ASSERT_CS → ST_SHIFT (16 bits) → ST_DEASSERT_CS → ST_DONE
-                                                    └── ST_TIMEOUT
+ST_IDLE -> ST_ASSERT_CS -> ST_SHIFT (16 bits) -> ST_DEASSERT_CS -> ST_DONE
+                                                       +-- ST_TIMEOUT
 ```
 
 | 参数 | 默认值 | 说明 |

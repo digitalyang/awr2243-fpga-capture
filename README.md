@@ -45,39 +45,39 @@ RTL 仿真不依赖 Vivado，使用 Verilator + cocotb：
 
 ```text
 AWR2243 Radar
-   │  MIPI CSI-2 (4-lane, 2.1Gbps)
-   ▼
+   |  MIPI CSI-2 (4-lane, 2.1Gbps)
+   v
 CSI RX Subsystem (video_aclk = 200MHz)
-   │  AXI-Stream
-   ▼
-AXIS Async FIFO (200MHz → 250MHz)
-   │
-   ▼
-CSI Packet Extractor ─── VC/DT 过滤，long packet payload 提取
-   │  AXI-Stream + sideband
-   ▼
-Fixed Slot Packer ─────── 固定 slot 封装 (12B header + 12288B sample + 9B CQ + 43B padding = 12352B)
-   │  AXI-Stream + slot sideband
-   ▼
-DDR Ring Buffer Controller ── slot 缓冲 → AXI-MM burst 写入 DDR → 指针/描述符管理
-   │  AXI-MM (256bit @ 250MHz)        ┌────────────────────────────┐
-   │                                   │   AXI SmartConnect         │
-   ├── M0: Ring Buffer Controller ────►│                            │
-   │   (AXI-MM write to DDR)          │   仲裁 + 读写并发          │──► S0: MIG ──► DDR4
-   │                                   │   (Xilinx IP)              │      (1-2GB ring)
-   └── M1: XDMA ─────────────────────►│                            │
-       (C2H 读 DDR / BAR0 CSR)       └────────────────────────────┘
+   |  AXI-Stream
+   v
+AXIS Async FIFO (200MHz -> 250MHz)
+   |
+   v
+CSI Packet Extractor --- VC/DT filter, long packet payload extraction
+   |  AXI-Stream + sideband
+   v
+Fixed Slot Packer ------ fixed slot packing (12B hdr + 12288B sample + 9B CQ + 43B pad = 12352B)
+   |  AXI-Stream + slot sideband
+   v
+DDR Ring Buffer Controller -- slot buffer -> AXI-MM burst write DDR -> pointer/descriptor mgmt
+   |  AXI-MM (256bit @ 250MHz)         +----------------------------+
+   |                                   |   AXI SmartConnect         |
+   +-- M0: Ring Buffer Controller ---->|                            |
+   |   (AXI-MM write to DDR)           |   arbitration + R/W        |--> S0: MIG --> DDR4
+   |                                   |   concurrent (Xilinx IP)   |      (1-2GB ring)
+   +-- M1: XDMA ---------------------->|                            |
+       (C2H read DDR / BAR0 CSR)       +----------------------------+
 
-Host 数据流：
-  1. Host 读 BAR0 CSR HEAD_DESC_ADDR 获取队首 slot 的 DDR 地址
-  2. Host 编程 XDMA C2H 描述符 → XDMA 通过 SmartConnect 直接读 DDR
-  3. Host 写 CSR consume_head 释放队首 → ring 空间回收
+Data flow:
+  1. Host reads BAR0 CSR HEAD_DESC_ADDR to get head slot DDR address
+  2. Host programs XDMA C2H descriptor -> XDMA reads DDR via SmartConnect
+  3. Host writes CSR consume_head -> release head slot, ring space reclaimed
 
-控制面：
-  Host ──► BAR0 AXI-Lite ──► axil_bar0_decode ──┬── 0x000-0x08C: Ring Buffer CSR
-                                                 └── 0x090+:     AWR2243 Control CSR
+Control plane:
+  Host --> BAR0 AXI-Lite --> axil_bar0_decode --+-- 0x000-0x08C: Ring Buffer CSR
+                                                +-- 0x090+:     AWR2243 Control CSR
 
-AWR2243 Control ←── SPI Master + Script RAM + Config Sequencer
+AWR2243 Control <-- SPI Master + Script RAM + Config Sequencer
 ```
 
 ### 部署架构说明
@@ -85,7 +85,7 @@ AWR2243 Control ←── SPI Master + Script RAM + Config Sequencer
 * **AXI SmartConnect**（Xilinx IP）负责仲裁，支持多 outstanding、读写并发。仿真中由 `rtl/axi/axi_ddr_subsystem.sv` 行为模型替代
 * **DDR 作为环形缓冲区**：数据必须先写入 DDR，Host 再通过 XDMA C2H 从 DDR 读出。DDR ring 分配 1-2GB，可缓冲 ~84,000-170,000 个 slot
 * **XDMA C2H**：Host 通过 CSR 获取队首 slot 地址后，直接编程 XDMA C2H 描述符从 DDR 搬运数据，无需 Ring Buffer Controller 参与读回
-* Ring Buffer Controller 的 `m_axi` 仅做写入，内置的 AXI 读回路径（`issue_head_read` → `m_axis_rd`）保留用于调试与扩展
+* Ring Buffer Controller 的 `m_axi` 仅做写入，内置的 AXI 读回路径（`issue_head_read` -> `m_axis_rd`）保留用于调试与扩展
 
 ---
 
@@ -110,7 +110,7 @@ AWR2243 Control ←── SPI Master + Script RAM + Config Sequencer
 |------|------|------|
 | CSI Packet Extractor | `rtl/core/csi_packet_extractor.sv` | 按 VC/DT 过滤 CSI-2 long packet，提取 payload 并输出错误侧带 |
 | Fixed Slot Packer | `rtl/core/fixed_slot_packer.sv` | 将变长 packet 封装为固定 12352B slot（header + sample + CQ + padding） |
-| DDR Ring Buffer Controller | `rtl/core/ddr_ringbuffer_controller.sv` | 接收 slot 流 → XPM 缓冲 → AXI-MM burst 写 DDR → 环形指针管理 |
+| DDR Ring Buffer Controller | `rtl/core/ddr_ringbuffer_controller.sv` | 接收 slot 流 -> XPM 缓冲 -> AXI-MM burst 写 DDR -> 环形指针管理 |
 | DDR Ring Buffer + AXI-Lite | `rtl/core/ddr_ringbuffer_controller_axil.sv` | Ring buffer + PeakRDL CSR 包装，对外 AXI4-Lite slave |
 | AWR2243 Control Top | `rtl/core/awr2243_ctrl_top.sv` | AWR2243 完整控制子系统（CSR + sequencer + SPI + reset + status） |
 | SPI Master Engine | `rtl/core/spi_master_engine.sv` | 16bit 全双工 SPI 主机，可配置分频/CS 时序/超时 |
@@ -137,11 +137,11 @@ AWR2243 Control ←── SPI Master + Script RAM + Config Sequencer
 Slot 布局与尺寸由 `rtl/pkg/slot_packer_pkg.sv` 与 `rtl/include/slot_packer_macros.svh` 定义。
 
 ```text
-slot (64B 对齐, 默认 12352B)
-├─ rx_headers    4 × 24bit = 12B     每个 header: word0[5:2]=chirp_profile, word0[1:0]=channel_id, word1[11:0]=chirp_num
-├─ sample_area   1024 × 12B = 12288B  不足补零
-├─ CQ_area       6 × 12bit = 9B       原始 64bit CQ 按 raw12 对齐
-└─ padding       43B                   至 64B 边界
+slot (64B aligned, default 12352B)
++-- rx_headers    4 x 24bit = 12B     word0[5:2]=chirp_profile, word0[1:0]=channel_id, word1[11:0]=chirp_num
++-- sample_area   1024 x 12B = 12288B  zero-padded if Ns < 1024
++-- CQ_area       6 x 12bit = 9B       raw 64bit CQ in raw12 alignment
++-- padding       43B                   to 64B boundary
 ```
 
 Slot 总长度计算：`align_up(12 + 12288 + 9, 64) = 12352B`。修改 `slot_packer_macros.svh` 中宏可改变布局。
@@ -153,7 +153,7 @@ Slot 总长度计算：`align_up(12 + 12288 + 9, 64) = 12352B`。修改 `slot_pa
 ### 指针关系
 
 ```text
-rd_ptr ≤ commit_ptr ≤ wr_ptr
+rd_ptr <= commit_ptr <= wr_ptr
 ```
 
 * **wr_ptr**：下一 slot 写入起始地址
@@ -187,7 +187,7 @@ BAR0 偏移 **0x090+** 经 `axil_bar0_decode` 译码后接入 `awr2243_ctrl_top`
 
 | 子模块 | 功能 |
 |--------|------|
-| `awr2243_cfg_sequencer` | 多阶段配置状态机（init → rf → profile → frame → monitor → start/stop） |
+| `awr2243_cfg_sequencer` | 多阶段配置状态机（init -> rf -> profile -> frame -> monitor -> start/stop） |
 | `awr2243_cmd_fetch` | PC 驱动的脚本指令提取 |
 | `awr2243_cmd_decode` | 指令解码与 SPI/delay/GPIO 操作执行 |
 | `awr2243_script_ram` | 脚本存储 + 元数据表（base_addr / len per script） |
@@ -210,7 +210,7 @@ CSR 定义：`rdl/awr2243_control.rdl`。配置流程详见 [docs/awr2243_config
 | axi_clk | 250MHz | Slot Packer、DDR Ring Buffer、AXI Interconnect、MIG |
 | spi_clk | 50MHz | AWR2243 SPI 控制 |
 
-关键 CDC 路径：`csi_rx_clk → axi_clk` 通过 AXIS Async FIFO 跨域，保持 packet 边界与 tlast。
+关键 CDC 路径：`csi_rx_clk -> axi_clk` 通过 AXIS Async FIFO 跨域，保持 packet 边界与 tlast。
 
 ---
 
@@ -228,20 +228,20 @@ CSR 定义：`rdl/awr2243_control.rdl`。配置流程详见 [docs/awr2243_config
 ## Host 侧数据读取流程（XDMA C2H MM 模式）
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│ Host Software                                                   │
-│                                                                 │
-│  1. 读 HEAD_DESC_INFO.desc_valid  ──► 确认有可读 slot           │
-│  2. 读 HEAD_DESC_ADDR_LO/HI      ──► 获取 slot DDR 地址        │
-│  3. 读 HEAD_DESC_INFO.slot_bytes  ──► 获取 slot 大小 (12352B)   │
-│  4. 编程 XDMA C2H 描述符                                       │
-│     src = HEAD_DESC_ADDR, len = slot_bytes, dst = host_buf      │
-│  5. 启动 XDMA C2H 传输           ──► XDMA 直接从 DDR 读数据    │
-│  6. 等待 C2H 完成                                               │
-│  7. 解析 slot：12B header → 12288B sample → 9B CQ → padding    │
-│  8. 写 READ_CMD.consume_head      ──► 释放队首，ring 空间回收   │
-│  9. 回到步骤 1                                                  │
-└─────────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------------+
+| Host Software                                                     |
+|                                                                   |
+|  1. read HEAD_DESC_INFO.desc_valid  --> check slot available      |
+|  2. read HEAD_DESC_ADDR_LO/HI      --> get slot DDR address       |
+|  3. read HEAD_DESC_INFO.slot_bytes  --> get slot size (12352B)    |
+|  4. program XDMA C2H descriptor                                   |
+|     src = HEAD_DESC_ADDR, len = slot_bytes, dst = host_buf        |
+|  5. start XDMA C2H transfer        --> XDMA reads DDR directly    |
+|  6. wait for C2H completion                                       |
+|  7. parse slot: 12B header -> 12288B sample -> 9B CQ -> padding   |
+|  8. write READ_CMD.consume_head     --> release head, reclaim ring|
+|  9. goto step 1                                                   |
++-------------------------------------------------------------------+
 ```
 
 * HEAD_DESC 是描述符 FIFO 队首的**组合逻辑直出**，读 CSR 即可获取，无需触发 `issue_head_read`
@@ -303,17 +303,17 @@ CSR 暴露三类计数器（wrap/overflow/drop）、细粒度错误标志（cfg_
 ### 短期优化
 
 1. **Slot Packer cut-through 模式**：当前 Packer 先将整个 slot 写入内部 BRAM 再读出（store-and-forward），延迟约 2×slot_beats。可改为边收边发，header/sample 区直通，仅在尾部补零和 CQ 追加时使用缓冲
-2. **AXI 写 outstanding 提升**：当前 Ring Buffer Controller 单 slot 在途，每次 burst 串行 AW→W→B。可增加 outstanding 到 2-4，AW 提前发出，W 数据流水跟上
+2. **AXI 写 outstanding 提升**：当前 Ring Buffer Controller 单 slot 在途，每次 burst 串行 AW->W->B。可增加 outstanding 到 2-4，AW 提前发出，W 数据流水跟上
 3. **增大 MAX_BURST_LEN**：当前默认 16，一个 12352B slot 需 25 次 burst。增大到 64 或 256 可减少 AW/B 握手开销
 
 ### 中期扩展
 
 4. **运行时可配置 sample 数**：当前固定 1024 sample。对 Ns=128 场景，slot 从 12352B 缩至 ~1600B，DDR 带宽利用率从 ~12% 提升到 ~95%。可通过 CSR 运行时配置实际 Ns
-5. **Async FIFO 背压监控**：CSI RX → Packer 之间的 Async FIFO 缺少 overflow 计数器。增加 FIFO 水位和溢出事件统计，供 Host 监控链路健康度
+5. **Async FIFO 背压监控**：CSI RX -> Packer 之间的 Async FIFO 缺少 overflow 计数器。增加 FIFO 水位和溢出事件统计，供 Host 监控链路健康度
 
 ### 长期演进
 
-6. **多雷达级联**：扩展到 4 片 AWR2243 级联（4×2.1Gbps = 8.4Gbps），需要多路 CSI RX → 多路 Extractor → 合并/独立 Packer、DDR ring 分区或多 ring
+6. **多雷达级联**：扩展到 4 片 AWR2243 级联（4x2.1Gbps = 8.4Gbps），需要多路 CSI RX -> 多路 Extractor -> 合并/独立 Packer、DDR ring 分区或多 ring
 7. **XDMA C2H Streaming 模式**：当前使用 C2H MM 模式（Host 编程描述符）。未来可探索 C2H Streaming 模式，Ring Buffer Controller 读回 DDR 数据后通过 `m_axis_rd` 直推 XDMA C2H 流式通道，进一步降低 Host CPU 开销
 
 ---
@@ -321,9 +321,9 @@ CSR 暴露三类计数器（wrap/overflow/drop）、细粒度错误标志（cfg_
 ## 联调步骤
 
 1. **PCIe/XDMA 打通** — BAR0 读写验证、XDMA C2H MM 路径验证
-2. **DDR 通路打通** — Ring Buffer Controller 写测试 slot 到 DDR → XDMA C2H 读回校验
+2. **DDR 通路打通** — Ring Buffer Controller 写测试 slot 到 DDR -> XDMA C2H 读回校验
 3. **时钟/复位验证** — 各域时钟稳定、reset release 顺序、CDC FIFO
 4. **CSI 接收验证** — lane lock、packet 统计、CRC/ECC
 5. **Slot 封装验证** — payload 正确、补零正确、slot 长度一致
-6. **全链路验证** — Radar → CSI → FPGA → DDR → XDMA C2H → Host
+6. **全链路验证** — Radar -> CSI -> FPGA -> DDR -> XDMA C2H -> Host
 7. **压力测试** — 长时间运行、drop_count 监控、Host 读取不及时场景验证
