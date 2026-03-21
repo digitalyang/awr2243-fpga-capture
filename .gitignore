@@ -1,33 +1,15 @@
-# 通用忽略规则
-*.dylib
-*.out
-*.exe
-*.dll
-*.lib
-*.obj
-*.pdb
-*.ilk
-*.exp
-*.suo
-*.user
-*.ncb
-*.sdf
-*.opensdf
-*.sln
-*.vcxproj*
-*.vcproj
-*.DS_Store
+# OS and editor files
+.vscode/
+.idea/
+*.code-workspace
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
 *.swp
 *~
-*.bak
-*.tmp
-*.log
-*.pid
-*.seed
-*.pid.lock
-*.tar.gz
 
-# 构建目录
+# Native build outputs
 /out/
 /bin/
 /lib/
@@ -39,116 +21,64 @@
 CMakeCache.txt
 cmake_install.cmake
 CTestTestfile.cmake
-Testing/
+/Testing/
+*.o
+*.obj
+*.a
+*.lib
+*.dll
+*.so
+*.dylib
+*.exe
+*.pdb
+*.ilk
+*.exp
 
-# IDE 特定文件
-.vscode/
-.idea/
-*.code-workspace
-
-# 编译生成文件
-*.gcno
-*.gcda
-*.gcov
-
-# 文档生成
-/docs/html/
-/docs/latex/
-/docs/xml/
-
-# 测试覆盖率
-/coverage/
-*.gcov
-
-# 本地配置文件
-config/local_*.json
-*.local
-
-# 依赖目录 (如有)
-/deps/
-/third_party/
-
-# 临时文件
-*.swp
-*~
-.#*
-
-# 日志文件
-*.log
-logs/
-*.trace
-
-# 系统文件
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# Python 虚拟环境 (如果有Python脚本)
+# Python and local tooling
+.venv/
 venv/
 ENV/
-tools/rdl/.deps/
-
-# 包管理器文件
-package-lock.json
-yarn.lock
-
-# macOS 特定
-.DS_Store
-._*
-
-# Windows 特定
-Thumbs.db
-Desktop.ini
-
-# Linux 特定
-*~
-
-# 二进制文件 (如果有)
-*.bin
-*.hex
-*.o
-
-# 数据库文件 (如果有)
-*.db
-*.sqlite
-*.sqlite3
-
-# 备份文件
-*.bak
-*.backup
-
-
-*.bin
-*.exe
-*.gz
-
-# Simulation and test artifacts
-sim_build/
 __pycache__/
 *.pyc
+tools/rdl/.deps/
+
+# Generic temporary files
+*.tmp
+*.bak
+*.backup
+*.trace
+*.pid
+*.pid.lock
 
 # Local AI workflow artifacts
 /CURSOR_PARALLEL_PROMPT.md
 /cursor_parallel/
 /notes/
 
-# Vivado 生成文件
+# Vivado logs and reports
 *.jou
 *.log
 *.str
-*.xml
-*.wcfg
-*.xpr
-*.xise
-*.xco
-*.xws
-*.rst
-*.bda
 *.pb
-*.lpr
+*.wcfg
+*.wdb
 *.rpt
 *.dcp
+*.lpr
+*.rst
+*.bda
 *.wdf
-*.js
-*.vds
-*.ui
+
+# Vivado generated work directories
+/.Xil/
+vivado_project/**/.Xil/
+
+# Keep only the final checked-in Vivado project definition.
+# Everything else inside the generated project directory is reproducible.
+vivado_project/vivado_ku5p/**
+!vivado_project/vivado_ku5p/awr2243_fpga_capture.xpr
+!vivado_project/vivado_ku5p/awr2243_fpga_capture.srcs/
+!vivado_project/vivado_ku5p/awr2243_fpga_capture.srcs/sources_1/
+!vivado_project/vivado_ku5p/awr2243_fpga_capture.srcs/sources_1/bd/
+!vivado_project/vivado_ku5p/awr2243_fpga_capture.srcs/sources_1/bd/awr2243_capture_bd/
+!vivado_project/vivado_ku5p/awr2243_fpga_capture.srcs/sources_1/bd/awr2243_capture_bd/awr2243_capture_bd.bd
