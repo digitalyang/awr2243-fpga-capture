@@ -57,7 +57,7 @@
     <Option Name="IPUserFilesDir" Val="$PIPUSERFILESDIR"/>
     <Option Name="IPStaticSourceDir" Val="$PIPUSERFILESDIR/ipstatic"/>
     <Option Name="EnableBDX" Val="FALSE"/>
-    <Option Name="WTXSimLaunchSim" Val="0"/>
+    <Option Name="WTXSimLaunchSim" Val="6"/>
     <Option Name="WTModelSimLaunchSim" Val="0"/>
     <Option Name="WTQuestaLaunchSim" Val="0"/>
     <Option Name="WTIesLaunchSim" Val="0"/>
@@ -325,63 +325,6 @@
           <Attr Name="UsedIn" Val="implementation"/>
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
-        <CompFileExtendedInfo CompFileName="awr2243_capture_bd.bd" FileRelPathName="ip/awr2243_capture_bd_util_ds_buf_pcie_refclk_0/awr2243_capture_bd_util_ds_buf_pcie_refclk_0.xci">
-          <Proxy FileSetName="awr2243_capture_bd_util_ds_buf_pcie_refclk_0"/>
-        </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="awr2243_capture_bd.bd" FileRelPathName="ip/awr2243_capture_bd_proc_sys_reset_video_0/awr2243_capture_bd_proc_sys_reset_video_0.xci">
-          <Proxy FileSetName="awr2243_capture_bd_proc_sys_reset_video_0"/>
-        </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="awr2243_capture_bd.bd" FileRelPathName="ip/awr2243_capture_bd_proc_sys_reset_axi_0/awr2243_capture_bd_proc_sys_reset_axi_0.xci">
-          <Proxy FileSetName="awr2243_capture_bd_proc_sys_reset_axi_0"/>
-        </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="awr2243_capture_bd.bd" FileRelPathName="ip/awr2243_capture_bd_proc_sys_reset_xdma_0/awr2243_capture_bd_proc_sys_reset_xdma_0.xci">
-          <Proxy FileSetName="awr2243_capture_bd_proc_sys_reset_xdma_0"/>
-        </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="awr2243_capture_bd.bd" FileRelPathName="ip/awr2243_capture_bd_proc_sys_reset_ddr_0/awr2243_capture_bd_proc_sys_reset_ddr_0.xci">
-          <Proxy FileSetName="awr2243_capture_bd_proc_sys_reset_ddr_0"/>
-        </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="awr2243_capture_bd.bd" FileRelPathName="ip/awr2243_capture_bd_util_vl_sysrst_inv_0/awr2243_capture_bd_util_vl_sysrst_inv_0.xci">
-          <Proxy FileSetName="awr2243_capture_bd_util_vl_sysrst_inv_0"/>
-        </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="awr2243_capture_bd.bd" FileRelPathName="ip/awr2243_capture_bd_smartconnect_ddr_0/awr2243_capture_bd_smartconnect_ddr_0.xci">
-          <Proxy FileSetName="awr2243_capture_bd_smartconnect_ddr_0"/>
-        </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="awr2243_capture_bd.bd" FileRelPathName="ip/awr2243_capture_bd_xdma_0_0/awr2243_capture_bd_xdma_0_0.xci">
-          <Proxy FileSetName="awr2243_capture_bd_xdma_0_0"/>
-        </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="awr2243_capture_bd.bd" FileRelPathName="ip/awr2243_capture_bd_axis_async_fifo_0_0/awr2243_capture_bd_axis_async_fifo_0_0.xci">
-          <Proxy FileSetName="awr2243_capture_bd_axis_async_fifo_0_0"/>
-        </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="awr2243_capture_bd.bd" FileRelPathName="ip/awr2243_capture_bd_axil_clock_conv_0_0/awr2243_capture_bd_axil_clock_conv_0_0.xci">
-          <Proxy FileSetName="awr2243_capture_bd_axil_clock_conv_0_0"/>
-        </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="awr2243_capture_bd.bd" FileRelPathName="ip/awr2243_capture_bd_csi_rx_axis_pack_0_0/awr2243_capture_bd_csi_rx_axis_pack_0_0.xci">
-          <Proxy FileSetName="awr2243_capture_bd_csi_rx_axis_pack_0_0"/>
-        </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="awr2243_capture_bd.bd" FileRelPathName="ip/awr2243_capture_bd_axi_clock_conv_xdma_0_0/awr2243_capture_bd_axi_clock_conv_xdma_0_0.xci">
-          <Proxy FileSetName="awr2243_capture_bd_axi_clock_conv_xdma_0_0"/>
-        </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="awr2243_capture_bd.bd" FileRelPathName="ip/awr2243_capture_bd_ddr4_0_0/awr2243_capture_bd_ddr4_0_0.xci">
-          <Proxy FileSetName="awr2243_capture_bd_ddr4_0_0"/>
-        </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="awr2243_capture_bd.bd" FileRelPathName="ip/awr2243_capture_bd_awr2243_capture_core_0_0/awr2243_capture_bd_awr2243_capture_core_0_0.xci">
-          <Proxy FileSetName="awr2243_capture_bd_awr2243_capture_core_0_0"/>
-        </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="awr2243_capture_bd.bd" FileRelPathName="ip/awr2243_capture_bd_axi_clock_conv_ring_0_0/awr2243_capture_bd_axi_clock_conv_ring_0_0.xci">
-          <Proxy FileSetName="awr2243_capture_bd_axi_clock_conv_ring_0_0"/>
-        </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="awr2243_capture_bd.bd" FileRelPathName="ip/ip_0/bd_fbe3_r_sync_0.xci">
-          <Proxy FileSetName="bd_fbe3_r_sync_0"/>
-        </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="awr2243_capture_bd.bd" FileRelPathName="ip/ip_2/bd_fbe3_phy_0.xci">
-          <Proxy FileSetName="bd_fbe3_phy_0"/>
-        </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="awr2243_capture_bd.bd" FileRelPathName="ip/ip_1/bd_fbe3_rx_0.xci">
-          <Proxy FileSetName="bd_fbe3_rx_0"/>
-        </CompFileExtendedInfo>
-        <CompFileExtendedInfo CompFileName="awr2243_capture_bd.bd" FileRelPathName="ip/awr2243_capture_bd_mipi_csi2_rx_subsystem_0_0/awr2243_capture_bd_mipi_csi2_rx_subsystem_0_0.xci">
-          <Proxy FileSetName="awr2243_capture_bd_mipi_csi2_rx_subsystem_0_0"/>
-        </CompFileExtendedInfo>
       </File>
       <File Path="$PGENDIR/sources_1/bd/awr2243_capture_bd/hdl/awr2243_capture_bd_wrapper.v">
         <FileInfo>
@@ -397,7 +340,7 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PPRDIR/../../rtl/axi/axi_ddr_subsystem_pkg.sv">
+      <File Path="$PPRDIR/../../rtl/axi/axi_ddr_subsystem.sv">
         <FileInfo>
           <Attr Name="AutoDisabled" Val="1"/>
           <Attr Name="UsedIn" Val="synthesis"/>
@@ -405,7 +348,7 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PPRDIR/../../rtl/axi/axi_ddr_subsystem.sv">
+      <File Path="$PPRDIR/../../rtl/axi/axi_ddr_subsystem_pkg.sv">
         <FileInfo>
           <Attr Name="AutoDisabled" Val="1"/>
           <Attr Name="UsedIn" Val="synthesis"/>
@@ -421,7 +364,7 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PPRDIR/../../rtl/pkg/pcie_dma_pkg.sv">
+      <File Path="$PPRDIR/../../rtl/if/pcie_rc_model_if.sv">
         <FileInfo>
           <Attr Name="AutoDisabled" Val="1"/>
           <Attr Name="UsedIn" Val="synthesis"/>
@@ -453,7 +396,7 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PPRDIR/../../rtl/if/pcie_rc_model_if.sv">
+      <File Path="$PPRDIR/../../rtl/pkg/pcie_dma_pkg.sv">
         <FileInfo>
           <Attr Name="AutoDisabled" Val="1"/>
           <Attr Name="UsedIn" Val="synthesis"/>
@@ -480,9 +423,18 @@
       </Config>
     </FileSet>
     <FileSet Name="sim_1" Type="SimulationSrcs" RelSrcDir="$PSRCDIR/sim_1" RelGenDir="$PGENDIR/sim_1">
+      <Filter Type="Srcs"/>
+      <File Path="$PSRCDIR/sim_1/awr2243_capture_top_with_bd_smoke_tb.sv">
+        <FileInfo>
+          <Attr Name="UsedIn" Val="synthesis"/>
+          <Attr Name="UsedIn" Val="implementation"/>
+          <Attr Name="UsedIn" Val="simulation"/>
+        </FileInfo>
+      </File>
       <Config>
         <Option Name="DesignMode" Val="RTL"/>
-        <Option Name="TopModule" Val="awr2243_capture_top_with_bd"/>
+        <Option Name="TopModule" Val="awr2243_capture_top_with_bd_smoke_tb"/>
+        <Option Name="VerilogDir" Val="$PGENDIR/sources_1/bd/awr2243_capture_bd/ip/awr2243_capture_bd_ddr4_0_0/ip_1/rtl/map"/>
         <Option Name="TransportPathDelay" Val="0"/>
         <Option Name="TransportIntDelay" Val="0"/>
         <Option Name="SelectedSimModel" Val="rtl"/>
@@ -491,145 +443,14 @@
         <Option Name="PamSignalDriverFile" Val="xil_bypass_driver"/>
         <Option Name="PamPseudoTop" Val="pseudo_tb"/>
         <Option Name="SrcSet" Val="sources_1"/>
+        <Option Name="ScriptsOnly" Val="1"/>
+        <Option Name="xsim.simulate.runtime" Val="10us"/>
       </Config>
     </FileSet>
     <FileSet Name="utils_1" Type="Utils" RelSrcDir="$PSRCDIR/utils_1" RelGenDir="$PGENDIR/utils_1">
       <Filter Type="Utils"/>
       <Config>
         <Option Name="TopAutoSet" Val="TRUE"/>
-      </Config>
-    </FileSet>
-    <FileSet Name="awr2243_capture_bd_awr2243_capture_core_0_0" Type="BlockSrcs" RelSrcDir="$PSRCDIR/awr2243_capture_bd_awr2243_capture_core_0_0" RelGenDir="$PGENDIR/awr2243_capture_bd_awr2243_capture_core_0_0">
-      <Config>
-        <Option Name="TopModule" Val="awr2243_capture_bd_awr2243_capture_core_0_0"/>
-        <Option Name="VerilogDir" Val="$PPRDIR/../../rtl/include"/>
-        <Option Name="UseBlackboxStub" Val="1"/>
-      </Config>
-    </FileSet>
-    <FileSet Name="awr2243_capture_bd_axi_clock_conv_ring_0_0" Type="BlockSrcs" RelSrcDir="$PSRCDIR/awr2243_capture_bd_axi_clock_conv_ring_0_0" RelGenDir="$PGENDIR/awr2243_capture_bd_axi_clock_conv_ring_0_0">
-      <Config>
-        <Option Name="TopModule" Val="awr2243_capture_bd_axi_clock_conv_ring_0_0"/>
-        <Option Name="VerilogDir" Val="$PPRDIR/../../rtl/include"/>
-        <Option Name="UseBlackboxStub" Val="1"/>
-      </Config>
-    </FileSet>
-    <FileSet Name="awr2243_capture_bd_axi_clock_conv_xdma_0_0" Type="BlockSrcs" RelSrcDir="$PSRCDIR/awr2243_capture_bd_axi_clock_conv_xdma_0_0" RelGenDir="$PGENDIR/awr2243_capture_bd_axi_clock_conv_xdma_0_0">
-      <Config>
-        <Option Name="TopModule" Val="awr2243_capture_bd_axi_clock_conv_xdma_0_0"/>
-        <Option Name="VerilogDir" Val="$PPRDIR/../../rtl/include"/>
-        <Option Name="UseBlackboxStub" Val="1"/>
-      </Config>
-    </FileSet>
-    <FileSet Name="awr2243_capture_bd_axil_clock_conv_0_0" Type="BlockSrcs" RelSrcDir="$PSRCDIR/awr2243_capture_bd_axil_clock_conv_0_0" RelGenDir="$PGENDIR/awr2243_capture_bd_axil_clock_conv_0_0">
-      <Config>
-        <Option Name="TopModule" Val="awr2243_capture_bd_axil_clock_conv_0_0"/>
-        <Option Name="VerilogDir" Val="$PPRDIR/../../rtl/include"/>
-        <Option Name="UseBlackboxStub" Val="1"/>
-      </Config>
-    </FileSet>
-    <FileSet Name="awr2243_capture_bd_axis_async_fifo_0_0" Type="BlockSrcs" RelSrcDir="$PSRCDIR/awr2243_capture_bd_axis_async_fifo_0_0" RelGenDir="$PGENDIR/awr2243_capture_bd_axis_async_fifo_0_0">
-      <Config>
-        <Option Name="TopModule" Val="awr2243_capture_bd_axis_async_fifo_0_0"/>
-        <Option Name="VerilogDir" Val="$PPRDIR/../../rtl/include"/>
-        <Option Name="UseBlackboxStub" Val="1"/>
-      </Config>
-    </FileSet>
-    <FileSet Name="awr2243_capture_bd_csi_rx_axis_pack_0_0" Type="BlockSrcs" RelSrcDir="$PSRCDIR/awr2243_capture_bd_csi_rx_axis_pack_0_0" RelGenDir="$PGENDIR/awr2243_capture_bd_csi_rx_axis_pack_0_0">
-      <Config>
-        <Option Name="TopModule" Val="awr2243_capture_bd_csi_rx_axis_pack_0_0"/>
-        <Option Name="VerilogDir" Val="$PPRDIR/../../rtl/include"/>
-        <Option Name="UseBlackboxStub" Val="1"/>
-      </Config>
-    </FileSet>
-    <FileSet Name="awr2243_capture_bd_ddr4_0_0" Type="BlockSrcs" RelSrcDir="$PSRCDIR/awr2243_capture_bd_ddr4_0_0" RelGenDir="$PGENDIR/awr2243_capture_bd_ddr4_0_0">
-      <Config>
-        <Option Name="TopModule" Val="awr2243_capture_bd_ddr4_0_0"/>
-        <Option Name="VerilogDir" Val="$PPRDIR/../../rtl/include"/>
-        <Option Name="UseBlackboxStub" Val="1"/>
-      </Config>
-    </FileSet>
-    <FileSet Name="awr2243_capture_bd_mipi_csi2_rx_subsystem_0_0" Type="BlockSrcs" RelSrcDir="$PSRCDIR/awr2243_capture_bd_mipi_csi2_rx_subsystem_0_0" RelGenDir="$PGENDIR/awr2243_capture_bd_mipi_csi2_rx_subsystem_0_0">
-      <Config>
-        <Option Name="TopModule" Val="awr2243_capture_bd_mipi_csi2_rx_subsystem_0_0"/>
-        <Option Name="VerilogDir" Val="$PPRDIR/../../rtl/include"/>
-        <Option Name="UseBlackboxStub" Val="1"/>
-      </Config>
-    </FileSet>
-    <FileSet Name="bd_fbe3_r_sync_0" Type="BlockSrcs" RelSrcDir="$PSRCDIR/bd_fbe3_r_sync_0" RelGenDir="$PGENDIR/bd_fbe3_r_sync_0">
-      <Config>
-        <Option Name="TopModule" Val="bd_fbe3_r_sync_0"/>
-        <Option Name="VerilogDir" Val="$PPRDIR/../../rtl/include"/>
-        <Option Name="UseBlackboxStub" Val="1"/>
-      </Config>
-    </FileSet>
-    <FileSet Name="bd_fbe3_rx_0" Type="BlockSrcs" RelSrcDir="$PSRCDIR/bd_fbe3_rx_0" RelGenDir="$PGENDIR/bd_fbe3_rx_0">
-      <Config>
-        <Option Name="TopModule" Val="bd_fbe3_rx_0"/>
-        <Option Name="VerilogDir" Val="$PPRDIR/../../rtl/include"/>
-        <Option Name="UseBlackboxStub" Val="1"/>
-      </Config>
-    </FileSet>
-    <FileSet Name="bd_fbe3_phy_0" Type="BlockSrcs" RelSrcDir="$PSRCDIR/bd_fbe3_phy_0" RelGenDir="$PGENDIR/bd_fbe3_phy_0">
-      <Config>
-        <Option Name="TopModule" Val="bd_fbe3_phy_0"/>
-        <Option Name="VerilogDir" Val="$PPRDIR/../../rtl/include"/>
-        <Option Name="UseBlackboxStub" Val="1"/>
-      </Config>
-    </FileSet>
-    <FileSet Name="awr2243_capture_bd_proc_sys_reset_axi_0" Type="BlockSrcs" RelSrcDir="$PSRCDIR/awr2243_capture_bd_proc_sys_reset_axi_0" RelGenDir="$PGENDIR/awr2243_capture_bd_proc_sys_reset_axi_0">
-      <Config>
-        <Option Name="TopModule" Val="awr2243_capture_bd_proc_sys_reset_axi_0"/>
-        <Option Name="VerilogDir" Val="$PPRDIR/../../rtl/include"/>
-        <Option Name="UseBlackboxStub" Val="1"/>
-      </Config>
-    </FileSet>
-    <FileSet Name="awr2243_capture_bd_proc_sys_reset_ddr_0" Type="BlockSrcs" RelSrcDir="$PSRCDIR/awr2243_capture_bd_proc_sys_reset_ddr_0" RelGenDir="$PGENDIR/awr2243_capture_bd_proc_sys_reset_ddr_0">
-      <Config>
-        <Option Name="TopModule" Val="awr2243_capture_bd_proc_sys_reset_ddr_0"/>
-        <Option Name="VerilogDir" Val="$PPRDIR/../../rtl/include"/>
-        <Option Name="UseBlackboxStub" Val="1"/>
-      </Config>
-    </FileSet>
-    <FileSet Name="awr2243_capture_bd_proc_sys_reset_video_0" Type="BlockSrcs" RelSrcDir="$PSRCDIR/awr2243_capture_bd_proc_sys_reset_video_0" RelGenDir="$PGENDIR/awr2243_capture_bd_proc_sys_reset_video_0">
-      <Config>
-        <Option Name="TopModule" Val="awr2243_capture_bd_proc_sys_reset_video_0"/>
-        <Option Name="VerilogDir" Val="$PPRDIR/../../rtl/include"/>
-        <Option Name="UseBlackboxStub" Val="1"/>
-      </Config>
-    </FileSet>
-    <FileSet Name="awr2243_capture_bd_proc_sys_reset_xdma_0" Type="BlockSrcs" RelSrcDir="$PSRCDIR/awr2243_capture_bd_proc_sys_reset_xdma_0" RelGenDir="$PGENDIR/awr2243_capture_bd_proc_sys_reset_xdma_0">
-      <Config>
-        <Option Name="TopModule" Val="awr2243_capture_bd_proc_sys_reset_xdma_0"/>
-        <Option Name="VerilogDir" Val="$PPRDIR/../../rtl/include"/>
-        <Option Name="UseBlackboxStub" Val="1"/>
-      </Config>
-    </FileSet>
-    <FileSet Name="awr2243_capture_bd_smartconnect_ddr_0" Type="BlockSrcs" RelSrcDir="$PSRCDIR/awr2243_capture_bd_smartconnect_ddr_0" RelGenDir="$PGENDIR/awr2243_capture_bd_smartconnect_ddr_0">
-      <Config>
-        <Option Name="TopModule" Val="awr2243_capture_bd_smartconnect_ddr_0"/>
-        <Option Name="VerilogDir" Val="$PPRDIR/../../rtl/include"/>
-        <Option Name="UseBlackboxStub" Val="1"/>
-      </Config>
-    </FileSet>
-    <FileSet Name="awr2243_capture_bd_util_ds_buf_pcie_refclk_0" Type="BlockSrcs" RelSrcDir="$PSRCDIR/awr2243_capture_bd_util_ds_buf_pcie_refclk_0" RelGenDir="$PGENDIR/awr2243_capture_bd_util_ds_buf_pcie_refclk_0">
-      <Config>
-        <Option Name="TopModule" Val="awr2243_capture_bd_util_ds_buf_pcie_refclk_0"/>
-        <Option Name="VerilogDir" Val="$PPRDIR/../../rtl/include"/>
-        <Option Name="UseBlackboxStub" Val="1"/>
-      </Config>
-    </FileSet>
-    <FileSet Name="awr2243_capture_bd_util_vl_sysrst_inv_0" Type="BlockSrcs" RelSrcDir="$PSRCDIR/awr2243_capture_bd_util_vl_sysrst_inv_0" RelGenDir="$PGENDIR/awr2243_capture_bd_util_vl_sysrst_inv_0">
-      <Config>
-        <Option Name="TopModule" Val="awr2243_capture_bd_util_vl_sysrst_inv_0"/>
-        <Option Name="VerilogDir" Val="$PPRDIR/../../rtl/include"/>
-        <Option Name="UseBlackboxStub" Val="1"/>
-      </Config>
-    </FileSet>
-    <FileSet Name="awr2243_capture_bd_xdma_0_0" Type="BlockSrcs" RelSrcDir="$PSRCDIR/awr2243_capture_bd_xdma_0_0" RelGenDir="$PGENDIR/awr2243_capture_bd_xdma_0_0">
-      <Config>
-        <Option Name="TopModule" Val="awr2243_capture_bd_xdma_0_0"/>
-        <Option Name="VerilogDir" Val="$PPRDIR/../../rtl/include"/>
-        <Option Name="UseBlackboxStub" Val="1"/>
       </Config>
     </FileSet>
   </FileSets>
@@ -654,237 +475,7 @@
   <Runs Version="1" Minor="19">
     <Run Id="synth_1" Type="Ft3:Synth" SrcSet="sources_1" Part="xcku5p-ffvb676-2-e" ConstrsSet="constrs_1" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="true" WriteIncrSynthDcp="false" State="current" Dir="$PRUNDIR/synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/synth_1">
       <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2022">
-          <Desc>Vivado Synthesis Defaults</Desc>
-        </StratHandle>
-        <Step Id="synth_design"/>
-      </Strategy>
-      <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
-      <ReportStrategy Name="Vivado Synthesis Default Reports" Flow="Vivado Synthesis 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_awr2243_capture_core_0_0_synth_1" Type="Ft3:Synth" SrcSet="awr2243_capture_bd_awr2243_capture_core_0_0" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_awr2243_capture_core_0_0" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/awr2243_capture_bd_awr2243_capture_core_0_0_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_awr2243_capture_core_0_0_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_awr2243_capture_core_0_0_synth_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2022">
-          <Desc>Vivado Synthesis Defaults</Desc>
-        </StratHandle>
-        <Step Id="synth_design"/>
-      </Strategy>
-      <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
-      <ReportStrategy Name="Vivado Synthesis Default Reports" Flow="Vivado Synthesis 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_axi_clock_conv_ring_0_0_synth_1" Type="Ft3:Synth" SrcSet="awr2243_capture_bd_axi_clock_conv_ring_0_0" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_axi_clock_conv_ring_0_0" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/awr2243_capture_bd_axi_clock_conv_ring_0_0_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_axi_clock_conv_ring_0_0_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_axi_clock_conv_ring_0_0_synth_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2022">
-          <Desc>Vivado Synthesis Defaults</Desc>
-        </StratHandle>
-        <Step Id="synth_design"/>
-      </Strategy>
-      <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
-      <ReportStrategy Name="Vivado Synthesis Default Reports" Flow="Vivado Synthesis 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_axi_clock_conv_xdma_0_0_synth_1" Type="Ft3:Synth" SrcSet="awr2243_capture_bd_axi_clock_conv_xdma_0_0" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_axi_clock_conv_xdma_0_0" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/awr2243_capture_bd_axi_clock_conv_xdma_0_0_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_axi_clock_conv_xdma_0_0_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_axi_clock_conv_xdma_0_0_synth_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2022">
-          <Desc>Vivado Synthesis Defaults</Desc>
-        </StratHandle>
-        <Step Id="synth_design"/>
-      </Strategy>
-      <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
-      <ReportStrategy Name="Vivado Synthesis Default Reports" Flow="Vivado Synthesis 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_axil_clock_conv_0_0_synth_1" Type="Ft3:Synth" SrcSet="awr2243_capture_bd_axil_clock_conv_0_0" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_axil_clock_conv_0_0" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/awr2243_capture_bd_axil_clock_conv_0_0_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_axil_clock_conv_0_0_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_axil_clock_conv_0_0_synth_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2022">
-          <Desc>Vivado Synthesis Defaults</Desc>
-        </StratHandle>
-        <Step Id="synth_design"/>
-      </Strategy>
-      <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
-      <ReportStrategy Name="Vivado Synthesis Default Reports" Flow="Vivado Synthesis 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_axis_async_fifo_0_0_synth_1" Type="Ft3:Synth" SrcSet="awr2243_capture_bd_axis_async_fifo_0_0" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_axis_async_fifo_0_0" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/awr2243_capture_bd_axis_async_fifo_0_0_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_axis_async_fifo_0_0_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_axis_async_fifo_0_0_synth_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2022">
-          <Desc>Vivado Synthesis Defaults</Desc>
-        </StratHandle>
-        <Step Id="synth_design"/>
-      </Strategy>
-      <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
-      <ReportStrategy Name="Vivado Synthesis Default Reports" Flow="Vivado Synthesis 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_csi_rx_axis_pack_0_0_synth_1" Type="Ft3:Synth" SrcSet="awr2243_capture_bd_csi_rx_axis_pack_0_0" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_csi_rx_axis_pack_0_0" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/awr2243_capture_bd_csi_rx_axis_pack_0_0_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_csi_rx_axis_pack_0_0_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_csi_rx_axis_pack_0_0_synth_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2022">
-          <Desc>Vivado Synthesis Defaults</Desc>
-        </StratHandle>
-        <Step Id="synth_design"/>
-      </Strategy>
-      <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
-      <ReportStrategy Name="Vivado Synthesis Default Reports" Flow="Vivado Synthesis 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_ddr4_0_0_synth_1" Type="Ft3:Synth" SrcSet="awr2243_capture_bd_ddr4_0_0" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_ddr4_0_0" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/awr2243_capture_bd_ddr4_0_0_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_ddr4_0_0_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_ddr4_0_0_synth_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2022">
-          <Desc>Vivado Synthesis Defaults</Desc>
-        </StratHandle>
-        <Step Id="synth_design"/>
-      </Strategy>
-      <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
-      <ReportStrategy Name="Vivado Synthesis Default Reports" Flow="Vivado Synthesis 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_mipi_csi2_rx_subsystem_0_0_synth_1" Type="Ft3:Synth" SrcSet="awr2243_capture_bd_mipi_csi2_rx_subsystem_0_0" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_mipi_csi2_rx_subsystem_0_0" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/awr2243_capture_bd_mipi_csi2_rx_subsystem_0_0_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_mipi_csi2_rx_subsystem_0_0_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_mipi_csi2_rx_subsystem_0_0_synth_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2022">
-          <Desc>Vivado Synthesis Defaults</Desc>
-        </StratHandle>
-        <Step Id="synth_design"/>
-      </Strategy>
-      <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
-      <ReportStrategy Name="Vivado Synthesis Default Reports" Flow="Vivado Synthesis 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="bd_fbe3_r_sync_0_synth_1" Type="Ft3:Synth" SrcSet="bd_fbe3_r_sync_0" Part="xcku5p-ffvb676-2-e" ConstrsSet="bd_fbe3_r_sync_0" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/bd_fbe3_r_sync_0_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/bd_fbe3_r_sync_0_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/bd_fbe3_r_sync_0_synth_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2022">
-          <Desc>Vivado Synthesis Defaults</Desc>
-        </StratHandle>
-        <Step Id="synth_design"/>
-      </Strategy>
-      <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
-      <ReportStrategy Name="Vivado Synthesis Default Reports" Flow="Vivado Synthesis 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="bd_fbe3_rx_0_synth_1" Type="Ft3:Synth" SrcSet="bd_fbe3_rx_0" Part="xcku5p-ffvb676-2-e" ConstrsSet="bd_fbe3_rx_0" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/bd_fbe3_rx_0_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/bd_fbe3_rx_0_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/bd_fbe3_rx_0_synth_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2022">
-          <Desc>Vivado Synthesis Defaults</Desc>
-        </StratHandle>
-        <Step Id="synth_design"/>
-      </Strategy>
-      <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
-      <ReportStrategy Name="Vivado Synthesis Default Reports" Flow="Vivado Synthesis 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="bd_fbe3_phy_0_synth_1" Type="Ft3:Synth" SrcSet="bd_fbe3_phy_0" Part="xcku5p-ffvb676-2-e" ConstrsSet="bd_fbe3_phy_0" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/bd_fbe3_phy_0_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/bd_fbe3_phy_0_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/bd_fbe3_phy_0_synth_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2022">
-          <Desc>Vivado Synthesis Defaults</Desc>
-        </StratHandle>
-        <Step Id="synth_design"/>
-      </Strategy>
-      <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
-      <ReportStrategy Name="Vivado Synthesis Default Reports" Flow="Vivado Synthesis 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_proc_sys_reset_axi_0_synth_1" Type="Ft3:Synth" SrcSet="awr2243_capture_bd_proc_sys_reset_axi_0" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_proc_sys_reset_axi_0" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/awr2243_capture_bd_proc_sys_reset_axi_0_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_proc_sys_reset_axi_0_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_proc_sys_reset_axi_0_synth_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2022">
-          <Desc>Vivado Synthesis Defaults</Desc>
-        </StratHandle>
-        <Step Id="synth_design"/>
-      </Strategy>
-      <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
-      <ReportStrategy Name="Vivado Synthesis Default Reports" Flow="Vivado Synthesis 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_proc_sys_reset_ddr_0_synth_1" Type="Ft3:Synth" SrcSet="awr2243_capture_bd_proc_sys_reset_ddr_0" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_proc_sys_reset_ddr_0" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/awr2243_capture_bd_proc_sys_reset_ddr_0_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_proc_sys_reset_ddr_0_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_proc_sys_reset_ddr_0_synth_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2022">
-          <Desc>Vivado Synthesis Defaults</Desc>
-        </StratHandle>
-        <Step Id="synth_design"/>
-      </Strategy>
-      <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
-      <ReportStrategy Name="Vivado Synthesis Default Reports" Flow="Vivado Synthesis 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_proc_sys_reset_video_0_synth_1" Type="Ft3:Synth" SrcSet="awr2243_capture_bd_proc_sys_reset_video_0" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_proc_sys_reset_video_0" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/awr2243_capture_bd_proc_sys_reset_video_0_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_proc_sys_reset_video_0_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_proc_sys_reset_video_0_synth_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2022">
-          <Desc>Vivado Synthesis Defaults</Desc>
-        </StratHandle>
-        <Step Id="synth_design"/>
-      </Strategy>
-      <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
-      <ReportStrategy Name="Vivado Synthesis Default Reports" Flow="Vivado Synthesis 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_proc_sys_reset_xdma_0_synth_1" Type="Ft3:Synth" SrcSet="awr2243_capture_bd_proc_sys_reset_xdma_0" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_proc_sys_reset_xdma_0" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/awr2243_capture_bd_proc_sys_reset_xdma_0_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_proc_sys_reset_xdma_0_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_proc_sys_reset_xdma_0_synth_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2022">
-          <Desc>Vivado Synthesis Defaults</Desc>
-        </StratHandle>
-        <Step Id="synth_design"/>
-      </Strategy>
-      <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
-      <ReportStrategy Name="Vivado Synthesis Default Reports" Flow="Vivado Synthesis 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_smartconnect_ddr_0_synth_1" Type="Ft3:Synth" SrcSet="awr2243_capture_bd_smartconnect_ddr_0" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_smartconnect_ddr_0" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/awr2243_capture_bd_smartconnect_ddr_0_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_smartconnect_ddr_0_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_smartconnect_ddr_0_synth_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2022">
-          <Desc>Vivado Synthesis Defaults</Desc>
-        </StratHandle>
-        <Step Id="synth_design"/>
-      </Strategy>
-      <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
-      <ReportStrategy Name="Vivado Synthesis Default Reports" Flow="Vivado Synthesis 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_util_ds_buf_pcie_refclk_0_synth_1" Type="Ft3:Synth" SrcSet="awr2243_capture_bd_util_ds_buf_pcie_refclk_0" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_util_ds_buf_pcie_refclk_0" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/awr2243_capture_bd_util_ds_buf_pcie_refclk_0_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_util_ds_buf_pcie_refclk_0_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_util_ds_buf_pcie_refclk_0_synth_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2022">
-          <Desc>Vivado Synthesis Defaults</Desc>
-        </StratHandle>
-        <Step Id="synth_design"/>
-      </Strategy>
-      <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
-      <ReportStrategy Name="Vivado Synthesis Default Reports" Flow="Vivado Synthesis 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_util_vl_sysrst_inv_0_synth_1" Type="Ft3:Synth" SrcSet="awr2243_capture_bd_util_vl_sysrst_inv_0" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_util_vl_sysrst_inv_0" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/awr2243_capture_bd_util_vl_sysrst_inv_0_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_util_vl_sysrst_inv_0_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_util_vl_sysrst_inv_0_synth_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2022">
-          <Desc>Vivado Synthesis Defaults</Desc>
-        </StratHandle>
-        <Step Id="synth_design"/>
-      </Strategy>
-      <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
-      <ReportStrategy Name="Vivado Synthesis Default Reports" Flow="Vivado Synthesis 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_xdma_0_0_synth_1" Type="Ft3:Synth" SrcSet="awr2243_capture_bd_xdma_0_0" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_xdma_0_0" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/awr2243_capture_bd_xdma_0_0_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_xdma_0_0_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_xdma_0_0_synth_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2022">
-          <Desc>Vivado Synthesis Defaults</Desc>
-        </StratHandle>
+        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2022"/>
         <Step Id="synth_design"/>
       </Strategy>
       <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
@@ -894,370 +485,7 @@
     </Run>
     <Run Id="impl_1" Type="Ft2:EntireDesign" Part="xcku5p-ffvb676-2-e" ConstrsSet="constrs_1" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" State="current" SynthRun="synth_1" IncludeInArchive="true" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/impl_1">
       <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2022">
-          <Desc>Default settings for Implementation.</Desc>
-        </StratHandle>
-        <Step Id="init_design"/>
-        <Step Id="opt_design"/>
-        <Step Id="power_opt_design"/>
-        <Step Id="place_design"/>
-        <Step Id="post_place_power_opt_design"/>
-        <Step Id="phys_opt_design"/>
-        <Step Id="route_design"/>
-        <Step Id="post_route_phys_opt_design"/>
-        <Step Id="write_bitstream"/>
-      </Strategy>
-      <ReportStrategy Name="Vivado Implementation Default Reports" Flow="Vivado Implementation 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_awr2243_capture_core_0_0_impl_1" Type="Ft2:EntireDesign" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_awr2243_capture_core_0_0" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="awr2243_capture_bd_awr2243_capture_core_0_0_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_awr2243_capture_core_0_0_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_awr2243_capture_core_0_0_impl_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2022">
-          <Desc>Default settings for Implementation.</Desc>
-        </StratHandle>
-        <Step Id="init_design"/>
-        <Step Id="opt_design"/>
-        <Step Id="power_opt_design"/>
-        <Step Id="place_design"/>
-        <Step Id="post_place_power_opt_design"/>
-        <Step Id="phys_opt_design"/>
-        <Step Id="route_design"/>
-        <Step Id="post_route_phys_opt_design"/>
-        <Step Id="write_bitstream"/>
-      </Strategy>
-      <ReportStrategy Name="Vivado Implementation Default Reports" Flow="Vivado Implementation 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_axi_clock_conv_ring_0_0_impl_1" Type="Ft2:EntireDesign" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_axi_clock_conv_ring_0_0" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="awr2243_capture_bd_axi_clock_conv_ring_0_0_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_axi_clock_conv_ring_0_0_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_axi_clock_conv_ring_0_0_impl_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2022">
-          <Desc>Default settings for Implementation.</Desc>
-        </StratHandle>
-        <Step Id="init_design"/>
-        <Step Id="opt_design"/>
-        <Step Id="power_opt_design"/>
-        <Step Id="place_design"/>
-        <Step Id="post_place_power_opt_design"/>
-        <Step Id="phys_opt_design"/>
-        <Step Id="route_design"/>
-        <Step Id="post_route_phys_opt_design"/>
-        <Step Id="write_bitstream"/>
-      </Strategy>
-      <ReportStrategy Name="Vivado Implementation Default Reports" Flow="Vivado Implementation 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_axi_clock_conv_xdma_0_0_impl_1" Type="Ft2:EntireDesign" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_axi_clock_conv_xdma_0_0" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="awr2243_capture_bd_axi_clock_conv_xdma_0_0_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_axi_clock_conv_xdma_0_0_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_axi_clock_conv_xdma_0_0_impl_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2022">
-          <Desc>Default settings for Implementation.</Desc>
-        </StratHandle>
-        <Step Id="init_design"/>
-        <Step Id="opt_design"/>
-        <Step Id="power_opt_design"/>
-        <Step Id="place_design"/>
-        <Step Id="post_place_power_opt_design"/>
-        <Step Id="phys_opt_design"/>
-        <Step Id="route_design"/>
-        <Step Id="post_route_phys_opt_design"/>
-        <Step Id="write_bitstream"/>
-      </Strategy>
-      <ReportStrategy Name="Vivado Implementation Default Reports" Flow="Vivado Implementation 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_axil_clock_conv_0_0_impl_1" Type="Ft2:EntireDesign" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_axil_clock_conv_0_0" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="awr2243_capture_bd_axil_clock_conv_0_0_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_axil_clock_conv_0_0_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_axil_clock_conv_0_0_impl_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2022">
-          <Desc>Default settings for Implementation.</Desc>
-        </StratHandle>
-        <Step Id="init_design"/>
-        <Step Id="opt_design"/>
-        <Step Id="power_opt_design"/>
-        <Step Id="place_design"/>
-        <Step Id="post_place_power_opt_design"/>
-        <Step Id="phys_opt_design"/>
-        <Step Id="route_design"/>
-        <Step Id="post_route_phys_opt_design"/>
-        <Step Id="write_bitstream"/>
-      </Strategy>
-      <ReportStrategy Name="Vivado Implementation Default Reports" Flow="Vivado Implementation 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_axis_async_fifo_0_0_impl_1" Type="Ft2:EntireDesign" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_axis_async_fifo_0_0" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="awr2243_capture_bd_axis_async_fifo_0_0_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_axis_async_fifo_0_0_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_axis_async_fifo_0_0_impl_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2022">
-          <Desc>Default settings for Implementation.</Desc>
-        </StratHandle>
-        <Step Id="init_design"/>
-        <Step Id="opt_design"/>
-        <Step Id="power_opt_design"/>
-        <Step Id="place_design"/>
-        <Step Id="post_place_power_opt_design"/>
-        <Step Id="phys_opt_design"/>
-        <Step Id="route_design"/>
-        <Step Id="post_route_phys_opt_design"/>
-        <Step Id="write_bitstream"/>
-      </Strategy>
-      <ReportStrategy Name="Vivado Implementation Default Reports" Flow="Vivado Implementation 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_csi_rx_axis_pack_0_0_impl_1" Type="Ft2:EntireDesign" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_csi_rx_axis_pack_0_0" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="awr2243_capture_bd_csi_rx_axis_pack_0_0_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_csi_rx_axis_pack_0_0_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_csi_rx_axis_pack_0_0_impl_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2022">
-          <Desc>Default settings for Implementation.</Desc>
-        </StratHandle>
-        <Step Id="init_design"/>
-        <Step Id="opt_design"/>
-        <Step Id="power_opt_design"/>
-        <Step Id="place_design"/>
-        <Step Id="post_place_power_opt_design"/>
-        <Step Id="phys_opt_design"/>
-        <Step Id="route_design"/>
-        <Step Id="post_route_phys_opt_design"/>
-        <Step Id="write_bitstream"/>
-      </Strategy>
-      <ReportStrategy Name="Vivado Implementation Default Reports" Flow="Vivado Implementation 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_ddr4_0_0_impl_1" Type="Ft2:EntireDesign" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_ddr4_0_0" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="awr2243_capture_bd_ddr4_0_0_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_ddr4_0_0_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_ddr4_0_0_impl_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2022">
-          <Desc>Default settings for Implementation.</Desc>
-        </StratHandle>
-        <Step Id="init_design"/>
-        <Step Id="opt_design"/>
-        <Step Id="power_opt_design"/>
-        <Step Id="place_design"/>
-        <Step Id="post_place_power_opt_design"/>
-        <Step Id="phys_opt_design"/>
-        <Step Id="route_design"/>
-        <Step Id="post_route_phys_opt_design"/>
-        <Step Id="write_bitstream"/>
-      </Strategy>
-      <ReportStrategy Name="Vivado Implementation Default Reports" Flow="Vivado Implementation 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_mipi_csi2_rx_subsystem_0_0_impl_1" Type="Ft2:EntireDesign" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_mipi_csi2_rx_subsystem_0_0" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="awr2243_capture_bd_mipi_csi2_rx_subsystem_0_0_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_mipi_csi2_rx_subsystem_0_0_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_mipi_csi2_rx_subsystem_0_0_impl_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2022">
-          <Desc>Default settings for Implementation.</Desc>
-        </StratHandle>
-        <Step Id="init_design"/>
-        <Step Id="opt_design"/>
-        <Step Id="power_opt_design"/>
-        <Step Id="place_design"/>
-        <Step Id="post_place_power_opt_design"/>
-        <Step Id="phys_opt_design"/>
-        <Step Id="route_design"/>
-        <Step Id="post_route_phys_opt_design"/>
-        <Step Id="write_bitstream"/>
-      </Strategy>
-      <ReportStrategy Name="Vivado Implementation Default Reports" Flow="Vivado Implementation 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="bd_fbe3_r_sync_0_impl_1" Type="Ft2:EntireDesign" Part="xcku5p-ffvb676-2-e" ConstrsSet="bd_fbe3_r_sync_0" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="bd_fbe3_r_sync_0_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/bd_fbe3_r_sync_0_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/bd_fbe3_r_sync_0_impl_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2022">
-          <Desc>Default settings for Implementation.</Desc>
-        </StratHandle>
-        <Step Id="init_design"/>
-        <Step Id="opt_design"/>
-        <Step Id="power_opt_design"/>
-        <Step Id="place_design"/>
-        <Step Id="post_place_power_opt_design"/>
-        <Step Id="phys_opt_design"/>
-        <Step Id="route_design"/>
-        <Step Id="post_route_phys_opt_design"/>
-        <Step Id="write_bitstream"/>
-      </Strategy>
-      <ReportStrategy Name="Vivado Implementation Default Reports" Flow="Vivado Implementation 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="bd_fbe3_rx_0_impl_1" Type="Ft2:EntireDesign" Part="xcku5p-ffvb676-2-e" ConstrsSet="bd_fbe3_rx_0" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="bd_fbe3_rx_0_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/bd_fbe3_rx_0_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/bd_fbe3_rx_0_impl_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2022">
-          <Desc>Default settings for Implementation.</Desc>
-        </StratHandle>
-        <Step Id="init_design"/>
-        <Step Id="opt_design"/>
-        <Step Id="power_opt_design"/>
-        <Step Id="place_design"/>
-        <Step Id="post_place_power_opt_design"/>
-        <Step Id="phys_opt_design"/>
-        <Step Id="route_design"/>
-        <Step Id="post_route_phys_opt_design"/>
-        <Step Id="write_bitstream"/>
-      </Strategy>
-      <ReportStrategy Name="Vivado Implementation Default Reports" Flow="Vivado Implementation 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="bd_fbe3_phy_0_impl_1" Type="Ft2:EntireDesign" Part="xcku5p-ffvb676-2-e" ConstrsSet="bd_fbe3_phy_0" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="bd_fbe3_phy_0_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/bd_fbe3_phy_0_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/bd_fbe3_phy_0_impl_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2022">
-          <Desc>Default settings for Implementation.</Desc>
-        </StratHandle>
-        <Step Id="init_design"/>
-        <Step Id="opt_design"/>
-        <Step Id="power_opt_design"/>
-        <Step Id="place_design"/>
-        <Step Id="post_place_power_opt_design"/>
-        <Step Id="phys_opt_design"/>
-        <Step Id="route_design"/>
-        <Step Id="post_route_phys_opt_design"/>
-        <Step Id="write_bitstream"/>
-      </Strategy>
-      <ReportStrategy Name="Vivado Implementation Default Reports" Flow="Vivado Implementation 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_proc_sys_reset_axi_0_impl_1" Type="Ft2:EntireDesign" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_proc_sys_reset_axi_0" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="awr2243_capture_bd_proc_sys_reset_axi_0_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_proc_sys_reset_axi_0_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_proc_sys_reset_axi_0_impl_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2022">
-          <Desc>Default settings for Implementation.</Desc>
-        </StratHandle>
-        <Step Id="init_design"/>
-        <Step Id="opt_design"/>
-        <Step Id="power_opt_design"/>
-        <Step Id="place_design"/>
-        <Step Id="post_place_power_opt_design"/>
-        <Step Id="phys_opt_design"/>
-        <Step Id="route_design"/>
-        <Step Id="post_route_phys_opt_design"/>
-        <Step Id="write_bitstream"/>
-      </Strategy>
-      <ReportStrategy Name="Vivado Implementation Default Reports" Flow="Vivado Implementation 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_proc_sys_reset_ddr_0_impl_1" Type="Ft2:EntireDesign" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_proc_sys_reset_ddr_0" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="awr2243_capture_bd_proc_sys_reset_ddr_0_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_proc_sys_reset_ddr_0_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_proc_sys_reset_ddr_0_impl_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2022">
-          <Desc>Default settings for Implementation.</Desc>
-        </StratHandle>
-        <Step Id="init_design"/>
-        <Step Id="opt_design"/>
-        <Step Id="power_opt_design"/>
-        <Step Id="place_design"/>
-        <Step Id="post_place_power_opt_design"/>
-        <Step Id="phys_opt_design"/>
-        <Step Id="route_design"/>
-        <Step Id="post_route_phys_opt_design"/>
-        <Step Id="write_bitstream"/>
-      </Strategy>
-      <ReportStrategy Name="Vivado Implementation Default Reports" Flow="Vivado Implementation 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_proc_sys_reset_video_0_impl_1" Type="Ft2:EntireDesign" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_proc_sys_reset_video_0" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="awr2243_capture_bd_proc_sys_reset_video_0_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_proc_sys_reset_video_0_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_proc_sys_reset_video_0_impl_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2022">
-          <Desc>Default settings for Implementation.</Desc>
-        </StratHandle>
-        <Step Id="init_design"/>
-        <Step Id="opt_design"/>
-        <Step Id="power_opt_design"/>
-        <Step Id="place_design"/>
-        <Step Id="post_place_power_opt_design"/>
-        <Step Id="phys_opt_design"/>
-        <Step Id="route_design"/>
-        <Step Id="post_route_phys_opt_design"/>
-        <Step Id="write_bitstream"/>
-      </Strategy>
-      <ReportStrategy Name="Vivado Implementation Default Reports" Flow="Vivado Implementation 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_proc_sys_reset_xdma_0_impl_1" Type="Ft2:EntireDesign" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_proc_sys_reset_xdma_0" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="awr2243_capture_bd_proc_sys_reset_xdma_0_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_proc_sys_reset_xdma_0_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_proc_sys_reset_xdma_0_impl_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2022">
-          <Desc>Default settings for Implementation.</Desc>
-        </StratHandle>
-        <Step Id="init_design"/>
-        <Step Id="opt_design"/>
-        <Step Id="power_opt_design"/>
-        <Step Id="place_design"/>
-        <Step Id="post_place_power_opt_design"/>
-        <Step Id="phys_opt_design"/>
-        <Step Id="route_design"/>
-        <Step Id="post_route_phys_opt_design"/>
-        <Step Id="write_bitstream"/>
-      </Strategy>
-      <ReportStrategy Name="Vivado Implementation Default Reports" Flow="Vivado Implementation 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_smartconnect_ddr_0_impl_1" Type="Ft2:EntireDesign" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_smartconnect_ddr_0" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="awr2243_capture_bd_smartconnect_ddr_0_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_smartconnect_ddr_0_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_smartconnect_ddr_0_impl_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2022">
-          <Desc>Default settings for Implementation.</Desc>
-        </StratHandle>
-        <Step Id="init_design"/>
-        <Step Id="opt_design"/>
-        <Step Id="power_opt_design"/>
-        <Step Id="place_design"/>
-        <Step Id="post_place_power_opt_design"/>
-        <Step Id="phys_opt_design"/>
-        <Step Id="route_design"/>
-        <Step Id="post_route_phys_opt_design"/>
-        <Step Id="write_bitstream"/>
-      </Strategy>
-      <ReportStrategy Name="Vivado Implementation Default Reports" Flow="Vivado Implementation 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_util_ds_buf_pcie_refclk_0_impl_1" Type="Ft2:EntireDesign" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_util_ds_buf_pcie_refclk_0" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="awr2243_capture_bd_util_ds_buf_pcie_refclk_0_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_util_ds_buf_pcie_refclk_0_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_util_ds_buf_pcie_refclk_0_impl_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2022">
-          <Desc>Default settings for Implementation.</Desc>
-        </StratHandle>
-        <Step Id="init_design"/>
-        <Step Id="opt_design"/>
-        <Step Id="power_opt_design"/>
-        <Step Id="place_design"/>
-        <Step Id="post_place_power_opt_design"/>
-        <Step Id="phys_opt_design"/>
-        <Step Id="route_design"/>
-        <Step Id="post_route_phys_opt_design"/>
-        <Step Id="write_bitstream"/>
-      </Strategy>
-      <ReportStrategy Name="Vivado Implementation Default Reports" Flow="Vivado Implementation 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_util_vl_sysrst_inv_0_impl_1" Type="Ft2:EntireDesign" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_util_vl_sysrst_inv_0" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="awr2243_capture_bd_util_vl_sysrst_inv_0_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_util_vl_sysrst_inv_0_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_util_vl_sysrst_inv_0_impl_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2022">
-          <Desc>Default settings for Implementation.</Desc>
-        </StratHandle>
-        <Step Id="init_design"/>
-        <Step Id="opt_design"/>
-        <Step Id="power_opt_design"/>
-        <Step Id="place_design"/>
-        <Step Id="post_place_power_opt_design"/>
-        <Step Id="phys_opt_design"/>
-        <Step Id="route_design"/>
-        <Step Id="post_route_phys_opt_design"/>
-        <Step Id="write_bitstream"/>
-      </Strategy>
-      <ReportStrategy Name="Vivado Implementation Default Reports" Flow="Vivado Implementation 2022"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="awr2243_capture_bd_xdma_0_0_impl_1" Type="Ft2:EntireDesign" Part="xcku5p-ffvb676-2-e" ConstrsSet="awr2243_capture_bd_xdma_0_0" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="awr2243_capture_bd_xdma_0_0_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_xdma_0_0_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/awr2243_capture_bd_xdma_0_0_impl_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2022">
-          <Desc>Default settings for Implementation.</Desc>
-        </StratHandle>
+        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2022"/>
         <Step Id="init_design"/>
         <Step Id="opt_design"/>
         <Step Id="power_opt_design"/>
