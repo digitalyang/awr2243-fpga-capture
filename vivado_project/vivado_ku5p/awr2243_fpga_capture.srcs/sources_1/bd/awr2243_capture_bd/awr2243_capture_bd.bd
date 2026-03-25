@@ -337,7 +337,7 @@
       "util_ds_buf_pcie_refclk": {
         "vlnv": "xilinx.com:ip:util_ds_buf:2.2",
         "xci_name": "awr2243_capture_bd_util_ds_buf_pcie_refclk_0",
-        "xci_path": "ip\\awr2243_capture_bd_util_ds_buf_pcie_refclk_0\\awr2243_capture_bd_util_ds_buf_pcie_refclk_0.xci",
+        "xci_path": "ip\\awr2243_capture_bd_util_ds_buf_pcie_refclk_0_3\\awr2243_capture_bd_util_ds_buf_pcie_refclk_0.xci",
         "inst_hier_path": "util_ds_buf_pcie_refclk",
         "parameters": {
           "C_BUF_TYPE": {
@@ -348,31 +348,31 @@
       "proc_sys_reset_video": {
         "vlnv": "xilinx.com:ip:proc_sys_reset:5.0",
         "xci_name": "awr2243_capture_bd_proc_sys_reset_video_0",
-        "xci_path": "ip\\awr2243_capture_bd_proc_sys_reset_video_0\\awr2243_capture_bd_proc_sys_reset_video_0.xci",
+        "xci_path": "ip\\awr2243_capture_bd_proc_sys_reset_video_0_3\\awr2243_capture_bd_proc_sys_reset_video_0.xci",
         "inst_hier_path": "proc_sys_reset_video"
       },
       "proc_sys_reset_axi": {
         "vlnv": "xilinx.com:ip:proc_sys_reset:5.0",
         "xci_name": "awr2243_capture_bd_proc_sys_reset_axi_0",
-        "xci_path": "ip\\awr2243_capture_bd_proc_sys_reset_axi_0\\awr2243_capture_bd_proc_sys_reset_axi_0.xci",
+        "xci_path": "ip\\awr2243_capture_bd_proc_sys_reset_axi_0_3\\awr2243_capture_bd_proc_sys_reset_axi_0.xci",
         "inst_hier_path": "proc_sys_reset_axi"
       },
       "proc_sys_reset_xdma": {
         "vlnv": "xilinx.com:ip:proc_sys_reset:5.0",
         "xci_name": "awr2243_capture_bd_proc_sys_reset_xdma_0",
-        "xci_path": "ip\\awr2243_capture_bd_proc_sys_reset_xdma_0\\awr2243_capture_bd_proc_sys_reset_xdma_0.xci",
+        "xci_path": "ip\\awr2243_capture_bd_proc_sys_reset_xdma_0_3\\awr2243_capture_bd_proc_sys_reset_xdma_0.xci",
         "inst_hier_path": "proc_sys_reset_xdma"
       },
       "proc_sys_reset_ddr": {
         "vlnv": "xilinx.com:ip:proc_sys_reset:5.0",
         "xci_name": "awr2243_capture_bd_proc_sys_reset_ddr_0",
-        "xci_path": "ip\\awr2243_capture_bd_proc_sys_reset_ddr_0\\awr2243_capture_bd_proc_sys_reset_ddr_0.xci",
+        "xci_path": "ip\\awr2243_capture_bd_proc_sys_reset_ddr_0_3\\awr2243_capture_bd_proc_sys_reset_ddr_0.xci",
         "inst_hier_path": "proc_sys_reset_ddr"
       },
       "xlconstant_one": {
         "vlnv": "xilinx.com:ip:xlconstant:1.1",
         "xci_name": "awr2243_capture_bd_xlconstant_one_0",
-        "xci_path": "ip\\awr2243_capture_bd_xlconstant_one_0\\awr2243_capture_bd_xlconstant_one_0.xci",
+        "xci_path": "ip\\awr2243_capture_bd_xlconstant_one_0_3\\awr2243_capture_bd_xlconstant_one_0.xci",
         "inst_hier_path": "xlconstant_one",
         "parameters": {
           "CONST_VAL": {
@@ -386,7 +386,7 @@
       "xlconstant_zero": {
         "vlnv": "xilinx.com:ip:xlconstant:1.1",
         "xci_name": "awr2243_capture_bd_xlconstant_zero_0",
-        "xci_path": "ip\\awr2243_capture_bd_xlconstant_zero_0\\awr2243_capture_bd_xlconstant_zero_0.xci",
+        "xci_path": "ip\\awr2243_capture_bd_xlconstant_zero_0_3\\awr2243_capture_bd_xlconstant_zero_0.xci",
         "inst_hier_path": "xlconstant_zero",
         "parameters": {
           "CONST_VAL": {
@@ -400,7 +400,7 @@
       "xlconstant_zero2": {
         "vlnv": "xilinx.com:ip:xlconstant:1.1",
         "xci_name": "awr2243_capture_bd_xlconstant_zero2_0",
-        "xci_path": "ip\\awr2243_capture_bd_xlconstant_zero2_0\\awr2243_capture_bd_xlconstant_zero2_0.xci",
+        "xci_path": "ip\\awr2243_capture_bd_xlconstant_zero2_0_3\\awr2243_capture_bd_xlconstant_zero2_0.xci",
         "inst_hier_path": "xlconstant_zero2",
         "parameters": {
           "CONST_VAL": {
@@ -414,7 +414,7 @@
       "util_vl_sysrst_inv": {
         "vlnv": "xilinx.com:ip:util_vector_logic:2.0",
         "xci_name": "awr2243_capture_bd_util_vl_sysrst_inv_0",
-        "xci_path": "ip\\awr2243_capture_bd_util_vl_sysrst_inv_0\\awr2243_capture_bd_util_vl_sysrst_inv_0.xci",
+        "xci_path": "ip\\awr2243_capture_bd_util_vl_sysrst_inv_0_3\\awr2243_capture_bd_util_vl_sysrst_inv_0.xci",
         "inst_hier_path": "util_vl_sysrst_inv",
         "parameters": {
           "C_OPERATION": {
@@ -428,7 +428,7 @@
       "xdma_0": {
         "vlnv": "xilinx.com:ip:xdma:4.1",
         "xci_name": "awr2243_capture_bd_xdma_0_0",
-        "xci_path": "ip\\awr2243_capture_bd_xdma_0_0\\awr2243_capture_bd_xdma_0_0.xci",
+        "xci_path": "ip\\awr2243_capture_bd_xdma_0_0_3\\awr2243_capture_bd_xdma_0_0.xci",
         "inst_hier_path": "xdma_0",
         "parameters": {
           "axi_data_width": {
@@ -502,7 +502,7 @@
       "smartconnect_ddr": {
         "vlnv": "xilinx.com:ip:smartconnect:1.0",
         "xci_name": "awr2243_capture_bd_smartconnect_ddr_0",
-        "xci_path": "ip\\awr2243_capture_bd_smartconnect_ddr_0\\awr2243_capture_bd_smartconnect_ddr_0.xci",
+        "xci_path": "ip\\awr2243_capture_bd_smartconnect_ddr_0_3\\awr2243_capture_bd_smartconnect_ddr_0.xci",
         "inst_hier_path": "smartconnect_ddr",
         "parameters": {
           "NUM_MI": {
@@ -581,7 +581,7 @@
       "axis_async_fifo_0": {
         "vlnv": "xilinx.com:ip:axis_data_fifo:2.0",
         "xci_name": "awr2243_capture_bd_axis_async_fifo_0_0",
-        "xci_path": "ip\\awr2243_capture_bd_axis_async_fifo_0_0\\awr2243_capture_bd_axis_async_fifo_0_0.xci",
+        "xci_path": "ip\\awr2243_capture_bd_axis_async_fifo_0_0_3\\awr2243_capture_bd_axis_async_fifo_0_0.xci",
         "inst_hier_path": "axis_async_fifo_0",
         "parameters": {
           "FIFO_DEPTH": {
@@ -610,7 +610,7 @@
       "csi_rx_axis_pack_0": {
         "vlnv": "xilinx.com:module_ref:csi_rx_axis_pack_ref:1.0",
         "xci_name": "awr2243_capture_bd_csi_rx_axis_pack_0_0",
-        "xci_path": "ip\\awr2243_capture_bd_csi_rx_axis_pack_0_0\\awr2243_capture_bd_csi_rx_axis_pack_0_0.xci",
+        "xci_path": "ip\\awr2243_capture_bd_csi_rx_axis_pack_0_0_3\\awr2243_capture_bd_csi_rx_axis_pack_0_0.xci",
         "inst_hier_path": "csi_rx_axis_pack_0",
         "parameters": {
           "M_DATA_W": {
@@ -850,7 +850,7 @@
       "awr2243_capture_core_0": {
         "vlnv": "xilinx.com:module_ref:awr2243_capture_core_ref:1.0",
         "xci_name": "awr2243_capture_bd_awr2243_capture_core_0_0",
-        "xci_path": "ip\\awr2243_capture_bd_awr2243_capture_core_0_0\\awr2243_capture_bd_awr2243_capture_core_0_0.xci",
+        "xci_path": "ip\\awr2243_capture_bd_awr2243_capture_core_0_0_3\\awr2243_capture_bd_awr2243_capture_core_0_0.xci",
         "inst_hier_path": "awr2243_capture_core_0",
         "parameters": {
           "AXIL_ADDR_W": {
@@ -1479,7 +1479,7 @@
       "axil_clock_conv_0": {
         "vlnv": "xilinx.com:ip:axi_clock_converter:2.1",
         "xci_name": "awr2243_capture_bd_axil_clock_conv_0_0",
-        "xci_path": "ip\\awr2243_capture_bd_axil_clock_conv_0_0\\awr2243_capture_bd_axil_clock_conv_0_0.xci",
+        "xci_path": "ip\\awr2243_capture_bd_axil_clock_conv_0_0_3\\awr2243_capture_bd_axil_clock_conv_0_0.xci",
         "inst_hier_path": "axil_clock_conv_0",
         "parameters": {
           "ADDR_WIDTH": {
@@ -1505,7 +1505,7 @@
       "axi_clock_conv_xdma_0": {
         "vlnv": "xilinx.com:ip:axi_clock_converter:2.1",
         "xci_name": "awr2243_capture_bd_axi_clock_conv_xdma_0_0",
-        "xci_path": "ip\\awr2243_capture_bd_axi_clock_conv_xdma_0_0\\awr2243_capture_bd_axi_clock_conv_xdma_0_0.xci",
+        "xci_path": "ip\\awr2243_capture_bd_axi_clock_conv_xdma_0_0_3\\awr2243_capture_bd_axi_clock_conv_xdma_0_0.xci",
         "inst_hier_path": "axi_clock_conv_xdma_0",
         "parameters": {
           "ADDR_WIDTH": {
@@ -1534,7 +1534,7 @@
       "axi_clock_conv_ring_0": {
         "vlnv": "xilinx.com:ip:axi_clock_converter:2.1",
         "xci_name": "awr2243_capture_bd_axi_clock_conv_ring_0_0",
-        "xci_path": "ip\\awr2243_capture_bd_axi_clock_conv_ring_0_0\\awr2243_capture_bd_axi_clock_conv_ring_0_0.xci",
+        "xci_path": "ip\\awr2243_capture_bd_axi_clock_conv_ring_0_0_3\\awr2243_capture_bd_axi_clock_conv_ring_0_0.xci",
         "inst_hier_path": "axi_clock_conv_ring_0",
         "parameters": {
           "ADDR_WIDTH": {
@@ -1560,7 +1560,7 @@
       "ddr4_0": {
         "vlnv": "xilinx.com:ip:ddr4:2.2",
         "xci_name": "awr2243_capture_bd_ddr4_0_0",
-        "xci_path": "ip\\awr2243_capture_bd_ddr4_0_0\\awr2243_capture_bd_ddr4_0_0.xci",
+        "xci_path": "ip\\awr2243_capture_bd_ddr4_0_0_3\\awr2243_capture_bd_ddr4_0_0.xci",
         "inst_hier_path": "ddr4_0",
         "parameters": {
           "C0.DDR4_DataWidth": {
@@ -1597,7 +1597,7 @@
       "mipi_csi2_rx_subsystem_0": {
         "vlnv": "xilinx.com:ip:mipi_csi2_rx_subsystem:5.2",
         "xci_name": "awr2243_capture_bd_mipi_csi2_rx_subsystem_0_0",
-        "xci_path": "ip\\awr2243_capture_bd_mipi_csi2_rx_subsystem_0_0\\awr2243_capture_bd_mipi_csi2_rx_subsystem_0_0.xci",
+        "xci_path": "ip\\awr2243_capture_bd_mipi_csi2_rx_subsystem_0_0_3\\awr2243_capture_bd_mipi_csi2_rx_subsystem_0_0.xci",
         "inst_hier_path": "mipi_csi2_rx_subsystem_0",
         "parameters": {
           "AXIS_TDATA_WIDTH": {
@@ -2071,6 +2071,10 @@
       "xlconstant_one_dout": {
         "ports": [
           "xlconstant_one/dout",
+          "proc_sys_reset_video/aux_reset_in",
+          "proc_sys_reset_axi/aux_reset_in",
+          "proc_sys_reset_xdma/aux_reset_in",
+          "proc_sys_reset_ddr/aux_reset_in",
           "proc_sys_reset_video/dcm_locked",
           "proc_sys_reset_axi/dcm_locked",
           "mipi_csi2_rx_subsystem_0/ctrl_core_en"
@@ -2085,13 +2089,9 @@
       "xlconstant_zero_dout": {
         "ports": [
           "xlconstant_zero/dout",
-          "proc_sys_reset_video/aux_reset_in",
           "proc_sys_reset_video/mb_debug_sys_rst",
-          "proc_sys_reset_axi/aux_reset_in",
           "proc_sys_reset_axi/mb_debug_sys_rst",
-          "proc_sys_reset_xdma/aux_reset_in",
           "proc_sys_reset_xdma/mb_debug_sys_rst",
-          "proc_sys_reset_ddr/aux_reset_in",
           "proc_sys_reset_ddr/mb_debug_sys_rst"
         ]
       }

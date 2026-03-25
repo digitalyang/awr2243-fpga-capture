@@ -127,8 +127,6 @@ module fixed_slot_packer #(
   logic should_drop_c;
   logic is_last_out_beat_c;
 
-  integer i;
-
   function automatic int unsigned ceil_div_int(input int unsigned a, input int unsigned b);
     begin
       ceil_div_int = (a + b - 1) / b;
@@ -248,7 +246,7 @@ module fixed_slot_packer #(
     tail_count_n         = tail_count_r;
     cq_count_n           = cq_count_r;
 
-    for (i = 0; i < CQ_AREA_BYTES; i++) begin
+    for (int unsigned i = 0; i < CQ_AREA_BYTES; i++) begin
       tail_buf_n[i] = tail_buf_r[i];
       cq_buf_n[i]   = cq_buf_r[i];
       tail_tmp[i]   = tail_buf_r[i];
@@ -297,7 +295,7 @@ module fixed_slot_packer #(
 
           tail_count_n         = '0;
           cq_count_n           = '0;
-          for (i = 0; i < CQ_AREA_BYTES; i++) begin
+          for (int unsigned i = 0; i < CQ_AREA_BYTES; i++) begin
             tail_buf_n[i] = 8'h00;
             cq_buf_n[i]   = 8'h00;
           end
@@ -333,13 +331,13 @@ module fixed_slot_packer #(
               else
                 eff_end = 32'(HEADER_BYTES) + 32'(SAMPLE_AREA_BYTES);
               z_start = (eff_end > wr_abs_pos_r) ? int'(eff_end - wr_abs_pos_r) : 0;
-              for (i = 0; i < AXIS_BEAT_BYTES; i++) begin
+              for (int unsigned i = 0; i < AXIS_BEAT_BYTES; i++) begin
                 if (i >= z_start)
                   mem_wr_data_c[i*8 +: 8] = 8'h00;
               end
             end
             wr_abs_pos_n  = wr_abs_pos_r + 32'(AXIS_BEAT_BYTES);
-            for (i = 0; i < CQ_AREA_BYTES; i++) begin
+            for (int unsigned i = 0; i < CQ_AREA_BYTES; i++) begin
               tail_tmp[i] = s_axis.tdata[(AXIS_BEAT_BYTES - CQ_AREA_BYTES + i) * 8 +: 8];
             end
             tail_cnt = CQ_CNT_W'(CQ_AREA_BYTES);
@@ -367,7 +365,7 @@ module fixed_slot_packer #(
               carried_cnt = 0;
               sample_end_byte = pkt_sample_end_byte;
 
-              // Bypass: beat-aligned, empty buffer, entire beat in sample region → use s_axis.tdata as-is (no reorder).
+              // Bypass: beat-aligned, empty buffer, entire beat in sample region; use s_axis.tdata as-is (no reorder).
               bypass_full_beat = (bytes_in_beat_r == 0) &&
                 ((wr_abs_pos_r % AXIS_BEAT_BYTES) == 0) &&
                 (wr_abs_pos_r + AXIS_BEAT_BYTES <= CQ_START_BYTE) &&
@@ -409,7 +407,7 @@ module fixed_slot_packer #(
                 end
                 valid_before_lane = valid_bytes_cur;
 
-                for (i = 0; i < AXIS_KEEP_W; i++) begin
+                for (int unsigned i = 0; i < AXIS_KEEP_W; i++) begin
                   if (i < sample_bytes_this_beat)
                     merged_beat[i*8 +: 8] = s_axis.tdata[i*8 +: 8];
                 end
@@ -419,7 +417,7 @@ module fixed_slot_packer #(
                 else
                   tail_cnt = CQ_CNT_W'(valid_bytes_cur - sample_bytes_this_beat);
 
-                for (i = 0; i < CQ_AREA_BYTES; i++) begin
+                for (int unsigned i = 0; i < CQ_AREA_BYTES; i++) begin
                   if ((i < (valid_bytes_cur - sample_bytes_this_beat)) &&
                       ((sample_bytes_this_beat + i) < AXIS_KEEP_W))
                     tail_tmp[i] = s_axis.tdata[(sample_bytes_this_beat + i) * 8 +: 8];
@@ -432,7 +430,7 @@ module fixed_slot_packer #(
                   slot_off    = 32'(AXIS_BEAT_BYTES);
                   break_lane  = AXIS_KEEP_W;
                   valid_before_lane = valid_before_lane + AXIS_BEAT_BYTES;
-                  for (i = 0; i < CQ_AREA_BYTES; i++)
+                  for (int unsigned i = 0; i < CQ_AREA_BYTES; i++)
                     tail_tmp[i] = s_axis.tdata[(AXIS_BEAT_BYTES - CQ_AREA_BYTES + i) * 8 +: 8];
                   tail_cnt = CQ_CNT_W'(CQ_AREA_BYTES);
                 end else begin
@@ -461,7 +459,7 @@ module fixed_slot_packer #(
                                 merged_beat[slot_off*8 +: 8] = byte_out;
                                 slot_off = slot_off + 1;
                               end
-                              for (i = 0; i < CQ_AREA_BYTES-1; i++)
+                              for (int unsigned i = 0; i < CQ_AREA_BYTES-1; i++)
                                 tail_tmp[i] = tail_tmp[i+1];
                               tail_tmp[CQ_AREA_BYTES-1] = cur_byte;
                             end
@@ -492,7 +490,7 @@ module fixed_slot_packer #(
                       rem_cnt = rem_cnt + 1;
                     end
                   end
-                  for (i = 0; i < CQ_AREA_BYTES; i++)
+                  for (int unsigned i = 0; i < CQ_AREA_BYTES; i++)
                     win[i] = tail_tmp[i];
                   write_idx = 0;
                   // Fast path: 9 in window and 23 remaining => output = win[0:9] then rem_bytes[0:14] = payload[32:55]
@@ -501,7 +499,7 @@ module fixed_slot_packer #(
                       current_beat_n[k*8 +: 8] = win[k];
                     for (k = 0; k < 14; k++)
                       current_beat_n[(9+k)*8 +: 8] = rem_bytes[k];
-                    for (i = 0; i < CQ_AREA_BYTES-1; i++)
+                    for (int unsigned i = 0; i < CQ_AREA_BYTES-1; i++)
                       tail_tmp[i] = rem_bytes[14 + i];
                     tail_tmp[CQ_AREA_BYTES-1] = rem_bytes[22];
                     write_idx = 23;
@@ -516,13 +514,13 @@ module fixed_slot_packer #(
                             current_beat_n[write_idx*8 +: 8] = win[0];
                             write_idx = write_idx + 1;
                           end
-                          for (i = 0; i < CQ_AREA_BYTES-1; i++)
+                          for (int unsigned i = 0; i < CQ_AREA_BYTES-1; i++)
                             win[i] = win[i+1];
                           win[CQ_AREA_BYTES-1] = rem_bytes[k];
                         end
                       end
                     end
-                    for (i = 0; i < CQ_AREA_BYTES; i++)
+                    for (int unsigned i = 0; i < CQ_AREA_BYTES; i++)
                       tail_tmp[i] = win[i];
                   end
                   if (write_idx > AXIS_BEAT_BYTES)
@@ -536,7 +534,7 @@ module fixed_slot_packer #(
               // Zero-fill from end of sample to CQ when packet ends this beat
               if (pkt_done_i) begin
                 zero_fill_done = 1'b0;
-                for (i = 0; i < AXIS_BEAT_BYTES; i++) begin
+                for (int unsigned i = 0; i < AXIS_BEAT_BYTES; i++) begin
                   if (!zero_fill_done) begin
                     if (slot_off >= 32'(AXIS_BEAT_BYTES)) begin
                       zero_fill_done = 1'b1;
@@ -569,7 +567,7 @@ module fixed_slot_packer #(
                   else
                     eff_end_s = 32'(HEADER_BYTES) + 32'(SAMPLE_AREA_BYTES);
                   z_start_s = (eff_end_s > wr_abs_pos_r) ? int'(eff_end_s - wr_abs_pos_r) : 0;
-                  for (i = 0; i < AXIS_BEAT_BYTES; i++) begin
+                  for (int unsigned i = 0; i < AXIS_BEAT_BYTES; i++) begin
                     if (i >= z_start_s)
                       mem_wr_data_c[i*8 +: 8] = 8'h00;
                   end
@@ -614,7 +612,7 @@ module fixed_slot_packer #(
             end else begin
               if (pkt_trunc_err_i) begin
                 cq_cnt = '0;
-                for (i = 0; i < CQ_AREA_BYTES; i++) begin
+                for (int unsigned i = 0; i < CQ_AREA_BYTES; i++) begin
                   cq_tmp[i] = 8'h00;
                 end
                 // On truncation, tail_tmp bytes belong to the sample region. Only
@@ -625,7 +623,7 @@ module fixed_slot_packer #(
                   int unsigned            so;
                   so = 32'(bytes_in_beat_n);
                   fin_beat = current_beat_n;
-                  for (i = 0; i < CQ_AREA_BYTES; i++) begin
+                  for (int unsigned i = 0; i < CQ_AREA_BYTES; i++) begin
                     if ((i < tail_cnt) && (so < AXIS_BEAT_BYTES)) begin
                       fin_beat[so*8 +: 8] = tail_tmp[i];
                       so = so + 1;
@@ -644,7 +642,7 @@ module fixed_slot_packer #(
                 end
               end else begin
                 cq_cnt = tail_cnt;
-                for (i = 0; i < CQ_AREA_BYTES; i++) begin
+                for (int unsigned i = 0; i < CQ_AREA_BYTES; i++) begin
                   if (i < tail_cnt) begin
                     cq_tmp[i] = tail_tmp[i];
                   end else begin
@@ -664,7 +662,7 @@ module fixed_slot_packer #(
         wr_abs_pos_n      = abs_pos;
         tail_count_n      = tail_cnt;
         cq_count_n        = cq_cnt;
-        for (i = 0; i < CQ_AREA_BYTES; i++) begin
+        for (int unsigned i = 0; i < CQ_AREA_BYTES; i++) begin
           tail_buf_n[i] = tail_tmp[i];
           cq_buf_n[i]   = cq_tmp[i];
         end
@@ -677,7 +675,7 @@ module fixed_slot_packer #(
           // Partial beat holds bytes for slot [wr_abs_pos_n, wr_abs_pos_n+bytes_in_beat_n), so write to beat wr_abs_pos_n/32
           wr_shadow_idx_n   = MEM_BEAT_W'(wr_abs_pos_n / AXIS_BEAT_BYTES);
           wr_shadow_data_n  = current_beat_n;
-          for (i = 0; i < AXIS_BEAT_BYTES; i++)
+          for (int unsigned i = 0; i < AXIS_BEAT_BYTES; i++)
             if (i >= bytes_in_beat_n) wr_shadow_data_n[i*8 +: 8] = 8'h00;
         end
       end
@@ -729,7 +727,7 @@ module fixed_slot_packer #(
           cq_beat = (wr_shadow_valid_r && (wr_shadow_idx_r == MEM_BEAT_W'(CQ_START_BEAT)))
               ? wr_shadow_data_r
               : '0;
-          for (i = 0; i < CQ_AREA_BYTES; i++)
+          for (int unsigned i = 0; i < CQ_AREA_BYTES; i++)
             if ((i < cq_count_r) && ((CQ_LANE_OFFSET + i) < AXIS_BEAT_BYTES))
               cq_beat[(CQ_LANE_OFFSET + i) * 8 +: 8] = cq_buf_r[i];
           mem_wr_en_c   = 1'b1;
@@ -812,7 +810,7 @@ module fixed_slot_packer #(
       tail_count_r         <= '0;
       cq_count_r           <= '0;
 
-      for (i = 0; i < CQ_AREA_BYTES; i++) begin
+      for (int unsigned i = 0; i < CQ_AREA_BYTES; i++) begin
         tail_buf_r[i] <= 8'h00;
         cq_buf_r[i]   <= 8'h00;
       end
@@ -841,7 +839,7 @@ module fixed_slot_packer #(
       tail_count_r         <= tail_count_n;
       cq_count_r           <= cq_count_n;
 
-      for (i = 0; i < CQ_AREA_BYTES; i++) begin
+      for (int unsigned i = 0; i < CQ_AREA_BYTES; i++) begin
         tail_buf_r[i] <= tail_buf_n[i];
         cq_buf_r[i]   <= cq_buf_n[i];
       end
@@ -889,3 +887,4 @@ module fixed_slot_packer #(
   end
 
 endmodule
+

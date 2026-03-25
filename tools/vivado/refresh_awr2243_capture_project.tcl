@@ -108,6 +108,7 @@ if {[file exists $project_xpr]} {
 
 set sources_1 [get_filesets sources_1]
 set constrs_1 [get_filesets constrs_1]
+set sim_1    [get_filesets sim_1]
 set utils_1   [get_filesets utils_1]
 
 foreach stale {
@@ -150,6 +151,7 @@ foreach src [repo_source_files $repo_root] {
 }
 
 ensure_file_in_fileset $constrs_1 [file join $repo_root constraints awr2243_project_stub.xdc]
+ensure_file_in_fileset $sim_1 [file join $repo_root vivado_project vivado_ku5p awr2243_fpga_capture.srcs sim_1 awr2243_capture_top_with_bd_smoke_tb.sv]
 
 update_compile_order -fileset sources_1
 
@@ -164,10 +166,12 @@ if {[llength $wrapper_file] > 0} {
 }
 
 set_property top awr2243_capture_top_with_bd $sources_1
-set_property top awr2243_capture_top_with_bd [get_filesets sim_1]
+set_property top awr2243_capture_top_with_bd_smoke_tb $sim_1
+set_property xsim.simulate.runtime 10us $sim_1
 set_property verilog_dir [file join $repo_root rtl include] $sources_1
 
 update_compile_order -fileset sources_1
+update_compile_order -fileset sim_1
 if {![info exists ::awr2243_keep_project_open] || !$::awr2243_keep_project_open} {
   close_project
 }

@@ -257,14 +257,17 @@ connect_bd_net [get_bd_pins util_vl_sysrst_inv/Res] [get_bd_pins proc_sys_reset_
 connect_bd_net [get_bd_pins util_vl_sysrst_inv/Res] [get_bd_pins proc_sys_reset_xdma/ext_reset_in]
 connect_bd_net [get_bd_pins util_vl_sysrst_inv/Res] [get_bd_pins proc_sys_reset_ddr/ext_reset_in]
 
-connect_to_existing_pins [get_bd_pins xlconstant_zero/dout] [list \
+connect_to_existing_pins [get_bd_pins xlconstant_one/dout] [list \
   proc_sys_reset_video/aux_reset_in \
-  proc_sys_reset_video/mb_debug_sys_rst \
   proc_sys_reset_axi/aux_reset_in \
-  proc_sys_reset_axi/mb_debug_sys_rst \
   proc_sys_reset_xdma/aux_reset_in \
-  proc_sys_reset_xdma/mb_debug_sys_rst \
   proc_sys_reset_ddr/aux_reset_in \
+]
+
+connect_to_existing_pins [get_bd_pins xlconstant_zero/dout] [list \
+  proc_sys_reset_video/mb_debug_sys_rst \
+  proc_sys_reset_axi/mb_debug_sys_rst \
+  proc_sys_reset_xdma/mb_debug_sys_rst \
   proc_sys_reset_ddr/mb_debug_sys_rst \
 ]
 
